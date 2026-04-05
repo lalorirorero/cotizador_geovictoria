@@ -171,8 +171,7 @@
         .login-btn { width: 100%; padding: 12px; margin-top: 16px; font-size: 14px; font-weight: 700; background: #FFBB00; color: #003366; border: none; border-radius: 8px; cursor: pointer; font-family: 'Nunito', sans-serif; }
         .login-btn:hover { background: #e6a800; }
         .login-error { color: #dc3545; font-size: 12px; margin-top: 12px; display: none; }
-        .tab-content .container { display: none; }
-        .tab-content .container.authenticated { display: block; }
+        .tab-content .container { display: block; }
         /* Proposal download section */
         .proposal-card { padding: 0; overflow: hidden; }
         .proposal-header { background: linear-gradient(135deg, var(--primary-blue) 0%, #0099d4 100%); padding: 16px 24px; }
@@ -193,16 +192,7 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
-    <div class="login-overlay" id="loginOverlay">
-        <div class="login-box">
-            <h2>Cotizador GeoVictoria</h2>
-            <p>Ingresa la clave para acceder</p>
-            <input type="password" id="loginPassword" class="login-input" placeholder="Contraseña" autofocus>
-            <button type="button" id="loginBtn" class="login-btn">Ingresar</button>
-            <div class="login-error" id="loginError">Clave incorrecta</div>
-        </div>
-    </div>
-    <div class="main-tabs" id="mainTabs" style="display:none;">
+    <div class="main-tabs" id="mainTabs" style="display:flex;">
         <button class="main-tab active" data-tab="privado">Privado</button>
         <button class="main-tab" data-tab="gobierno">Gobierno</button>
     </div>
@@ -723,47 +713,6 @@
     </div>
 
     <script>
-        // Password protection
-        const PASS_HASH = '5bdf212437b1f5cc55bc0c6f01eb669b484d39d763e3d2bd588407539793b177';
-
-        async function hashPassword(password) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hash = await crypto.subtle.digest('SHA-256', data);
-            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        async function attemptLogin() {
-            const input = document.getElementById('loginPassword').value;
-            const hash = await hashPassword(input);
-            if (hash === PASS_HASH) {
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.querySelectorAll('.container').forEach(c => c.classList.add('authenticated'));
-                document.getElementById('mainTabs').style.display = 'flex';
-                sessionStorage.setItem('cotizador_auth', 'true');
-            } else {
-                document.getElementById('loginError').style.display = 'block';
-                document.getElementById('loginPassword').value = '';
-                document.getElementById('loginPassword').focus();
-            }
-        }
-
-        // Check if already authenticated in this session
-        if (sessionStorage.getItem('cotizador_auth') === 'true') {
-            document.addEventListener('DOMContentLoaded', () => {
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.querySelectorAll('.container').forEach(c => c.classList.add('authenticated'));
-                document.getElementById('mainTabs').style.display = 'flex';
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('loginBtn').addEventListener('click', attemptLogin);
-            document.getElementById('loginPassword').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') attemptLogin();
-            });
-        });
-
         // Hide Gobierno tab on production (Netlify)
         const isProduction = window.location.hostname.includes('netlify.app');
         if (isProduction) {
