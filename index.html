@@ -31,7 +31,7 @@
         }
 
         .container { max-width: 1200px; margin: 0 auto; }
-        .main-tabs { display: flex; justify-content: center; gap: 0; margin: 30px auto 0; max-width: 1200px; }
+        .main-tabs { display: none !important; justify-content: center; gap: 0; margin: 30px auto 0; max-width: 1200px; }
         .main-tab { flex: 1; max-width: 300px; padding: 14px 0; text-align: center; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 16px; cursor: pointer; border: none; background: rgba(100,100,100,0.1); color: #646464; transition: all 0.3s ease; border-bottom: 3px solid transparent; }
         .main-tab:first-child { border-radius: 12px 0 0 0; }
         .main-tab:last-child { border-radius: 0 12px 0 0; }
@@ -39,6 +39,7 @@
         .main-tab:hover:not(.active) { background: rgba(100,100,100,0.15); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        #tab-gobierno { display: none !important; }
 
         .card {
             background: var(--white);
@@ -641,10 +642,10 @@
             </div>
         </div>
 
-        <!-- Proposal Download Section -->
+        <!-- Proposal Creation Section -->
         <div class="card proposal-card">
             <div class="proposal-header">
-                <div class="section-title">Descargar Propuesta</div>
+                <div class="section-title">Crear Cotización</div>
             </div>
             <div class="proposal-form">
                 <div class="form-group">
@@ -670,9 +671,10 @@
             </div>
             <div class="download-btn-container">
                 <button type="button" id="downloadProposalBtn" class="download-btn">
-                    Descargar Propuesta (.pdf)
+                    Crear cotización
                 </button>
             </div>
+            <p id="proposalStatus" style="margin:10px 4px 0 4px;font-family:'Nunito',sans-serif;font-size:13px;color:#64748b;"></p>
         </div>
     </div>
     </div><!-- end tab-privado -->
@@ -713,12 +715,9 @@
     </div>
 
     <script>
-        // Hide Gobierno tab on production (Netlify)
-        const isProduction = window.location.hostname.includes('netlify.app');
-        if (isProduction) {
-            document.getElementById('mainTabs').remove();
-            document.getElementById('tab-gobierno').remove();
-        }
+        // Single-view mode: remove tab bar and gobierno section in all environments
+        document.getElementById('mainTabs')?.remove();
+        document.getElementById('tab-gobierno')?.remove();
 
         // Tab switching
         document.querySelectorAll('.main-tab').forEach(tab => {
@@ -2185,21 +2184,51 @@
             '</div>';
         }
 
-        async function downloadProposal() {
-            const btn = document.getElementById('downloadProposalBtn');
-            btn.disabled = true;
-            btn.textContent = 'Generando PDF...';
-            try {
-                const data = gatherProposalData();
-                if (data.servicios.length === 0 && data.equipos.length === 0 && data.accesorios.length === 0 && data.serviciosAsoc.length === 0) {
-                    alert('No hay servicios ni equipos configurados. Configura al menos un ítem en la calculadora.');
-                    return;
-                }
-                const container = document.createElement('div');
-                container.style.cssText = 'position:absolute;left:-9999px;top:0;z-index:-1;';
-                container.innerHTML = buildProposalHTML(data);
-                document.body.appendChild(container);
+        const SUPPORT_CONTACT_MSG = 'Si el problema persiste, contacta a Eduardo Gómez (Revenue) por Teams o al correo egomez@geovictoria.com.';
+        let activeSubmissionId = null;
 
+        function isEmbeddedExecution() {
+            return window.parent && window.parent !== window;
+        }
+
+        function setProposalStatus(message, type) {
+            const node = document.getElementById('proposalStatus');
+            if (!node) return;
+            node.textContent = message || '';
+            if (type === 'success') node.style.color = '#16a34a';
+            else if (type === 'error') node.style.color = '#b91c1c';
+            else node.style.color = '#64748b';
+        }
+
+        function buildProposalFilename(data) {
+            return 'Propuesta_GeoVictoria_' + data.empresa.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
+        }
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const result = reader.result || '';
+                    const marker = 'base64,';
+                    const index = result.indexOf(marker);
+                    if (index < 0) {
+                        reject(new Error('No se pudo convertir PDF a base64.'));
+                        return;
+                    }
+                    resolve(result.slice(index + marker.length));
+                };
+                reader.onerror = () => reject(reader.error || new Error('Error leyendo PDF en memoria.'));
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function renderProposalPdf(data) {
+            const container = document.createElement('div');
+            container.style.cssText = 'position:absolute;left:-9999px;top:0;z-index:-1;';
+            container.innerHTML = buildProposalHTML(data);
+            document.body.appendChild(container);
+
+            try {
                 await document.fonts.ready;
                 await new Promise(r => setTimeout(r, 200));
 
@@ -2214,18 +2243,224 @@
                     pdf.addImage(imgData, 'JPEG', 0, 0, 215.9, 279.4);
                 }
 
-                pdf.save('Propuesta_GeoVictoria_' + data.empresa.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf');
-                document.body.removeChild(container);
-            } catch (error) {
-                console.error('Error generating proposal:', error);
-                alert('Error al generar la propuesta:\n\n' + (error.message || error));
+                return {
+                    pdf,
+                    fileName: buildProposalFilename(data),
+                };
             } finally {
-                btn.disabled = false;
-                btn.textContent = 'Descargar Propuesta (.pdf)';
+                document.body.removeChild(container);
             }
         }
 
-        document.getElementById('downloadProposalBtn').addEventListener('click', downloadProposal);
+        function handleWidgetResponse(event) {
+            if (event.source !== window.parent) return;
+            const data = event && event.data ? event.data : null;
+            if (!data || typeof data !== 'object') return;
+            const type = data.type;
+            const payload = data.payload || {};
+            if (payload.submissionId && activeSubmissionId && payload.submissionId !== activeSubmissionId) return;
+
+            const btn = document.getElementById('downloadProposalBtn');
+            if (!btn) return;
+
+            if (type === 'GV_QUOTE_SUCCESS') {
+                activeSubmissionId = null;
+                btn.disabled = false;
+                btn.textContent = 'Crear cotización';
+                setProposalStatus('Cotización creada correctamente en CRM. Ya puedes continuar la transición.', 'success');
+                return;
+            }
+
+            if (type === 'GV_QUOTE_ERROR') {
+                activeSubmissionId = null;
+                btn.disabled = false;
+                btn.textContent = 'Crear cotización';
+                const message = payload.message || 'No se pudo crear la cotización.';
+                const completeMessage = message.includes(SUPPORT_CONTACT_MSG) ? message : (message + ' ' + SUPPORT_CONTACT_MSG);
+                setProposalStatus(completeMessage, 'error');
+            }
+        }
+
+        window.addEventListener('message', handleWidgetResponse);
+
+        async function submitOrDownloadProposal() {
+            const btn = document.getElementById('downloadProposalBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generando PDF...';
+            setProposalStatus('', 'info');
+            let waitingWidgetResponse = false;
+
+            try {
+                const proposalData = gatherProposalData();
+                if (proposalData.servicios.length === 0 && proposalData.equipos.length === 0 && proposalData.accesorios.length === 0 && proposalData.serviciosAsoc.length === 0) {
+                    throw new Error('No hay servicios ni equipos configurados. Configura al menos un ítem en la calculadora.');
+                }
+
+                const { pdf, fileName } = await renderProposalPdf(proposalData);
+                if (!isEmbeddedExecution()) {
+                    pdf.save(fileName);
+                    setProposalStatus('PDF generado correctamente.', 'success');
+                    return;
+                }
+
+                btn.textContent = 'Creando cotización...';
+                setProposalStatus('Enviando cotización al widget de Zoho CRM...', 'info');
+
+                const blob = pdf.output('blob');
+                const pdfBase64 = await blobToBase64(blob);
+                const prefill = getPrefillFromUrl() || {};
+                const submissionId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+                activeSubmissionId = submissionId;
+                waitingWidgetResponse = true;
+
+                window.parent.postMessage(
+                    {
+                        type: 'GV_QUOTE_SUBMIT',
+                        payload: {
+                            submissionId,
+                            proposalData,
+                            fileName,
+                            mimeType: 'application/pdf',
+                            pdfBase64,
+                            meta: {
+                                id_zoho: prefill.id_zoho || '',
+                                source: prefill.source || 'zoho_crm_widget',
+                                entity: prefill.entity || '',
+                            },
+                        },
+                    },
+                    '*'
+                );
+            } catch (error) {
+                console.error('Error creating proposal:', error);
+                const message = error && error.message ? error.message : String(error);
+                setProposalStatus(message + ' ' + SUPPORT_CONTACT_MSG, 'error');
+            } finally {
+                if (!waitingWidgetResponse) {
+                    btn.disabled = false;
+                    btn.textContent = 'Crear cotización';
+                }
+            }
+        }
+
+        document.getElementById('downloadProposalBtn').addEventListener('click', submitOrDownloadProposal);
+
+        function normalizePlainText(value) {
+            return (value || '')
+                .toString()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase();
+        }
+
+        function decodePrefillPayload(prefillValue) {
+            if (!prefillValue) return null;
+            try {
+                const normalized = prefillValue.replace(/-/g, '+').replace(/_/g, '/');
+                const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
+                const base64 = normalized + padding;
+                const decoded = atob(base64);
+
+                // Reverse of: btoa(unescape(encodeURIComponent(json)))
+                const utf8Decoded = decodeURIComponent(
+                    Array.prototype.map
+                        .call(decoded, function (char) {
+                            return '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2);
+                        })
+                        .join('')
+                );
+
+                return JSON.parse(utf8Decoded);
+            } catch (error) {
+                console.warn('[cotizador] No se pudo decodificar prefill en base64url, se intenta como URI JSON:', error);
+            }
+
+            try {
+                return JSON.parse(decodeURIComponent(prefillValue));
+            } catch (error) {
+                console.warn('[cotizador] Prefill invalido en URL:', error);
+                return null;
+            }
+        }
+
+        function getPrefillFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const encodedPayload = params.get('prefill');
+            if (encodedPayload) {
+                const decoded = decodePrefillPayload(encodedPayload);
+                if (decoded) return decoded;
+            }
+
+            const empresa = params.get('empresa') || '';
+            const contacto = params.get('contacto') || '';
+            const ejecutivo = params.get('ejecutivo') || '';
+            const userCount = params.get('userCount') || '';
+            if (!empresa && !contacto && !ejecutivo && !userCount) return null;
+            return { empresa, contacto, ejecutivo, userCount };
+        }
+
+        function setInputValue(inputId, value) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function setSelectValueByLabel(selectId, label) {
+            const select = document.getElementById(selectId);
+            if (!select || !label) return;
+
+            const normalizedTarget = normalizePlainText(label);
+            const options = Array.from(select.options || []);
+            const exactOption =
+                options.find((option) => normalizePlainText(option.value) === normalizedTarget) ||
+                options.find((option) => normalizePlainText(option.textContent) === normalizedTarget);
+
+            if (!exactOption) return;
+            select.value = exactOption.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function applyPrefill(prefill) {
+            if (!prefill) return;
+
+            if (prefill.empresa) setInputValue('propEmpresa', prefill.empresa);
+            if (prefill.contacto) setInputValue('propContacto', prefill.contacto);
+            if (prefill.ejecutivo) setSelectValueByLabel('propEjecutivo', prefill.ejecutivo);
+
+            const users = Number.parseInt(prefill.userCount, 10);
+            if (Number.isFinite(users) && users > 0) {
+                const asistenciaCheck = document.getElementById('asistenciaCheck');
+                if (asistenciaCheck && !asistenciaCheck.checked) {
+                    asistenciaCheck.checked = true;
+                    asistenciaCheck.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                setInputValue('userCount', String(users));
+            }
+
+            updateCalculator();
+            console.log('[cotizador] Prefill aplicado:', {
+                empresa: prefill.empresa || '',
+                contacto: prefill.contacto || '',
+                ejecutivo: prefill.ejecutivo || '',
+                userCount: users || 0,
+            });
+        }
+
+        function applyPrefillFromUrl() {
+            applyPrefill(getPrefillFromUrl());
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.source !== window.parent) return;
+            if (!event || !event.data || typeof event.data !== 'object') return;
+            if (event.data.type !== 'GV_PREFILL_REFRESH') return;
+            const payload = event.data.payload || {};
+            applyPrefill(payload);
+            setProposalStatus('Datos CRM recargados y aplicados a la cotizadora.', 'info');
+        });
 
         // Initialize
         populateEquipoDropdown();
@@ -2236,6 +2471,7 @@
         renderServiciosList();
         fetchUFValue();
         updateCalculator();
+        applyPrefillFromUrl();
     </script>
 </body>
 </html>
