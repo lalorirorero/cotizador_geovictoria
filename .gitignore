@@ -1,3 +1,11 @@
-﻿.DS_Store
+.DS_Store
 Thumbs.db
 .vercel
+node_modules
+zoho-widget/**/node_modules
+zoho-widget/**/dist
+zoho-widget/**/ZET-debug.log
+zoho-widget/**/zet-run.err.log
+zoho-widget/**/zet-run.out.log
+zoho-widget/**/*.pem
+zoho-widget/**/*.zip
