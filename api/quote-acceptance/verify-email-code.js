@@ -38,7 +38,6 @@ export default async function handler(req, res) {
     const token = toText(body?.token);
     const challengeToken = toText(body?.challengeToken);
     const code = toText(body?.code).replace(/\s+/g, "");
-    const billingEmail = normalizeEmail(body?.billingEmail);
 
     if (!token) {
       sendJson(res, 400, { success: false, error: "Falta token." });
@@ -55,10 +54,6 @@ export default async function handler(req, res) {
       });
       return;
     }
-    if (!billingEmail) {
-      sendJson(res, 400, { success: false, error: "Falta correo de facturacion." });
-      return;
-    }
 
     const acceptancePayload = verifyAcceptanceToken(token);
     const challenge = verifyVerificationToken(challengeToken, "quote_email_challenge");
@@ -73,10 +68,10 @@ export default async function handler(req, res) {
     }
 
     const challengeEmail = normalizeEmail(challenge?.email);
-    if (!challengeEmail || challengeEmail !== billingEmail) {
+    if (!challengeEmail) {
       sendJson(res, 400, {
         success: false,
-        error: "El correo verificado no coincide con el correo de facturacion actual.",
+        error: "No se encontró correo de facturación asociado al desafío de verificación.",
       });
       return;
     }

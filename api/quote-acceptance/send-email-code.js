@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
-const { toText } = require("../_shared/zoho-crm");
+const { getRecord, toText } = require("../_shared/zoho-crm");
 const { sendVerificationCodeEmail, validateEmail } = require("../_shared/verification-mailer");
 const {
   signVerificationPayload,
@@ -57,22 +57,24 @@ export default async function handler(req, res) {
   try {
     const body = parseBody(req);
     const token = toText(body?.token);
-    const billingEmail = normalizeEmail(body?.billingEmail);
     const recipientName = toText(body?.recipientName);
 
     if (!token) {
       sendJson(res, 400, { success: false, error: "Falta token." });
       return;
     }
+
+    const acceptancePayload = verifyAcceptanceToken(token);
+    const quote = await getRecord(config.quoteModule, acceptancePayload.quoteId);
+    const billingEmail = normalizeEmail(quote?.[config.billingEmailField]);
     if (!billingEmail || !validateEmail(billingEmail)) {
       sendJson(res, 400, {
         success: false,
-        error: "Ingresa un correo de facturacion valido antes de solicitar el codigo.",
+        error: `No hay un correo de facturacion valido configurado en la cotizacion.${supportSuffix}`,
       });
       return;
     }
 
-    const acceptancePayload = verifyAcceptanceToken(token);
     const ttlMinutes = Math.max(3, Number(config.verificationCodeTtlMinutes || 10));
     const code = randomCode6();
     const nonce = crypto.randomBytes(12).toString("hex");

@@ -90,10 +90,10 @@ Endpoint de validación:
 - `GET /api/quote-acceptance/session?token=...`
   - carga datos de cotizacion + detalle de items para mostrar en web.
 - `POST /api/quote-acceptance/send-email-code`
-  - input: `{ "token": "...", "billingEmail": "cliente@empresa.cl" }`
+  - input: `{ "token": "..." }`
   - output: `challengeToken` y expiración del código OTP.
 - `POST /api/quote-acceptance/verify-email-code`
-  - input: `{ "token": "...", "challengeToken": "...", "code": "123456", "billingEmail": "..." }`
+  - input: `{ "token": "...", "challengeToken": "...", "code": "123456" }`
   - output: `verificationToken` para habilitar confirmación final.
 - `POST /api/quote-acceptance/confirm`
   - confirma TyC + datos de facturación + `verificationToken` válido, marca cotización `Aceptada`, y dispara handoff a onboarding.
@@ -103,6 +103,7 @@ Endpoint de validación:
 - Esta pantalla:
   - muestra resumen + items + terminos,
   - solicita datos obligatorios de facturacion,
+  - usa el correo de facturacion definido en la cotizacion (solo lectura para cliente),
   - exige verificacion por codigo enviado al correo de facturacion,
   - confirma TyC,
   - y redirige a onboarding si handoff devuelve `onboardingUrl`.

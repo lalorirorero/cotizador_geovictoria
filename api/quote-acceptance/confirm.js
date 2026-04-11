@@ -25,7 +25,6 @@ function parseBody(req) {
 
 function validateRequiredInput(fields) {
   const required = [
-    ["billingEmail", "correo de facturacion"],
     ["billingPhone", "telefono de facturacion"],
     ["companyGiro", "giro"],
     ["companyRut", "RUT de empresa"],
@@ -42,6 +41,10 @@ function toZohoDateTime(value) {
   const date = value instanceof Date ? value : new Date(value || Date.now());
   const iso = date.toISOString().replace(/\.\d{3}Z$/, "");
   return `${iso}+00:00`;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toText(value).toLowerCase());
 }
 
 async function triggerHandoff(config, payload) {
@@ -153,6 +156,7 @@ export default async function handler(req, res) {
     const currentOnboardingUrl = toText(quote?.[config.quoteOnboardingUrlField]);
     const currentOnboardingToken = toText(quote?.[config.quoteOnboardingTokenField]);
     const currentOnboardingLookup = toText(quote?.[config.quoteOnboardingLookupField]?.id);
+    const authoritativeBillingEmail = normalizeEmail(quote?.[config.billingEmailField]);
 
     const currentStatus = toText(quote?.[config.quoteStatusField]);
     const alreadyAccepted = /Aceptada/i.test(currentStatus);
@@ -168,7 +172,15 @@ export default async function handler(req, res) {
       return;
     }
 
-    const billingEmail = normalizeEmail(acceptanceData.billingEmail);
+    if (!isValidEmail(authoritativeBillingEmail)) {
+      sendJson(res, 400, {
+        success: false,
+        error:
+          "No hay correo de facturacion valido en la cotizacion. Solicita a tu ejecutivo comercial actualizar la cotizacion antes de continuar.",
+      });
+      return;
+    }
+
     if (!alreadyAccepted) {
       if (!verificationToken) {
         sendJson(res, 400, {
@@ -177,14 +189,6 @@ export default async function handler(req, res) {
         });
         return;
       }
-      if (!billingEmail) {
-        sendJson(res, 400, {
-          success: false,
-          error: "Debes ingresar un correo de facturacion valido.",
-        });
-        return;
-      }
-
       let verificationPayload = null;
       try {
         verificationPayload = verifyVerificationToken(verificationToken, "quote_email_verified");
@@ -210,10 +214,10 @@ export default async function handler(req, res) {
         });
         return;
       }
-      if (normalizeEmail(verificationPayload?.email) !== billingEmail) {
+      if (normalizeEmail(verificationPayload?.email) !== authoritativeBillingEmail) {
         sendJson(res, 400, {
           success: false,
-          error: "El correo verificado no coincide con el correo de facturacion ingresado.",
+          error: "El correo verificado no coincide con el correo de facturacion de la cotizacion.",
         });
         return;
       }
@@ -227,7 +231,7 @@ export default async function handler(req, res) {
         [config.quoteAcceptanceAtField]: acceptedAtIso,
         [config.quoteTermsAcceptedField]: true,
         [config.quoteTermsVersionField]: config.termsVersion,
-        [config.billingEmailField]: toText(acceptanceData.billingEmail),
+        [config.billingEmailField]: authoritativeBillingEmail,
         [config.billingPhoneField]: toText(acceptanceData.billingPhone),
         [config.companyGiroField]: toText(acceptanceData.companyGiro),
         [config.companyRutField]: toText(acceptanceData.companyRut),
@@ -254,7 +258,7 @@ export default async function handler(req, res) {
         acceptedAt: acceptedAtIso,
         termsVersion: config.termsVersion,
         acceptanceData: {
-          billingEmail: toText(acceptanceData.billingEmail),
+          billingEmail: authoritativeBillingEmail,
           billingPhone: toText(acceptanceData.billingPhone),
           companyGiro: toText(acceptanceData.companyGiro),
           companyRut: toText(acceptanceData.companyRut),
