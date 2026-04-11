@@ -26,6 +26,58 @@ function sumBy(items, key) {
   return (items || []).reduce((acc, row) => acc + Number(row?.[key] || 0), 0);
 }
 
+function isRecurrentModalidad(value) {
+  const modalidad = toText(value).toLowerCase();
+  if (!modalidad) return true;
+  if (modalidad.includes("venta")) return false;
+  if (modalidad.includes("no recurrente")) return false;
+  return true;
+}
+
+function computeTotals(items) {
+  const rows = Array.isArray(items) ? items : [];
+  const subtotalUf = sumBy(rows, "subtotalUf");
+  const subtotalClp = sumBy(rows, "subtotalClp");
+
+  let recurrenteUf = 0;
+  let recurrenteClp = 0;
+  let noRecurrenteUf = 0;
+  let noRecurrenteClp = 0;
+  let ivaUf = 0;
+  let ivaClp = 0;
+
+  rows.forEach((row) => {
+    const subtotalRowUf = Number(row?.subtotalUf || 0);
+    const subtotalRowClp = Number(row?.subtotalClp || 0);
+    if (isRecurrentModalidad(row?.modalidad)) {
+      recurrenteUf += subtotalRowUf;
+      recurrenteClp += subtotalRowClp;
+    } else {
+      noRecurrenteUf += subtotalRowUf;
+      noRecurrenteClp += subtotalRowClp;
+    }
+
+    const afectoIva = row?.afectoIva !== false;
+    if (afectoIva) {
+      ivaUf += subtotalRowUf * 0.19;
+      ivaClp += subtotalRowClp * 0.19;
+    }
+  });
+
+  return {
+    subtotalUf: Number(subtotalUf.toFixed(3)),
+    subtotalClp: Math.round(subtotalClp),
+    ivaUf: Number(ivaUf.toFixed(3)),
+    ivaClp: Math.round(ivaClp),
+    totalUf: Number((subtotalUf + ivaUf).toFixed(3)),
+    totalClp: Math.round(subtotalClp + ivaClp),
+    recurrenteUf: Number(recurrenteUf.toFixed(3)),
+    recurrenteClp: Math.round(recurrenteClp),
+    noRecurrenteUf: Number(noRecurrenteUf.toFixed(3)),
+    noRecurrenteClp: Math.round(noRecurrenteClp),
+  };
+}
+
 async function getFallbackData(dealId) {
   const cleanDealId = toText(dealId);
   if (!cleanDealId) {
@@ -181,10 +233,7 @@ export default async function handler(req, res) {
         supportEmail: config.supportContactEmail,
       },
       items,
-      totals: {
-        subtotalUf: Number(sumBy(items, "subtotalUf").toFixed(3)),
-        subtotalClp: Math.round(sumBy(items, "subtotalClp")),
-      },
+      totals: computeTotals(items),
     });
   } catch (error) {
     const isExpired = toText(error?.code) === "TOKEN_EXPIRED";

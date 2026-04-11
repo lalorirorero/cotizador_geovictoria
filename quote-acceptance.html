@@ -605,6 +605,22 @@
               <div class="k">Subtotal referencia</div>
               <div id="qSubtotal" class="v">-</div>
             </div>
+            <div class="item">
+              <div class="k">IVA (19%)</div>
+              <div id="qIva" class="v">-</div>
+            </div>
+            <div class="item">
+              <div class="k">Total con IVA</div>
+              <div id="qTotal" class="v">-</div>
+            </div>
+            <div class="item">
+              <div class="k">Recurrente mensual</div>
+              <div id="qRecurring" class="v">-</div>
+            </div>
+            <div class="item">
+              <div class="k">No recurrente</div>
+              <div id="qNonRecurring" class="v">-</div>
+            </div>
           </div>
           <div class="info-help">
             Si detectas diferencias en items o precios, no aceptes aun. Contacta a tu ejecutivo comercial para ajustar la propuesta.
@@ -716,12 +732,15 @@
                 <th>Item</th>
                 <th>Modalidad</th>
                 <th>Cantidad</th>
+                <th>Precio UF</th>
+                <th>Precio CLP</th>
                 <th>Subtotal UF</th>
                 <th>Subtotal CLP</th>
+                <th>Afecto IVA</th>
               </tr>
             </thead>
             <tbody id="itemsRows">
-              <tr><td colspan="5">Sin datos.</td></tr>
+              <tr><td colspan="8">Sin datos.</td></tr>
             </tbody>
           </table>
           <div class="stage-actions">
@@ -1191,7 +1210,16 @@
           document.getElementById("qName").textContent = q.name || q.id || "-";
           document.getElementById("qStatus").textContent = q.status || "-";
           document.getElementById("qExpiry").textContent = q.expiresAt ? new Date(q.expiresAt).toLocaleString("es-CL") : "-";
-          document.getElementById("qSubtotal").textContent = fmtUF(data.totals?.subtotalUf) + " / " + fmtCLP(data.totals?.subtotalClp);
+          document.getElementById("qSubtotal").textContent =
+            fmtUF(data.totals?.subtotalUf) + " / " + fmtCLP(data.totals?.subtotalClp);
+          document.getElementById("qIva").textContent =
+            fmtUF(data.totals?.ivaUf) + " / " + fmtCLP(data.totals?.ivaClp);
+          document.getElementById("qTotal").textContent =
+            fmtUF(data.totals?.totalUf) + " / " + fmtCLP(data.totals?.totalClp);
+          document.getElementById("qRecurring").textContent =
+            fmtUF(data.totals?.recurrenteUf) + " / " + fmtCLP(data.totals?.recurrenteClp);
+          document.getElementById("qNonRecurring").textContent =
+            fmtUF(data.totals?.noRecurrenteUf) + " / " + fmtCLP(data.totals?.noRecurrenteClp);
           const pdfLink = document.getElementById("pdfLink");
           pdfLink.href = q.pdfUrl || "#";
           if (q.pdfUrl) {
@@ -1228,15 +1256,24 @@
                     Number(row.cantidad || 0) +
                     "</td>" +
                     "<td>" +
+                    fmtUF(row.precioUnitarioUf) +
+                    "</td>" +
+                    "<td>" +
+                    fmtCLP(row.precioUnitarioClp) +
+                    "</td>" +
+                    "<td>" +
                     fmtUF(row.subtotalUf) +
                     "</td>" +
                     "<td>" +
                     fmtCLP(row.subtotalClp) +
                     "</td>" +
+                    "<td>" +
+                    (row.afectoIva ? "Si" : "No") +
+                    "</td>" +
                     "</tr>"
                 )
                 .join("")
-            : '<tr><td colspan="5">Sin datos.</td></tr>';
+            : '<tr><td colspan="8">Sin datos.</td></tr>';
 
           supportState.quoteLabel = q.name || "esta cotizacion";
           supportState.contactName = (data.support && data.support.executiveName) || "tu ejecutivo comercial";
