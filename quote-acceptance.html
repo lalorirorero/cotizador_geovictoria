@@ -340,8 +340,8 @@
                 <button id="verifyCodeBtn" type="button" class="btn secondary">Validar codigo</button>
               </div>
             </div>
-            <div id="verifyMessage" class="message"></div>
-            <div id="verifyCountdown" class="message"></div>
+            <div id="verifyMessage" class="message" style="display: none"></div>
+            <div id="verifyCountdown" class="message" style="display: none"></div>
           </div>
 
           <div class="accept">
@@ -406,11 +406,13 @@
       function setVerifyMessage(text, level) {
         verifyMessageEl.textContent = text || "";
         verifyMessageEl.className = "message" + (level ? " " + level : "");
+        verifyMessageEl.style.display = "none";
       }
 
       function setVerifyCountdown(text, level) {
         verifyCountdownEl.textContent = text || "";
         verifyCountdownEl.className = "message" + (level ? " " + level : "");
+        verifyCountdownEl.style.display = "none";
       }
 
       function getCodeRemainingSeconds() {
