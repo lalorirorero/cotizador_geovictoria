@@ -7,26 +7,150 @@
     <style>
       :root {
         --brand: #00aff2;
-        --ink: #0f172a;
-        --muted: #64748b;
-        --line: #dbe3ee;
-        --ok: #166534;
-        --warn: #9a3412;
-        --bg: #f4f8fb;
+        --brand-strong: #0284c7;
+        --ink: #10213a;
+        --muted: #5f738d;
+        --line: #d5e3f0;
+        --line-strong: #b9cde1;
+        --ok: #15803d;
+        --warn: #b45309;
+        --bg: #f3f8fc;
       }
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        font-family: Nunito, Arial, sans-serif;
-        background: var(--bg);
+        font-family: "Nunito", "Segoe UI", Arial, sans-serif;
+        background:
+          radial-gradient(1200px 420px at 100% -12%, #d4f0ff 0%, rgba(212, 240, 255, 0) 64%),
+          linear-gradient(180deg, #f9fcff 0%, var(--bg) 45%, #eef5fb 100%);
         color: var(--ink);
       }
       .wrap {
-        max-width: 980px;
+        max-width: 1040px;
         margin: 0 auto;
-        padding: 24px 16px 40px;
+        padding: 24px 16px 42px;
+      }
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: linear-gradient(125deg, #ffffff 0%, #f4fbff 55%, #ebf7ff 100%);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.09);
+        padding: 20px 20px 16px;
+        margin-bottom: 14px;
+      }
+      .hero-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: #27384f;
+        font-size: 17px;
+        font-weight: 900;
+      }
+      .brand-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--brand);
+        box-shadow: 10px 0 0 #ffc20e;
+      }
+      .hero-title {
+        margin: 8px 0 4px;
+        font-size: 29px;
+        line-height: 1.1;
+      }
+      .hero-sub {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      .status {
+        font-size: 12px;
+        border-radius: 999px;
+        border: 1px solid #c4dcf0;
+        padding: 8px 12px;
+        background: #fff;
+        color: #1e5c8f;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .status.ok {
+        color: var(--ok);
+        border-color: #bde6c8;
+        background: #f2fcf5;
+      }
+      .status.warn {
+        color: var(--warn);
+        border-color: #f7d8b0;
+        background: #fff8ee;
+      }
+      .steps {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 10px 12px;
+      }
+      .step-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .step-num {
+        width: 22px;
+        height: 22px;
+        border: 1px solid var(--line-strong);
+        color: #335579;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 900;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .step-title {
+        font-size: 13px;
+        font-weight: 900;
+      }
+      .step-sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.3;
+      }
+      .step.current {
+        border-color: #8cc9ee;
+        box-shadow: 0 8px 16px rgba(2, 132, 199, 0.08);
+      }
+      .step.done {
+        border-color: #bde6c8;
+        background: #f6fcf7;
+      }
+      .step.done .step-num {
+        border-color: #4ba96a;
+        color: #15803d;
+      }
+      .journey-hint {
+        margin-top: 10px;
+        border-radius: 10px;
+        border: 1px solid #b8dcf6;
+        background: #eff8ff;
+        color: #1b4f77;
+        padding: 9px 12px;
+        font-size: 13px;
+        font-weight: 700;
       }
       .card {
         background: #fff;
@@ -36,7 +160,7 @@
         margin-bottom: 14px;
       }
       .head {
-        padding: 18px 20px;
+        padding: 15px 18px;
         border-bottom: 1px solid var(--line);
         display: flex;
         justify-content: space-between;
@@ -45,24 +169,30 @@
       }
       .title {
         margin: 0;
-        font-size: 22px;
+        font-size: 18px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
       }
-      .status {
+      .icon {
+        width: 28px;
+        height: 28px;
+        border: 1px solid #b7dbf5;
+        border-radius: 9px;
+        background: #eaf7ff;
+        color: #0b5d91;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         font-size: 13px;
-        color: var(--muted);
-      }
-      .status.ok {
-        color: var(--ok);
-      }
-      .status.warn {
-        color: var(--warn);
+        font-weight: 900;
       }
       .content {
         padding: 18px 20px;
       }
       .grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px;
       }
       .item {
@@ -80,6 +210,34 @@
         font-weight: 700;
         word-break: break-word;
       }
+      .info-help {
+        margin-top: 12px;
+        padding: 11px 12px;
+        border: 1px solid #c7d8ea;
+        border-radius: 10px;
+        color: #45617f;
+        background: #f8fbff;
+        font-size: 13px;
+      }
+      .pdf-link {
+        margin-top: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        border-radius: 10px;
+        border: 1px solid #8cc9ee;
+        color: #075985;
+        font-weight: 900;
+        font-size: 14px;
+        text-decoration: none;
+        padding: 0 14px;
+        background: #fff;
+      }
+      .pdf-link.disabled {
+        opacity: 0.55;
+        pointer-events: none;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -94,11 +252,17 @@
       th {
         color: var(--muted);
         font-weight: 700;
+        background: #f7fbff;
       }
       .terms {
         margin: 0;
         padding-left: 18px;
-        line-height: 1.45;
+        line-height: 1.48;
+        font-size: 14px;
+      }
+      .terms-intro {
+        margin: 0 0 10px;
+        color: var(--muted);
         font-size: 14px;
       }
       .fields {
@@ -120,6 +284,9 @@
         padding: 0 12px;
         font-size: 14px;
       }
+      input[readonly] {
+        background: #f4f9ff;
+      }
       input:focus {
         outline: none;
         border-color: var(--brand);
@@ -136,12 +303,13 @@
         gap: 10px;
         align-items: flex-start;
         margin-top: 10px;
+        background: #fbfdff;
       }
       .btn {
         width: 100%;
         margin-top: 12px;
         border: 0;
-        background: var(--brand);
+        background: linear-gradient(90deg, var(--brand) 0%, #0d9ad5 100%);
         color: #fff;
         font-weight: 800;
         height: 46px;
@@ -205,22 +373,123 @@
       .message.ok {
         color: var(--ok);
       }
-      @media (max-width: 800px) {
+      .wa-panel {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 90;
+      }
+      .wa-chip {
+        border: 0;
+        border-radius: 999px;
+        background: #13b35b;
+        color: #fff;
+        padding: 11px 16px;
+        font-weight: 900;
+        box-shadow: 0 14px 26px rgba(15, 23, 42, 0.2);
+        cursor: pointer;
+      }
+      .wa-card {
+        width: min(332px, calc(100vw - 30px));
+        border: 1px solid #cce9d8;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 18px 30px rgba(15, 23, 42, 0.18);
+        overflow: hidden;
+      }
+      .wa-head {
+        padding: 9px 12px;
+        background: linear-gradient(90deg, #11aa55 0%, #0c8f47 100%);
+        color: #fff;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .wa-body {
+        padding: 11px 12px 12px;
+      }
+      .wa-body p {
+        margin: 0;
+        color: #1f3d2e;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .wa-open {
+        margin-top: 10px;
+        width: 100%;
+        min-height: 40px;
+        border-radius: 10px;
+        border: 0;
+        background: #0f9d4e;
+        color: #fff;
+        font-weight: 900;
+        cursor: pointer;
+      }
+      .wa-close {
+        border: 0;
+        background: transparent;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 900;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .hidden {
+        display: none !important;
+      }
+      @media (max-width: 900px) {
+        .hero-top,
         .grid,
+        .steps,
         .fields,
         .verify-grid,
         .verify-actions {
           grid-template-columns: 1fr;
+        }
+        .hero-top {
+          display: block;
+        }
+        .hero-title {
+          font-size: 25px;
         }
       }
     </style>
   </head>
   <body>
     <div class="wrap">
+      <section class="hero">
+        <div class="hero-top">
+          <div>
+            <div class="brand"><span class="brand-dot" aria-hidden="true"></span><span>GeoVictoria</span></div>
+            <h1 class="hero-title">Aceptacion digital de cotizacion</h1>
+            <p class="hero-sub">
+              Revisa la propuesta, acepta terminos, valida tu correo y continua al auto-onboarding.
+            </p>
+          </div>
+          <div id="status" class="status">Cargando...</div>
+        </div>
+        <div class="steps">
+          <div id="stepInfo" class="step current">
+            <div class="step-line"><span class="step-num">1</span><span class="step-title">Informacion comercial</span></div>
+            <div class="step-sub">Revision de montos, vigencia y detalle de cotizacion.</div>
+          </div>
+          <div id="stepTerms" class="step">
+            <div class="step-line"><span class="step-num">2</span><span class="step-title">Terminos y aceptacion</span></div>
+            <div class="step-sub">Condiciones de servicio para Chile y aceptacion explicita.</div>
+          </div>
+          <div id="stepVerify" class="step">
+            <div class="step-line"><span class="step-num">3</span><span class="step-title">Facturacion y verificacion</span></div>
+            <div class="step-sub">Datos de facturacion + OTP al correo de contacto.</div>
+          </div>
+        </div>
+        <div id="journeyHint" class="journey-hint">Cargando cotizacion...</div>
+      </section>
+
       <section class="card">
         <div class="head">
-          <h1 class="title">Revision y aceptacion de cotizacion</h1>
-          <div id="status" class="status">Cargando...</div>
+          <h1 class="title"><span class="icon">1</span>Resumen de la cotizacion</h1>
+          <div class="k">Paso clave: validar informacion comercial</div>
         </div>
         <div class="content">
           <div class="grid">
@@ -241,15 +510,18 @@
               <div id="qSubtotal" class="v">-</div>
             </div>
           </div>
-          <div style="margin-top: 12px">
-            <a id="pdfLink" target="_blank" rel="noopener noreferrer">Ver PDF de cotizacion</a>
+          <div class="info-help">
+            Si detectas diferencias en items o precios, no aceptes aun. Contacta a tu ejecutivo comercial para ajustar la propuesta.
+          </div>
+          <div style="margin-top: 10px">
+            <a id="pdfLink" class="pdf-link" target="_blank" rel="noopener noreferrer">Ver PDF de cotizacion</a>
           </div>
         </div>
       </section>
 
       <section class="card">
         <div class="head">
-          <h2 class="title" style="font-size: 18px">Detalle de items</h2>
+          <h2 class="title"><span class="icon">1</span>Detalle de items</h2>
         </div>
         <div class="content">
           <table>
@@ -271,9 +543,12 @@
 
       <section class="card">
         <div class="head">
-          <h2 class="title" style="font-size: 18px">Terminos y condiciones (Chile)</h2>
+          <h2 class="title"><span class="icon">2</span>Terminos y condiciones (Chile)</h2>
         </div>
         <div class="content">
+          <p class="terms-intro">
+            Este resumen define alcance de implementacion, niveles de servicio y vigencia comercial.
+          </p>
           <ol class="terms">
             <li>Plazo estimado de implementacion: 2 a 3 semanas desde recepcion de planilla de usuarios validada.</li>
             <li>24 horas habiles: habilitacion del portal y creacion de empresa.</li>
@@ -286,12 +561,18 @@
             <li>Precios con revision anual por IPC o equivalente UF.</li>
             <li>La vigencia de la cotizacion es de 30 dias corridos desde su emision.</li>
           </ol>
+          <div class="accept">
+            <input id="termsAccepted" type="checkbox" style="width: 18px; height: 18px; margin-top: 2px" />
+            <label for="termsAccepted" style="margin: 0">
+              Acepto los terminos y condiciones de la cotizacion y confirmo que los datos de facturacion son correctos.
+            </label>
+          </div>
         </div>
       </section>
 
       <section class="card">
         <div class="head">
-          <h2 class="title" style="font-size: 18px">Datos para facturacion y confirmacion</h2>
+          <h2 class="title"><span class="icon">3</span>Datos para facturacion y confirmacion</h2>
         </div>
         <div class="content">
           <div class="fields">
@@ -344,18 +625,27 @@
             <div id="verifyCountdown" class="message" style="display: none"></div>
           </div>
 
-          <div class="accept">
-            <input id="termsAccepted" type="checkbox" style="width: 18px; height: 18px; margin-top: 2px" />
-            <label for="termsAccepted" style="margin: 0">
-              Acepto los terminos y condiciones de la cotizacion y confirmo que los datos de facturacion son correctos.
-            </label>
-          </div>
-
           <button id="confirmBtn" class="btn">Aceptar cotizacion y continuar</button>
           <div id="message" class="message"></div>
         </div>
       </section>
     </div>
+
+    <aside class="wa-panel hidden" id="waPanel">
+      <button id="waChip" class="wa-chip" type="button" aria-label="Mostrar WhatsApp">
+        Hablar por WhatsApp
+      </button>
+      <div id="waCard" class="wa-card hidden">
+        <div class="wa-head">
+          <span id="waTitle">Tu ejecutivo comercial</span>
+          <button id="waClose" class="wa-close" type="button" aria-label="Cerrar tarjeta">x</button>
+        </div>
+        <div class="wa-body">
+          <p id="waBody">Si necesitas apoyo para revisar esta cotizacion, te ayudamos por WhatsApp.</p>
+          <button id="waOpen" class="wa-open" type="button">Abrir WhatsApp</button>
+        </div>
+      </div>
+    </aside>
 
     <script>
       const token = new URLSearchParams(window.location.search).get("token") || "";
@@ -365,6 +655,19 @@
       const verifyCountdownEl = document.getElementById("verifyCountdown");
       const sendCodeBtn = document.getElementById("sendCodeBtn");
       const verifyCodeBtn = document.getElementById("verifyCodeBtn");
+      const termsAcceptedInput = document.getElementById("termsAccepted");
+      const journeyHintEl = document.getElementById("journeyHint");
+      const stepInfoEl = document.getElementById("stepInfo");
+      const stepTermsEl = document.getElementById("stepTerms");
+      const stepVerifyEl = document.getElementById("stepVerify");
+
+      const waPanel = document.getElementById("waPanel");
+      const waChip = document.getElementById("waChip");
+      const waCard = document.getElementById("waCard");
+      const waClose = document.getElementById("waClose");
+      const waOpen = document.getElementById("waOpen");
+      const waTitle = document.getElementById("waTitle");
+      const waBody = document.getElementById("waBody");
       const fields = {
         contactEmail: document.getElementById("contactEmail"),
         billingEmail: document.getElementById("billingEmail"),
@@ -383,6 +686,13 @@
         codeExpiresAtMs: 0,
         countdownTimer: null,
         quoteExpired: false,
+        sessionLoaded: false,
+      };
+      const supportState = {
+        quoteLabel: "",
+        contactName: "",
+        whatsappLink: "",
+        isOpen: false,
       };
 
       function normalizeEmail(value) {
@@ -413,6 +723,94 @@
         verifyCountdownEl.textContent = text || "";
         verifyCountdownEl.className = "message" + (level ? " " + level : "");
         verifyCountdownEl.style.display = "none";
+      }
+
+      function setStepClass(el, mode) {
+        if (!el) return;
+        el.classList.remove("done", "current");
+        if (mode) el.classList.add(mode);
+      }
+
+      function updateJourneyState() {
+        const termsAccepted = !!termsAcceptedInput.checked;
+        const verified = isEmailVerifiedForCurrentInput();
+        const remaining = getCodeRemainingSeconds();
+
+        if (!verificationState.sessionLoaded) {
+          setStepClass(stepInfoEl, "current");
+          setStepClass(stepTermsEl, "");
+          setStepClass(stepVerifyEl, "");
+          journeyHintEl.textContent = "Cargando cotizacion...";
+          return;
+        }
+
+        setStepClass(stepInfoEl, "done");
+        if (!termsAccepted) {
+          setStepClass(stepTermsEl, "current");
+          setStepClass(stepVerifyEl, "");
+          journeyHintEl.textContent = verificationState.quoteExpired
+            ? "Cotizacion expirada. Debes solicitar una nueva version a tu ejecutivo comercial."
+            : "Siguiente paso: acepta los terminos y condiciones.";
+          return;
+        }
+
+        setStepClass(stepTermsEl, "done");
+        if (!verified) {
+          setStepClass(stepVerifyEl, "current");
+          if (verificationState.quoteExpired) {
+            journeyHintEl.textContent = "Cotizacion expirada. Debes solicitar una nueva version a tu ejecutivo comercial.";
+          } else if (remaining > 0) {
+            journeyHintEl.textContent = "Codigo enviado. Ingresalo para validar y habilitar la confirmacion.";
+          } else if (verificationState.challengeToken) {
+            journeyHintEl.textContent = "El codigo expiro. Solicita uno nuevo para continuar.";
+          } else {
+            journeyHintEl.textContent = "Solicita y valida un codigo OTP al correo de contacto.";
+          }
+          return;
+        }
+
+        setStepClass(stepVerifyEl, "done");
+        journeyHintEl.textContent = verificationState.quoteExpired
+          ? "Cotizacion expirada. Debes solicitar una nueva version a tu ejecutivo comercial."
+          : "Listo: puedes aceptar la cotizacion y continuar al onboarding.";
+      }
+
+      function normalizeWhatsappPhone(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        return raw.replace(/[^\d]/g, "");
+      }
+
+      function buildWhatsappLink(phoneDigits, executiveName, quoteLabel) {
+        if (!phoneDigits) return "";
+        const nombre = (executiveName || "equipo comercial").trim();
+        const cot = (quoteLabel || "esta cotizacion").trim();
+        const text =
+          "Hola " +
+          nombre +
+          ", estoy revisando " +
+          cot +
+          " en la aceptacion web y necesito ayuda para continuar.";
+        return "https://wa.me/" + phoneDigits + "?text=" + encodeURIComponent(text);
+      }
+
+      function toggleWhatsappCard(openValue) {
+        supportState.isOpen = !!openValue;
+        if (supportState.isOpen) {
+          waCard.classList.remove("hidden");
+          waChip.classList.add("hidden");
+        } else {
+          waCard.classList.add("hidden");
+          waChip.classList.remove("hidden");
+        }
+      }
+
+      function setWhatsappVisibility() {
+        if (!supportState.whatsappLink) {
+          waPanel.classList.add("hidden");
+          return;
+        }
+        waPanel.classList.remove("hidden");
       }
 
       function getCodeRemainingSeconds() {
@@ -455,6 +853,7 @@
           verificationState.codeExpiresAtMs = 0;
           setVerifyCountdown("", "");
           updateSendCodeButton();
+          updateJourneyState();
           return;
         }
         verificationState.codeExpiresAtMs = parsedMs;
@@ -462,20 +861,16 @@
           clearInterval(verificationState.countdownTimer);
         }
         verificationState.countdownTimer = setInterval(() => {
-          const remaining = getCodeRemainingSeconds();
-          if (remaining > 0) {
-            setVerifyCountdown("Codigo vigente por " + formatDuration(remaining) + ".", "ok");
-          } else {
-            setVerifyCountdown("El codigo expiro. Puedes solicitar uno nuevo.", "warn");
-          }
           updateSendCodeButton();
-          if (remaining <= 0) {
+          updateJourneyState();
+          if (getCodeRemainingSeconds() <= 0) {
             clearInterval(verificationState.countdownTimer);
             verificationState.countdownTimer = null;
           }
         }, 1000);
-        setVerifyCountdown("Codigo vigente por " + formatDuration(getCodeRemainingSeconds()) + ".", "ok");
+        setVerifyCountdown("", "");
         updateSendCodeButton();
+        updateJourneyState();
       }
 
       function fmtCLP(value) {
@@ -519,7 +914,7 @@
         if (!emailLooksValid(fields.billingEmail.value)) {
           return { ok: false, field: "billingEmail" };
         }
-        if (!document.getElementById("termsAccepted").checked) {
+        if (!termsAcceptedInput.checked) {
           return { ok: false, field: "termsAccepted" };
         }
         if (!isEmailVerifiedForCurrentInput()) {
@@ -555,8 +950,14 @@
           document.getElementById("qSubtotal").textContent = fmtUF(data.totals?.subtotalUf) + " / " + fmtCLP(data.totals?.subtotalClp);
           const pdfLink = document.getElementById("pdfLink");
           pdfLink.href = q.pdfUrl || "#";
-          pdfLink.textContent = q.pdfUrl ? "Ver PDF de cotizacion" : "PDF no disponible";
-          if (!q.pdfUrl) pdfLink.removeAttribute("target");
+          if (q.pdfUrl) {
+            pdfLink.textContent = "Ver PDF de cotizacion";
+            pdfLink.classList.remove("disabled");
+          } else {
+            pdfLink.textContent = "PDF no disponible";
+            pdfLink.classList.add("disabled");
+            pdfLink.removeAttribute("target");
+          }
 
           fields.billingEmail.value = q.billingEmail || "";
           fields.billingPhone.value = q.billingPhone || "";
@@ -593,6 +994,19 @@
                 .join("")
             : '<tr><td colspan="5">Sin datos.</td></tr>';
 
+          supportState.quoteLabel = q.name || "esta cotizacion";
+          supportState.contactName = (data.support && data.support.executiveName) || "tu ejecutivo comercial";
+          supportState.whatsappLink = buildWhatsappLink(
+            normalizeWhatsappPhone(data.support && data.support.executivePhone),
+            supportState.contactName,
+            supportState.quoteLabel
+          );
+          waTitle.textContent = "Habla con " + supportState.contactName;
+          waBody.textContent =
+            "Si necesitas apoyo para revisar o aceptar esta cotizacion, escribenos por WhatsApp.";
+          setWhatsappVisibility();
+
+          verificationState.sessionLoaded = true;
           setStatus(q.isExpired ? "Cotizacion expirada" : "Cotizacion vigente", q.isExpired ? "warn" : "ok");
           if (q.isExpired) {
             verificationState.quoteExpired = true;
@@ -602,19 +1016,22 @@
             setMessage("Esta cotizacion expiro. Contacta a tu ejecutivo comercial para actualizarla.", "error");
           }
           updateSendCodeButton();
+          updateJourneyState();
         } catch (error) {
           setStatus("No disponible", "warn");
           setMessage((error && error.message) || "No se pudo cargar la cotizacion.", "error");
+          updateJourneyState();
         }
       }
 
       async function onSendCode() {
         const email = normalizeEmail(fields.contactEmail.value);
         if (!emailLooksValid(email)) {
-          setVerifyMessage(
+          setMessage(
             "No hay correo de contacto valido en la cotizacion. Solicita a tu ejecutivo comercial actualizarla.",
             "error"
           );
+          updateJourneyState();
           return;
         }
 
@@ -623,18 +1040,15 @@
         }
         const remaining = getCodeRemainingSeconds();
         if (remaining > 0) {
-          setVerifyMessage(
-            "Ya existe un codigo vigente. Revisa tu correo o espera " + remaining + " segundos.",
-            "error"
-          );
           updateSendCodeButton();
+          updateJourneyState();
           return;
         }
 
         verificationState.sendCodeInFlight = true;
         verifyCodeBtn.disabled = true;
         updateSendCodeButton();
-        setVerifyMessage("Enviando codigo de verificacion...");
+        setMessage("Enviando codigo de verificacion al correo de contacto...", "");
         try {
           const res = await fetch("/api/quote-acceptance/send-email-code", {
             method: "POST",
@@ -656,14 +1070,15 @@
           fields.verifyCode.value = "";
           sendCodeBtn.classList.add("ok");
           verifyCodeBtn.classList.remove("ok");
+          verifyCodeBtn.textContent = "Validar codigo";
           startCodeValidityCountdown(data.expiresAt);
-          setVerifyMessage(
+          setMessage(
             "Codigo enviado a " + (data.maskedEmail || email) + ". Revisa tu correo y valida para continuar.",
             "ok"
           );
         } catch (error) {
           const message = (error && error.message) || "No se pudo enviar el codigo.";
-          setVerifyMessage(message, "error");
+          setMessage(message, "error");
           const payload = (error && error.payload) || {};
           if (payload && payload.alreadyActive) {
             if (payload.challengeToken) {
@@ -677,6 +1092,7 @@
           verificationState.sendCodeInFlight = false;
           updateSendCodeButton();
           verifyCodeBtn.disabled = false;
+          updateJourneyState();
         }
       }
 
@@ -684,21 +1100,24 @@
         const email = normalizeEmail(fields.contactEmail.value);
         const code = String(fields.verifyCode.value || "").trim();
         if (!verificationState.challengeToken) {
-          setVerifyMessage("Primero debes enviar el codigo al correo de contacto.", "error");
+          setMessage("Primero debes enviar el codigo al correo de contacto.", "error");
+          updateJourneyState();
           return;
         }
         if (!/^\d{6}$/.test(code)) {
-          setVerifyMessage("Ingresa un codigo valido de 6 digitos.", "error");
+          setMessage("Ingresa un codigo valido de 6 digitos.", "error");
+          updateJourneyState();
           return;
         }
         if (!emailLooksValid(email)) {
-          setVerifyMessage("No hay correo de contacto valido para validar este codigo.", "error");
+          setMessage("No hay correo de contacto valido para validar este codigo.", "error");
+          updateJourneyState();
           return;
         }
 
         sendCodeBtn.disabled = true;
         verifyCodeBtn.disabled = true;
-        setVerifyMessage("Validando codigo...");
+        setMessage("Validando codigo...", "");
         try {
           const res = await fetch("/api/quote-acceptance/verify-email-code", {
             method: "POST",
@@ -717,15 +1136,19 @@
           verificationState.verificationToken = data.verificationToken || "";
           verificationState.verifiedEmail = normalizeEmail(data.verifiedEmail || email);
           verifyCodeBtn.classList.add("ok");
-          setVerifyMessage("Correo verificado correctamente. Ya puedes aceptar la cotizacion.", "ok");
+          verifyCodeBtn.textContent = "Correo validado";
+          setMessage("Correo verificado correctamente. Ya puedes aceptar la cotizacion.", "ok");
         } catch (error) {
           verificationState.verificationToken = "";
           verificationState.verifiedEmail = "";
           verifyCodeBtn.classList.remove("ok");
-          setVerifyMessage((error && error.message) || "Codigo invalido o expirado.", "error");
+          verifyCodeBtn.textContent = "Validar codigo";
+          setMessage((error && error.message) || "Codigo invalido o expirado.", "error");
         } finally {
           sendCodeBtn.disabled = false;
           verifyCodeBtn.disabled = false;
+          updateSendCodeButton();
+          updateJourneyState();
         }
       }
 
@@ -737,6 +1160,7 @@
           } else {
             setMessage("Completa todos los datos obligatorios y acepta terminos para continuar.", "error");
           }
+          updateJourneyState();
           return;
         }
 
@@ -785,9 +1209,19 @@
         if (event.key === "Enter") onVerifyCode();
       });
 
+      termsAcceptedInput.addEventListener("change", updateJourneyState);
+      waChip.addEventListener("click", () => toggleWhatsappCard(true));
+      waClose.addEventListener("click", () => toggleWhatsappCard(false));
+      waOpen.addEventListener("click", () => {
+        if (!supportState.whatsappLink) return;
+        window.open(supportState.whatsappLink, "_blank", "noopener,noreferrer");
+      });
+
       sendCodeBtn.addEventListener("click", onSendCode);
       verifyCodeBtn.addEventListener("click", onVerifyCode);
       document.getElementById("confirmBtn").addEventListener("click", onConfirm);
+      toggleWhatsappCard(false);
+      updateJourneyState();
       boot();
     </script>
   </body>

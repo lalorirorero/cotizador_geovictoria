@@ -1,5 +1,5 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
-const { getRecord, getRecordWithFields, toText } = require("../_shared/zoho-crm");
+const { getRecord, getRecordWithFields, getUserById, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 
 function sendJson(res, status, payload) {
@@ -29,11 +29,12 @@ function sumBy(items, key) {
 async function getFallbackData(dealId) {
   const cleanDealId = toText(dealId);
   if (!cleanDealId) {
-    return { deal: null, account: null, contact: null };
+    return { deal: null, account: null, contact: null, owner: null };
   }
 
   const deal = await getRecordWithFields("Deals", cleanDealId, [
     "id",
+    "Owner",
     "Account_Name",
     "Contact_Name",
     "Contact_Email",
@@ -43,6 +44,7 @@ async function getFallbackData(dealId) {
 
   const accountId = toText(deal?.Account_Name?.id);
   const contactId = toText(deal?.Contact_Name?.id);
+  const ownerId = toText(deal?.Owner?.id);
 
   const account = accountId
     ? await getRecordWithFields("Accounts", accountId, [
@@ -62,7 +64,11 @@ async function getFallbackData(dealId) {
       ])
     : null;
 
-  return { deal, account, contact };
+  const owner = ownerId
+    ? await getUserById(ownerId).catch(() => null)
+    : null;
+
+  return { deal, account, contact, owner };
 }
 
 function pickFirst(...values) {
@@ -71,6 +77,14 @@ function pickFirst(...values) {
     if (text) return text;
   }
   return "";
+}
+
+function normalizeWhatsappPhone(value) {
+  const raw = toText(value);
+  if (!raw) return "";
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return "";
+  return digits;
 }
 
 export default async function handler(req, res) {
@@ -153,6 +167,18 @@ export default async function handler(req, res) {
           quote?.[config.companyAddressField],
           fallback?.contact?.Mailing_Street
         ),
+      },
+      support: {
+        executiveName: pickFirst(
+          fallback?.owner?.full_name,
+          fallback?.owner?.name,
+          fallback?.deal?.Owner?.name,
+          config.supportContactLabel
+        ),
+        executivePhone: normalizeWhatsappPhone(
+          pickFirst(fallback?.owner?.phone, fallback?.owner?.mobile)
+        ),
+        supportEmail: config.supportContactEmail,
       },
       items,
       totals: {
