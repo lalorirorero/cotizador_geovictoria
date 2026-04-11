@@ -89,16 +89,25 @@ async function getCurrentZohoUser() {
 
 async function resolveZohoSender({ quoteModule, quoteId, quoteDealLookupField }) {
   const senderEmailEnv = toText(process.env.ZOHO_VERIFICATION_FROM_EMAIL);
+  let dealId = "";
+  let deal = null;
+  try {
+    const quote = await getRecordWithFields(quoteModule, quoteId, [quoteDealLookupField]);
+    dealId = toText(quote?.[quoteDealLookupField]?.id || quote?.[quoteDealLookupField]);
+    deal = dealId ? await getRecordWithFields("Deals", dealId, ["Owner"]) : null;
+  } catch (_error) {
+    dealId = "";
+    deal = null;
+  }
+
   if (senderEmailEnv) {
     return {
       email: senderEmailEnv,
       name: toText(process.env.ZOHO_VERIFICATION_FROM_NAME) || senderEmailEnv,
+      dealId,
     };
   }
 
-  const quote = await getRecordWithFields(quoteModule, quoteId, [quoteDealLookupField]);
-  const dealId = toText(quote?.[quoteDealLookupField]?.id || quote?.[quoteDealLookupField]);
-  const deal = dealId ? await getRecordWithFields("Deals", dealId, ["Owner"]) : null;
   const ownerId = toText(deal?.Owner?.id);
   const owner = ownerId ? await getUserById(ownerId).catch(() => null) : null;
 
@@ -107,6 +116,7 @@ async function resolveZohoSender({ quoteModule, quoteId, quoteDealLookupField })
     return {
       email: ownerEmail,
       name: toText(owner?.full_name || owner?.name) || ownerEmail,
+      dealId,
     };
   }
 
@@ -118,13 +128,16 @@ async function resolveZohoSender({ quoteModule, quoteId, quoteDealLookupField })
   return {
     email: currentEmail,
     name: toText(currentUser?.full_name || currentUser?.name) || currentEmail,
+    dealId,
   };
 }
 
 async function sendViaZohoCrm({ quoteModule, quoteId, quoteDealLookupField, toEmail, toName, subject, html }) {
   const sender = await resolveZohoSender({ quoteModule, quoteId, quoteDealLookupField });
-  const path = `/crm/v3/${encodeURIComponent(quoteModule)}/${encodeURIComponent(
-    quoteId
+  const baseModule = sender?.dealId ? "Deals" : quoteModule;
+  const baseRecordId = sender?.dealId || quoteId;
+  const path = `/crm/v3/${encodeURIComponent(baseModule)}/${encodeURIComponent(
+    baseRecordId
   )}/actions/send_mail`;
   const payload = {
     data: [
