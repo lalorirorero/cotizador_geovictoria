@@ -657,6 +657,22 @@
                     <input type="text" id="propContacto" placeholder="Nombre del contacto">
                 </div>
                 <div class="form-group">
+                    <label for="propContactoEmail">Email Contacto Cliente</label>
+                    <input type="email" id="propContactoEmail" placeholder="correo@cliente.com">
+                </div>
+                <div class="form-group">
+                    <label for="propContactoTelefono">Teléfono Contacto Cliente</label>
+                    <input type="tel" id="propContactoTelefono" placeholder="+56912345678">
+                </div>
+                <div class="form-group">
+                    <label for="propBillingEmail">Email Facturación</label>
+                    <input type="email" id="propBillingEmail" placeholder="facturacion@cliente.com">
+                </div>
+                <div class="form-group">
+                    <label for="propBillingTelefono">Teléfono Facturación</label>
+                    <input type="tel" id="propBillingTelefono" placeholder="+56912345678">
+                </div>
+                <div class="form-group">
                     <label for="propEjecutivo">Ejecutivo/a Comercial</label>
                     <select id="propEjecutivo" class="region-select" style="padding:10px 14px;font-size:14px;border:2px solid #ddd;border-radius:8px;font-family:'Nunito',sans-serif;color:var(--gray);">
                         <option value="">Selecciona ejecutivo/a</option>
@@ -1833,10 +1849,14 @@
         function gatherProposalData() {
             const empresa = document.getElementById('propEmpresa').value.trim() || 'EMPRESA';
             const contacto = document.getElementById('propContacto').value.trim();
+            const contactoEmail = document.getElementById('propContactoEmail').value.trim().toLowerCase();
+            const contactoTelefono = document.getElementById('propContactoTelefono').value.trim();
+            const billingEmail = document.getElementById('propBillingEmail').value.trim().toLowerCase();
+            const billingTelefono = document.getElementById('propBillingTelefono').value.trim();
             const ejecutivo = document.getElementById('propEjecutivo').value || '';
             const ejData = EJECUTIVOS[ejecutivo] || { email: '', telefono: '', cargo: 'Ejecutivo Comercial' };
-            const email = ejData.email;
-            const telefono = ejData.telefono;
+            const ejecutivoEmail = ejData.email;
+            const ejecutivoTelefono = ejData.telefono;
             const cargo = ejData.cargo;
             const hoy = new Date();
             const fecha = hoy.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -1945,7 +1965,28 @@
             const iva = subtotalNeto * IVA_RATE;
             const totalConIva = subtotalNeto + iva;
 
-            return { empresa, contacto, ejecutivo, email, telefono, cargo, fecha, servicios, equipos, accesorios, serviciosAsoc, totals: { totalServ, totalEquip, totalAcc, totalSvcAs, subtotalNeto, iva, totalConIva }, ufValue: currentUFValue, ufDate };
+            return {
+                empresa,
+                contacto,
+                contactoEmail,
+                contactoTelefono,
+                billingEmail,
+                billingTelefono,
+                ejecutivo,
+                ejecutivoEmail,
+                ejecutivoTelefono,
+                email: ejecutivoEmail,
+                telefono: ejecutivoTelefono,
+                cargo,
+                fecha,
+                servicios,
+                equipos,
+                accesorios,
+                serviciosAsoc,
+                totals: { totalServ, totalEquip, totalAcc, totalSvcAs, subtotalNeto, iva, totalConIva },
+                ufValue: currentUFValue,
+                ufDate
+            };
         }
 
 
@@ -2283,6 +2324,45 @@
 
         window.addEventListener('message', handleWidgetResponse);
 
+        function isValidEmail(value) {
+            const email = (value || '').trim();
+            if (!email) return false;
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        function validateProposalRequiredData(data) {
+            if (!data.empresa || data.empresa === 'EMPRESA') {
+                throw new Error('Debes completar la Razón Social de la empresa.');
+            }
+            if (!data.contacto) {
+                throw new Error('Debes completar el nombre del contacto cliente.');
+            }
+            if (!data.contactoEmail) {
+                throw new Error('Debes completar el correo del contacto cliente.');
+            }
+            if (!isValidEmail(data.contactoEmail)) {
+                throw new Error('El correo del contacto cliente no tiene un formato válido.');
+            }
+            if (!data.contactoTelefono) {
+                throw new Error('Debes completar el teléfono del contacto cliente.');
+            }
+            if (!data.billingEmail) {
+                throw new Error('Debes completar el correo de facturación.');
+            }
+            if (!isValidEmail(data.billingEmail)) {
+                throw new Error('El correo de facturación no tiene un formato válido.');
+            }
+            if (!data.billingTelefono) {
+                throw new Error('Debes completar el teléfono de facturación.');
+            }
+            if (!data.ejecutivo) {
+                throw new Error('Debes seleccionar el ejecutivo comercial.');
+            }
+            if (!data.ejecutivoEmail || !data.ejecutivoTelefono) {
+                throw new Error('Faltan datos del ejecutivo comercial. Selecciona un ejecutivo válido.');
+            }
+        }
+
         async function submitOrDownloadProposal() {
             const btn = document.getElementById('downloadProposalBtn');
             btn.disabled = true;
@@ -2292,6 +2372,7 @@
 
             try {
                 const proposalData = gatherProposalData();
+                validateProposalRequiredData(proposalData);
                 if (proposalData.servicios.length === 0 && proposalData.equipos.length === 0 && proposalData.accesorios.length === 0 && proposalData.serviciosAsoc.length === 0) {
                     throw new Error('No hay servicios ni equipos configurados. Configura al menos un ítem en la calculadora.');
                 }
@@ -2394,10 +2475,14 @@
 
             const empresa = params.get('empresa') || '';
             const contacto = params.get('contacto') || '';
+            const contactoEmail = params.get('contactoEmail') || '';
+            const contactoTelefono = params.get('contactoTelefono') || '';
+            const billingEmail = params.get('billingEmail') || '';
+            const billingTelefono = params.get('billingTelefono') || '';
             const ejecutivo = params.get('ejecutivo') || '';
             const userCount = params.get('userCount') || '';
-            if (!empresa && !contacto && !ejecutivo && !userCount) return null;
-            return { empresa, contacto, ejecutivo, userCount };
+            if (!empresa && !contacto && !contactoEmail && !contactoTelefono && !billingEmail && !billingTelefono && !ejecutivo && !userCount) return null;
+            return { empresa, contacto, contactoEmail, contactoTelefono, billingEmail, billingTelefono, ejecutivo, userCount };
         }
 
         function setInputValue(inputId, value) {
@@ -2428,6 +2513,10 @@
 
             if (prefill.empresa) setInputValue('propEmpresa', prefill.empresa);
             if (prefill.contacto) setInputValue('propContacto', prefill.contacto);
+            if (prefill.contactoEmail) setInputValue('propContactoEmail', prefill.contactoEmail);
+            if (prefill.contactoTelefono) setInputValue('propContactoTelefono', prefill.contactoTelefono);
+            if (prefill.billingEmail) setInputValue('propBillingEmail', prefill.billingEmail);
+            if (prefill.billingTelefono) setInputValue('propBillingTelefono', prefill.billingTelefono);
             if (prefill.ejecutivo) setSelectValueByLabel('propEjecutivo', prefill.ejecutivo);
 
             const users = Number.parseInt(prefill.userCount, 10);
@@ -2444,6 +2533,10 @@
             console.log('[cotizador] Prefill aplicado:', {
                 empresa: prefill.empresa || '',
                 contacto: prefill.contacto || '',
+                contactoEmail: prefill.contactoEmail || '',
+                contactoTelefono: prefill.contactoTelefono || '',
+                billingEmail: prefill.billingEmail || '',
+                billingTelefono: prefill.billingTelefono || '',
                 ejecutivo: prefill.ejecutivo || '',
                 userCount: users || 0,
             });
