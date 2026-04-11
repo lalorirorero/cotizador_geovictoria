@@ -144,14 +144,13 @@ async function sendViaZohoCrm({ quoteModule, quoteId, quoteDealLookupField, toEm
       {
         from: {
           email: sender.email,
-          user_name: sender.name,
         },
         to: [
           {
             email: toEmail,
-            user_name: toName || toEmail,
           },
         ],
+        org_email: true,
         subject,
         content: html,
         mail_format: "html",
