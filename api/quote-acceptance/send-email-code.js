@@ -53,8 +53,10 @@ export default async function handler(req, res) {
   const supportSuffix = config.supportContactEmail
     ? ` Si el problema persiste, contacta a ${config.supportContactLabel} al correo ${config.supportContactEmail}.`
     : "";
+  let stage = "init";
 
   try {
+    stage = "parse_body";
     const body = parseBody(req);
     const token = toText(body?.token);
     const recipientName = toText(body?.recipientName);
@@ -64,8 +66,11 @@ export default async function handler(req, res) {
       return;
     }
 
+    stage = "verify_acceptance_token";
     const acceptancePayload = verifyAcceptanceToken(token);
+    stage = "read_quote";
     const quote = await getRecord(config.quoteModule, acceptancePayload.quoteId);
+    stage = "resolve_contact_email";
     const contactEmail = normalizeEmail(quote?.[config.contactEmailField]);
     if (!contactEmail || !validateEmail(contactEmail)) {
       sendJson(res, 400, {
@@ -75,6 +80,7 @@ export default async function handler(req, res) {
       return;
     }
 
+    stage = "build_challenge";
     const ttlMinutes = Math.max(3, Number(config.verificationCodeTtlMinutes || 10));
     const code = randomCode6();
     const nonce = crypto.randomBytes(12).toString("hex");
@@ -100,6 +106,7 @@ export default async function handler(req, res) {
       "quote_email_challenge"
     );
 
+    stage = "send_email";
     await sendVerificationCodeEmail({
       quoteModule: config.quoteModule,
       quoteId: acceptancePayload.quoteId,
@@ -112,6 +119,7 @@ export default async function handler(req, res) {
       supportEmail: config.supportContactEmail,
     });
 
+    stage = "response_ok";
     sendJson(res, 200, {
       success: true,
       challengeToken,
@@ -121,13 +129,14 @@ export default async function handler(req, res) {
       message: "Codigo enviado correctamente.",
     });
   } catch (error) {
+    const detailMessage = `${stage}: ${toText(error?.message || error)}`;
     const isExpired = toText(error?.code) === "TOKEN_EXPIRED";
     sendJson(res, isExpired ? 410 : 502, {
       success: false,
       error: isExpired
         ? "Esta cotizacion ya expiro. Contacta a tu ejecutivo comercial para actualizarla."
         : `No se pudo enviar el codigo de verificacion.${supportSuffix}`,
-      detail: toText(error?.message || error),
+      detail: detailMessage,
     });
   }
 }
