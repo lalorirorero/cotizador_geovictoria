@@ -27,17 +27,67 @@ function getAcceptanceConfig(req) {
     quotePdfUrlField: toText(process.env.QUOTE_PDF_URL_FIELD || "PDF_URL"),
     quoteItemsSubformField: toText(process.env.QUOTE_ITEMS_SUBFORM_FIELD || "Detalle_Items_Cotizacion"),
     quoteAcceptanceUrlField: toText(process.env.QUOTE_ACCEPTANCE_URL_FIELD || "URL_Aceptacion_Web"),
-    quoteAcceptanceAtField: toText(process.env.QUOTE_ACCEPTED_AT_FIELD || "Fecha_Aceptacion_Web"),
-    quoteTermsAcceptedField: toText(process.env.QUOTE_TERMS_ACCEPTED_FIELD || "TyC_Aceptados_Web"),
-    quoteTermsVersionField: toText(process.env.QUOTE_TERMS_VERSION_FIELD || "Version_TyC_Web"),
-    quoteHandoffStatusField: toText(process.env.QUOTE_HANDOFF_STATUS_FIELD || "Estado_Handoff"),
-    quoteHandoffErrorField: toText(process.env.QUOTE_HANDOFF_ERROR_FIELD || "Error_Handoff"),
-    billingEmailField: toText(process.env.QUOTE_BILLING_EMAIL_FIELD || "Email_Facturacion"),
-    billingPhoneField: toText(process.env.QUOTE_BILLING_PHONE_FIELD || "Telefono_Facturacion"),
-    companyRutField: toText(process.env.QUOTE_COMPANY_RUT_FIELD || "RUT_Empresa"),
-    companyGiroField: toText(process.env.QUOTE_COMPANY_GIRO_FIELD || "Giro"),
-    companyComunaField: toText(process.env.QUOTE_COMPANY_COMUNA_FIELD || "Comuna"),
-    companyAddressField: toText(process.env.QUOTE_COMPANY_ADDRESS_FIELD || "Direccion"),
+    quoteAcceptanceAtField: toText(process.env.QUOTE_ACCEPTED_AT_FIELD || "Fecha_Hora_Cotizacion"),
+    quoteTermsAcceptedField: toText(process.env.QUOTE_TERMS_ACCEPTED_FIELD || ""),
+    quoteTermsVersionField: toText(process.env.QUOTE_TERMS_VERSION_FIELD || ""),
+    quoteHandoffStatusField: toText(process.env.QUOTE_HANDOFF_STATUS_FIELD || "Onboarding_Status"),
+    quoteHandoffErrorField: toText(process.env.QUOTE_HANDOFF_ERROR_FIELD || ""),
+    quoteOnboardingLookupField: toText(process.env.QUOTE_ONBOARDING_LOOKUP_FIELD || "Auto_Onboarding_Asociado"),
+    quoteOnboardingUrlField: toText(process.env.QUOTE_ONBOARDING_URL_FIELD || "Onboarding_Link"),
+    quoteOnboardingTokenField: toText(process.env.QUOTE_ONBOARDING_TOKEN_FIELD || "Onboarding_Token"),
+    quoteOnboardingStatusPending: toText(
+      process.env.QUOTE_ONBOARDING_STATUS_PENDING || "En Curso"
+    ),
+    quoteOnboardingStatusReady: toText(
+      process.env.QUOTE_ONBOARDING_STATUS_READY || "Cerrada"
+    ),
+    quoteOnboardingStatusError: toText(
+      process.env.QUOTE_ONBOARDING_STATUS_ERROR || "Error"
+    ),
+    billingEmailField: toText(process.env.QUOTE_BILLING_EMAIL_FIELD || "Email_Cliente"),
+    billingPhoneField: toText(process.env.QUOTE_BILLING_PHONE_FIELD || "Telefono_Cliente"),
+    companyRutField: toText(process.env.QUOTE_COMPANY_RUT_FIELD || "RUT_Cliente"),
+    companyGiroField: toText(process.env.QUOTE_COMPANY_GIRO_FIELD || ""),
+    companyComunaField: toText(process.env.QUOTE_COMPANY_COMUNA_FIELD || ""),
+    companyAddressField: toText(process.env.QUOTE_COMPANY_ADDRESS_FIELD || ""),
+    onboardingModule: toText(process.env.ZOHO_ONBOARDING_MODULE || "Autoservicio_Onboarding"),
+    onboardingGenerateLinkUrl: toText(
+      process.env.ONBOARDING_GENERATE_LINK_URL ||
+        "https://v0-v0onboardingturnosmvp2main.vercel.app/api/generate-link"
+    ),
+    onboardingNameField: toText(process.env.ONBOARDING_NAME_FIELD || "Name"),
+    onboardingDealLookupField: toText(process.env.ONBOARDING_DEAL_LOOKUP_FIELD || "Deal_asociado"),
+    onboardingQuoteLookupField: toText(process.env.ONBOARDING_QUOTE_LOOKUP_FIELD || "Cotizacion_Asociada"),
+    onboardingOriginAcceptanceIdField: toText(
+      process.env.ONBOARDING_ORIGIN_ACCEPTANCE_ID_FIELD || "Origen_Aceptacion_Id"
+    ),
+    onboardingChannelField: toText(process.env.ONBOARDING_CHANNEL_FIELD || "Canal_Entrega_Link"),
+    onboardingChannelValue: toText(process.env.ONBOARDING_CHANNEL_VALUE || "redirect_web"),
+    onboardingHandoffStatusField: toText(process.env.ONBOARDING_HANDOFF_STATUS_FIELD || "Estado_Handoff"),
+    onboardingHandoffErrorField: toText(process.env.ONBOARDING_HANDOFF_ERROR_FIELD || "Error_Handoff"),
+    onboardingUrlField: toText(process.env.ONBOARDING_URL_FIELD || "URL_de_Onboarding"),
+    onboardingTokenField: toText(process.env.ONBOARDING_TOKEN_FIELD || "Token_p_blico"),
+    onboardingTokenActiveField: toText(process.env.ONBOARDING_TOKEN_ACTIVE_FIELD || "Token_Activo"),
+    onboardingTokenDateField: toText(process.env.ONBOARDING_TOKEN_DATE_FIELD || "Fecha_generaci_n_token"),
+    onboardingRazonSocialField: toText(process.env.ONBOARDING_RAZON_SOCIAL_FIELD || "Raz_n_social"),
+    onboardingNombreFantasiaField: toText(process.env.ONBOARDING_NOMBRE_FANTASIA_FIELD || "Nombre_de_fantas_a"),
+    onboardingRutField: toText(process.env.ONBOARDING_RUT_FIELD || "RUT"),
+    onboardingGiroField: toText(process.env.ONBOARDING_GIRO_FIELD || "Giro"),
+    onboardingDireccionField: toText(process.env.ONBOARDING_DIRECCION_FIELD || "Direcci_n"),
+    onboardingComunaField: toText(process.env.ONBOARDING_COMUNA_FIELD || "Comuna"),
+    onboardingEmailFacturacionField: toText(
+      process.env.ONBOARDING_EMAIL_FACTURACION_FIELD || "Email_Facturaci_n"
+    ),
+    onboardingTelefonoContactoField: toText(
+      process.env.ONBOARDING_TELEFONO_CONTACTO_FIELD || "Tel_fono_contacto"
+    ),
+    onboardingRubroField: toText(process.env.ONBOARDING_RUBRO_FIELD || "Rubro"),
+    onboardingSistemasField: toText(
+      process.env.ONBOARDING_SISTEMAS_FIELD || "Sistemas_contratados"
+    ),
+    onboardingModulosField: toText(
+      process.env.ONBOARDING_MODULOS_FIELD || "Modulos_adicionales"
+    ),
     termsVersion: toText(process.env.QUOTE_TERMS_VERSION || "TYC-CL-2026-04"),
     validityDays: toInt(process.env.QUOTE_ACCEPTANCE_VALIDITY_DAYS, 30),
     handoffWebhookUrl: toText(process.env.QUOTE_HANDOFF_WEBHOOK_URL),
@@ -47,4 +97,3 @@ function getAcceptanceConfig(req) {
 module.exports = {
   getAcceptanceConfig,
 };
-

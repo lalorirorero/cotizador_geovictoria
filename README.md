@@ -90,7 +90,7 @@ Endpoint de validación:
 - `GET /api/quote-acceptance/session?token=...`
   - carga datos de cotizacion + detalle de items para mostrar en web.
 - `POST /api/quote-acceptance/confirm`
-  - confirma TyC y datos de facturacion, marca cotizacion `Aceptada`, y dispara handoff opcional a onboarding.
+  - confirma TyC y datos de facturacion, marca cotizacion `Aceptada`, y dispara handoff a onboarding.
 
 ### Web de aceptacion
 - URL base: `/quote-acceptance.html?token=...`
@@ -98,7 +98,8 @@ Endpoint de validación:
   - muestra resumen + items + terminos,
   - solicita datos obligatorios de facturacion,
   - confirma TyC,
-  - y redirige a onboarding si `handoff webhook` devuelve `onboardingUrl`.
+  - y redirige a onboarding si handoff devuelve `onboardingUrl`.
+  - por defecto usa handoff interno Zoho+Onboarding (si no se define webhook externo).
 
 ### Variables de entorno adicionales
 - `QUOTE_ACCEPTANCE_SECRET` (obligatoria para firmar/verificar token)
@@ -106,6 +107,11 @@ Endpoint de validación:
 - `QUOTE_ACCEPTANCE_VALIDITY_DAYS` (opcional, default `30`)
 - `QUOTE_TERMS_VERSION` (opcional, default `TYC-CL-2026-04`)
 - `QUOTE_HANDOFF_WEBHOOK_URL` (opcional; si existe, se invoca al confirmar)
+  - si no existe, `confirm` usa handoff interno:
+    1. crea/reutiliza `Autoservicio_Onboarding`,
+    2. llama `ONBOARDING_GENERATE_LINK_URL`,
+    3. guarda link/token en `Autoservicio_Onboarding` y en cotizacion.
+- `ONBOARDING_GENERATE_LINK_URL` (opcional; default `https://v0-v0onboardingturnosmvp2main.vercel.app/api/generate-link`)
 
 ### Mapeo de campos CRM (customizable por env)
 Los siguientes defaults asumen API names ya creados en `Cotizaciones_GeoVictoria`:
@@ -120,12 +126,30 @@ Los siguientes defaults asumen API names ya creados en `Cotizaciones_GeoVictoria
 - `QUOTE_TERMS_VERSION_FIELD` => `Version_TyC_Web`
 - `QUOTE_HANDOFF_STATUS_FIELD` => `Estado_Handoff`
 - `QUOTE_HANDOFF_ERROR_FIELD` => `Error_Handoff`
+- `QUOTE_ONBOARDING_LOOKUP_FIELD` => `Auto_Onboarding_Asociado`
+- `QUOTE_ONBOARDING_URL_FIELD` => `Onboarding_Link`
+- `QUOTE_ONBOARDING_TOKEN_FIELD` => `Onboarding_Token`
+- `QUOTE_ONBOARDING_STATUS_PENDING` => `En Curso`
+- `QUOTE_ONBOARDING_STATUS_READY` => `Cerrada`
+- `QUOTE_ONBOARDING_STATUS_ERROR` => `Error`
 - `QUOTE_BILLING_EMAIL_FIELD` => `Email_Facturacion`
 - `QUOTE_BILLING_PHONE_FIELD` => `Telefono_Facturacion`
 - `QUOTE_COMPANY_RUT_FIELD` => `RUT_Empresa`
 - `QUOTE_COMPANY_GIRO_FIELD` => `Giro`
 - `QUOTE_COMPANY_COMUNA_FIELD` => `Comuna`
 - `QUOTE_COMPANY_ADDRESS_FIELD` => `Direccion`
+
+Campos de `Autoservicio_Onboarding` usados por handoff interno (default):
+- `ONBOARDING_DEAL_LOOKUP_FIELD` => `Deal_asociado`
+- `ONBOARDING_QUOTE_LOOKUP_FIELD` => `Cotizacion_Asociada`
+- `ONBOARDING_ORIGIN_ACCEPTANCE_ID_FIELD` => `Origen_Aceptacion_Id`
+- `ONBOARDING_CHANNEL_FIELD` => `Canal_Entrega_Link` (`ONBOARDING_CHANNEL_VALUE=redirect_web`)
+- `ONBOARDING_HANDOFF_STATUS_FIELD` => `Estado_Handoff`
+- `ONBOARDING_HANDOFF_ERROR_FIELD` => `Error_Handoff`
+- `ONBOARDING_URL_FIELD` => `URL_de_Onboarding`
+- `ONBOARDING_TOKEN_FIELD` => `Token_p_blico`
+- `ONBOARDING_TOKEN_ACTIVE_FIELD` => `Token_Activo`
+- `ONBOARDING_TOKEN_DATE_FIELD` => `Fecha_generaci_n_token`
 
 ### Validación backend en Blueprint (Before Transition)
 - Archivo de referencia: `zoho-widget/DELUGE_before_transition_validar_cotizacion.deluge`

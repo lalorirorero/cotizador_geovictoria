@@ -1,6 +1,7 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
-const { getRecord, updateRecord, toText } = require("../_shared/zoho-crm");
+const { getRecord, updateRecordBestEffort, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
+const { runOnboardingHandoff } = require("../_shared/onboarding-handoff");
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -36,42 +37,82 @@ function validateRequiredInput(fields) {
   return missing;
 }
 
+function toZohoDateTime(value) {
+  const date = value instanceof Date ? value : new Date(value || Date.now());
+  const iso = date.toISOString().replace(/\.\d{3}Z$/, "");
+  return `${iso}+00:00`;
+}
+
 async function triggerHandoff(config, payload) {
   if (!config.handoffWebhookUrl) {
+    const result = await runOnboardingHandoff({
+      config,
+      quoteId: payload.quoteId,
+      dealId: payload.dealId,
+      acceptanceData: payload.acceptanceData || {},
+    });
     return {
-      status: "SKIPPED",
-      message: "handoff webhook no configurado",
-      onboardingUrl: "",
+      status: "OK",
+      message: "handoff interno completado",
+      onboardingUrl: toText(result?.onboardingUrl),
+      onboardingId: toText(result?.onboardingId),
+      response: result,
     };
   }
 
-  const response = await fetch(config.handoffWebhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const text = await response.text();
-  let parsed = {};
-  try {
-    parsed = JSON.parse(text || "{}");
-  } catch (_error) {
-    parsed = { raw: text || "" };
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      `handoff webhook HTTP ${response.status}: ${toText(parsed?.message || parsed?.error || parsed?.raw)}`
-    );
-  }
-
-  const onboardingUrl = toText(parsed?.onboardingUrl || parsed?.link || parsed?.url);
-  return {
-    status: "OK",
-    message: "handoff enviado",
-    onboardingUrl,
-    response: parsed,
+  const fallbackToInternal = async (reason) => {
+    const result = await runOnboardingHandoff({
+      config,
+      quoteId: payload.quoteId,
+      dealId: payload.dealId,
+      acceptanceData: payload.acceptanceData || {},
+    });
+    return {
+      status: "OK",
+      message: `handoff interno completado (${reason})`,
+      onboardingUrl: toText(result?.onboardingUrl),
+      onboardingId: toText(result?.onboardingId),
+      response: result,
+    };
   };
+
+  try {
+    const response = await fetch(config.handoffWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const text = await response.text();
+    let parsed = {};
+    try {
+      parsed = JSON.parse(text || "{}");
+    } catch (_error) {
+      parsed = { raw: text || "" };
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `handoff webhook HTTP ${response.status}: ${toText(parsed?.message || parsed?.error || parsed?.raw)}`
+      );
+    }
+
+    const onboardingUrl = toText(parsed?.onboardingUrl || parsed?.link || parsed?.url);
+    const onboardingId = toText(parsed?.onboardingId || parsed?.id || parsed?.onboarding_id);
+    if (onboardingUrl) {
+      return {
+        status: "OK",
+        message: "handoff enviado",
+        onboardingUrl,
+        onboardingId,
+        response: parsed,
+      };
+    }
+
+    return await fallbackToInternal("webhook_sin_onboarding_url");
+  } catch (_webhookError) {
+    return await fallbackToInternal("webhook_error");
+  }
 }
 
 export default async function handler(req, res) {
@@ -107,35 +148,42 @@ export default async function handler(req, res) {
     const config = getAcceptanceConfig(req);
     const payload = verifyAcceptanceToken(token);
     const quote = await getRecord(config.quoteModule, payload.quoteId);
+    const currentOnboardingUrl = toText(quote?.[config.quoteOnboardingUrlField]);
+    const currentOnboardingToken = toText(quote?.[config.quoteOnboardingTokenField]);
+    const currentOnboardingLookup = toText(quote?.[config.quoteOnboardingLookupField]?.id);
 
     const currentStatus = toText(quote?.[config.quoteStatusField]);
-    if (/Aceptada/i.test(currentStatus)) {
+    if (/Aceptada/i.test(currentStatus) && currentOnboardingUrl && currentOnboardingToken) {
       sendJson(res, 200, {
         success: true,
         alreadyAccepted: true,
         quoteId: payload.quoteId,
+        onboardingUrl: currentOnboardingUrl,
+        onboardingId: currentOnboardingLookup,
         message: "La cotizacion ya estaba aceptada.",
       });
       return;
     }
 
-    const acceptedAtIso = new Date().toISOString();
-    const updateMap = {
-      [config.quoteStatusField]: "Aceptada",
-      [config.quoteAcceptanceAtField]: acceptedAtIso,
-      [config.quoteTermsAcceptedField]: true,
-      [config.quoteTermsVersionField]: config.termsVersion,
-      [config.billingEmailField]: toText(acceptanceData.billingEmail),
-      [config.billingPhoneField]: toText(acceptanceData.billingPhone),
-      [config.companyGiroField]: toText(acceptanceData.companyGiro),
-      [config.companyRutField]: toText(acceptanceData.companyRut),
-      [config.companyComunaField]: toText(acceptanceData.companyComuna),
-      [config.companyAddressField]: toText(acceptanceData.companyAddress),
-      [config.quoteHandoffStatusField]: "PENDING",
-      [config.quoteHandoffErrorField]: "",
-    };
-
-    await updateRecord(config.quoteModule, payload.quoteId, updateMap, true);
+    const existingAcceptedAt = toText(quote?.[config.quoteAcceptanceAtField]);
+    const acceptedAtIso = existingAcceptedAt || toZohoDateTime();
+    if (!/Aceptada/i.test(currentStatus)) {
+      const updateMap = {
+        [config.quoteStatusField]: "Aceptada",
+        [config.quoteAcceptanceAtField]: acceptedAtIso,
+        [config.quoteTermsAcceptedField]: true,
+        [config.quoteTermsVersionField]: config.termsVersion,
+        [config.billingEmailField]: toText(acceptanceData.billingEmail),
+        [config.billingPhoneField]: toText(acceptanceData.billingPhone),
+        [config.companyGiroField]: toText(acceptanceData.companyGiro),
+        [config.companyRutField]: toText(acceptanceData.companyRut),
+        [config.companyComunaField]: toText(acceptanceData.companyComuna),
+        [config.companyAddressField]: toText(acceptanceData.companyAddress),
+        [config.quoteHandoffStatusField]: config.quoteOnboardingStatusPending || "En Curso",
+        [config.quoteHandoffErrorField]: "",
+      };
+      await updateRecordBestEffort(config.quoteModule, payload.quoteId, updateMap, true);
+    }
 
     let handoffResult = null;
     try {
@@ -155,22 +203,17 @@ export default async function handler(req, res) {
         },
       });
 
-      await updateRecord(
-        config.quoteModule,
-        payload.quoteId,
-        {
-          [config.quoteHandoffStatusField]: handoffResult.status,
-          [config.quoteHandoffErrorField]: "",
-        },
-        true
-      );
+      const onboardingUrl = toText(handoffResult?.onboardingUrl);
+      if (!onboardingUrl) {
+        throw new Error("No se obtuvo onboardingUrl durante handoff.");
+      }
     } catch (handoffError) {
       const handoffMessage = toText(handoffError?.message || handoffError).slice(0, 255);
-      await updateRecord(
+      await updateRecordBestEffort(
         config.quoteModule,
         payload.quoteId,
         {
-          [config.quoteHandoffStatusField]: "ERROR",
+          [config.quoteHandoffStatusField]: config.quoteOnboardingStatusError || "Error",
           [config.quoteHandoffErrorField]: handoffMessage,
         },
         true
@@ -191,6 +234,7 @@ export default async function handler(req, res) {
       dealId: payload.dealId,
       acceptedAt: acceptedAtIso,
       onboardingUrl: toText(handoffResult?.onboardingUrl),
+      onboardingId: toText(handoffResult?.onboardingId),
       message: "Cotizacion aceptada correctamente.",
     });
   } catch (error) {
@@ -204,4 +248,3 @@ export default async function handler(req, res) {
     });
   }
 }
-

@@ -1,5 +1,5 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
-const { getRecord, toText } = require("../_shared/zoho-crm");
+const { getRecord, getRecordWithFields, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 
 function sendJson(res, status, payload) {
@@ -26,6 +26,53 @@ function sumBy(items, key) {
   return (items || []).reduce((acc, row) => acc + Number(row?.[key] || 0), 0);
 }
 
+async function getFallbackData(dealId) {
+  const cleanDealId = toText(dealId);
+  if (!cleanDealId) {
+    return { deal: null, account: null, contact: null };
+  }
+
+  const deal = await getRecordWithFields("Deals", cleanDealId, [
+    "id",
+    "Account_Name",
+    "Contact_Name",
+    "Contact_Email",
+    "Contact_Phone",
+    "Rut_ID_Account",
+  ]);
+
+  const accountId = toText(deal?.Account_Name?.id);
+  const contactId = toText(deal?.Contact_Name?.id);
+
+  const account = accountId
+    ? await getRecordWithFields("Accounts", accountId, [
+        "id",
+        "RUT_Empresa",
+        "Comuna",
+      ])
+    : null;
+
+  const contact = contactId
+    ? await getRecordWithFields("Contacts", contactId, [
+        "id",
+        "Email",
+        "Phone",
+        "Mailing_City",
+        "Mailing_Street",
+      ])
+    : null;
+
+  return { deal, account, contact };
+}
+
+function pickFirst(...values) {
+  for (const value of values) {
+    const text = toText(value);
+    if (text) return text;
+  }
+  return "";
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     sendJson(res, 405, { success: false, error: "Metodo no permitido." });
@@ -45,6 +92,7 @@ export default async function handler(req, res) {
     const status = toText(quote?.[config.quoteStatusField]);
     const pdfUrl = toText(quote?.[config.quotePdfUrlField]);
     const dealId = toText(quote?.[config.quoteDealLookupField]?.id || quote?.[config.quoteDealLookupField]);
+    const fallback = await getFallbackData(dealId);
 
     if (dealId && dealId !== payload.dealId) {
       sendJson(res, 400, {
@@ -78,12 +126,31 @@ export default async function handler(req, res) {
         termsVersion: config.termsVersion,
         expiresAt: new Date(payload.exp).toISOString(),
         isExpired: Date.now() >= Number(payload.exp),
-        billingEmail: toText(quote?.[config.billingEmailField]),
-        billingPhone: toText(quote?.[config.billingPhoneField]),
-        companyRut: toText(quote?.[config.companyRutField]),
-        companyGiro: toText(quote?.[config.companyGiroField]),
-        companyComuna: toText(quote?.[config.companyComunaField]),
-        companyAddress: toText(quote?.[config.companyAddressField]),
+        billingEmail: pickFirst(
+          quote?.[config.billingEmailField],
+          fallback?.contact?.Email,
+          fallback?.deal?.Contact_Email
+        ),
+        billingPhone: pickFirst(
+          quote?.[config.billingPhoneField],
+          fallback?.contact?.Phone,
+          fallback?.deal?.Contact_Phone
+        ),
+        companyRut: pickFirst(
+          quote?.[config.companyRutField],
+          fallback?.deal?.Rut_ID_Account,
+          fallback?.account?.RUT_Empresa
+        ),
+        companyGiro: pickFirst(quote?.[config.companyGiroField]),
+        companyComuna: pickFirst(
+          quote?.[config.companyComunaField],
+          fallback?.account?.Comuna,
+          fallback?.contact?.Mailing_City
+        ),
+        companyAddress: pickFirst(
+          quote?.[config.companyAddressField],
+          fallback?.contact?.Mailing_Street
+        ),
       },
       items,
       totals: {
@@ -102,4 +169,3 @@ export default async function handler(req, res) {
     });
   }
 }
-

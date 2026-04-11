@@ -66,7 +66,7 @@ async function fetchFields(moduleApiName) {
 
 async function fetchFirstRecord(moduleApiName) {
   const response = await zohoApiFetch(
-    `/crm/v3/${encodeURIComponent(moduleApiName)}?per_page=1&page=1`,
+    `/crm/v3/${encodeURIComponent(moduleApiName)}?fields=id,Name&per_page=1&page=1`,
     { method: "GET" }
   );
   const payload = await readJsonSafe(response);
