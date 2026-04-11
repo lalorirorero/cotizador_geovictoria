@@ -8,6 +8,7 @@ const {
   normalizeEmail,
   hashOtpCode,
 } = require("../_shared/verification-token");
+const resendThrottle = new Map();
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -65,6 +66,23 @@ function maskEmail(email) {
   return `${safeLocal}@${domain}`;
 }
 
+function getCooldownSeconds() {
+  const raw = Number(process.env.QUOTE_ACCEPTANCE_RESEND_COOLDOWN_SECONDS || 60);
+  if (!Number.isFinite(raw)) return 60;
+  return Math.min(600, Math.max(15, Math.floor(raw)));
+}
+
+function pruneThrottle(nowMs) {
+  // Keep memory bounded in long-lived lambdas.
+  if (resendThrottle.size < 600) return;
+  const tenMinutesMs = 10 * 60 * 1000;
+  for (const [key, value] of resendThrottle.entries()) {
+    if (!value || nowMs - value > tenMinutesMs) {
+      resendThrottle.delete(key);
+    }
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { success: false, error: "Metodo no permitido." });
@@ -98,6 +116,24 @@ export default async function handler(req, res) {
       sendJson(res, 400, {
         success: false,
         error: `No hay un correo de contacto valido configurado en la cotizacion.${supportSuffix}`,
+      });
+      return;
+    }
+
+    stage = "resend_cooldown";
+    const cooldownSeconds = getCooldownSeconds();
+    const cooldownMs = cooldownSeconds * 1000;
+    const throttleKey = `${acceptancePayload.quoteId}:${contactEmail}`;
+    const nowMs = Date.now();
+    pruneThrottle(nowMs);
+    const lastSentAtMs = Number(resendThrottle.get(throttleKey) || 0);
+    const remainingMs = cooldownMs - (nowMs - lastSentAtMs);
+    if (remainingMs > 0) {
+      const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+      sendJson(res, 429, {
+        success: false,
+        error: `Ya enviamos un codigo hace instantes. Espera ${remainingSeconds} segundos para reenviar.`,
+        remainingSeconds,
       });
       return;
     }
@@ -140,6 +176,7 @@ export default async function handler(req, res) {
       supportLabel: config.supportContactLabel,
       supportEmail: config.supportContactEmail,
     });
+    resendThrottle.set(throttleKey, Date.now());
 
     stage = "response_ok";
     sendJson(res, 200, {
@@ -148,6 +185,7 @@ export default async function handler(req, res) {
       expiresAt: new Date(exp).toISOString(),
       maskedEmail: maskEmail(contactEmail),
       ttlMinutes,
+      resendCooldownSeconds: cooldownSeconds,
       message: "Codigo enviado correctamente.",
     });
   } catch (error) {

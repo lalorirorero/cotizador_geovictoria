@@ -377,6 +377,10 @@
         challengeToken: "",
         verificationToken: "",
         verifiedEmail: "",
+        sendCodeInFlight: false,
+        resendLockedUntil: 0,
+        resendTimer: null,
+        quoteExpired: false,
       };
 
       function normalizeEmail(value) {
@@ -400,6 +404,50 @@
       function setVerifyMessage(text, level) {
         verifyMessageEl.textContent = text || "";
         verifyMessageEl.className = "message" + (level ? " " + level : "");
+      }
+
+      function getResendRemainingSeconds() {
+        const remaining = verificationState.resendLockedUntil - Date.now();
+        if (remaining <= 0) return 0;
+        return Math.max(1, Math.ceil(remaining / 1000));
+      }
+
+      function updateSendCodeButton() {
+        if (verificationState.quoteExpired) {
+          sendCodeBtn.disabled = true;
+          sendCodeBtn.textContent = "Enviar codigo";
+          return;
+        }
+        if (verificationState.sendCodeInFlight) {
+          sendCodeBtn.disabled = true;
+          sendCodeBtn.textContent = "Enviando...";
+          return;
+        }
+        const remaining = getResendRemainingSeconds();
+        if (remaining > 0) {
+          sendCodeBtn.disabled = true;
+          sendCodeBtn.textContent = "Reenviar (" + remaining + "s)";
+          return;
+        }
+        sendCodeBtn.disabled = false;
+        sendCodeBtn.textContent = verificationState.challengeToken ? "Reenviar codigo" : "Enviar codigo";
+      }
+
+      function startResendCooldown(seconds) {
+        const safeSeconds = Math.max(15, Number(seconds || 60));
+        verificationState.resendLockedUntil = Date.now() + safeSeconds * 1000;
+        if (verificationState.resendTimer) {
+          clearInterval(verificationState.resendTimer);
+        }
+        verificationState.resendTimer = setInterval(() => {
+          const remaining = getResendRemainingSeconds();
+          updateSendCodeButton();
+          if (remaining <= 0) {
+            clearInterval(verificationState.resendTimer);
+            verificationState.resendTimer = null;
+          }
+        }, 500);
+        updateSendCodeButton();
       }
 
       function fmtCLP(value) {
@@ -519,11 +567,13 @@
 
           setStatus(q.isExpired ? "Cotizacion expirada" : "Cotizacion vigente", q.isExpired ? "warn" : "ok");
           if (q.isExpired) {
+            verificationState.quoteExpired = true;
             document.getElementById("confirmBtn").disabled = true;
             sendCodeBtn.disabled = true;
             verifyCodeBtn.disabled = true;
             setMessage("Esta cotizacion expiro. Contacta a tu ejecutivo comercial para actualizarla.", "error");
           }
+          updateSendCodeButton();
         } catch (error) {
           setStatus("No disponible", "warn");
           setMessage((error && error.message) || "No se pudo cargar la cotizacion.", "error");
@@ -540,8 +590,19 @@
           return;
         }
 
-        sendCodeBtn.disabled = true;
+        if (verificationState.sendCodeInFlight) {
+          return;
+        }
+        const remaining = getResendRemainingSeconds();
+        if (remaining > 0) {
+          setVerifyMessage("Espera " + remaining + " segundos antes de reenviar otro codigo.", "error");
+          updateSendCodeButton();
+          return;
+        }
+
+        verificationState.sendCodeInFlight = true;
         verifyCodeBtn.disabled = true;
+        updateSendCodeButton();
         setVerifyMessage("Enviando codigo de verificacion...");
         try {
           const res = await fetch("/api/quote-acceptance/send-email-code", {
@@ -562,14 +623,21 @@
           fields.verifyCode.value = "";
           sendCodeBtn.classList.add("ok");
           verifyCodeBtn.classList.remove("ok");
+          startResendCooldown(data.resendCooldownSeconds || 60);
           setVerifyMessage(
             "Codigo enviado a " + (data.maskedEmail || email) + ". Revisa tu correo y valida para continuar.",
             "ok"
           );
         } catch (error) {
-          setVerifyMessage((error && error.message) || "No se pudo enviar el codigo.", "error");
+          const message = (error && error.message) || "No se pudo enviar el codigo.";
+          setVerifyMessage(message, "error");
+          const cooldownMatch = message.match(/(\d+)\s*segundos/i);
+          if (cooldownMatch) {
+            startResendCooldown(Number(cooldownMatch[1]));
+          }
         } finally {
-          sendCodeBtn.disabled = false;
+          verificationState.sendCodeInFlight = false;
+          updateSendCodeButton();
           verifyCodeBtn.disabled = false;
         }
       }
