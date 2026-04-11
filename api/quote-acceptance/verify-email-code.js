@@ -1,0 +1,131 @@
+const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
+const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
+const { toText } = require("../_shared/zoho-crm");
+const {
+  verifyVerificationToken,
+  signVerificationPayload,
+  normalizeEmail,
+  hashOtpCode,
+} = require("../_shared/verification-token");
+
+function sendJson(res, status, payload) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(payload));
+}
+
+function parseBody(req) {
+  if (!req?.body) return {};
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body || "{}");
+    } catch (_error) {
+      return {};
+    }
+  }
+  if (typeof req.body === "object") return req.body;
+  return {};
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { success: false, error: "Metodo no permitido." });
+    return;
+  }
+
+  try {
+    const body = parseBody(req);
+    const token = toText(body?.token);
+    const challengeToken = toText(body?.challengeToken);
+    const code = toText(body?.code).replace(/\s+/g, "");
+    const billingEmail = normalizeEmail(body?.billingEmail);
+
+    if (!token) {
+      sendJson(res, 400, { success: false, error: "Falta token." });
+      return;
+    }
+    if (!challengeToken) {
+      sendJson(res, 400, { success: false, error: "Falta challengeToken." });
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      sendJson(res, 400, {
+        success: false,
+        error: "Ingresa el codigo de 6 digitos enviado a tu correo.",
+      });
+      return;
+    }
+    if (!billingEmail) {
+      sendJson(res, 400, { success: false, error: "Falta correo de facturacion." });
+      return;
+    }
+
+    const acceptancePayload = verifyAcceptanceToken(token);
+    const challenge = verifyVerificationToken(challengeToken, "quote_email_challenge");
+
+    if (toText(challenge?.quoteId) !== toText(acceptancePayload?.quoteId)) {
+      sendJson(res, 400, { success: false, error: "La verificacion no coincide con la cotizacion." });
+      return;
+    }
+    if (toText(challenge?.dealId) !== toText(acceptancePayload?.dealId)) {
+      sendJson(res, 400, { success: false, error: "La verificacion no coincide con el Deal." });
+      return;
+    }
+
+    const challengeEmail = normalizeEmail(challenge?.email);
+    if (!challengeEmail || challengeEmail !== billingEmail) {
+      sendJson(res, 400, {
+        success: false,
+        error: "El correo verificado no coincide con el correo de facturacion actual.",
+      });
+      return;
+    }
+
+    const expectedHash = hashOtpCode({
+      quoteId: challenge?.quoteId,
+      email: challengeEmail,
+      nonce: challenge?.nonce,
+      code,
+    });
+    if (toText(challenge?.otpHash) !== expectedHash) {
+      sendJson(res, 400, {
+        success: false,
+        error: "Codigo incorrecto. Revisa el correo e intenta nuevamente.",
+      });
+      return;
+    }
+
+    const config = getAcceptanceConfig(req);
+    const proofMinutes = Math.max(10, Number(config.verificationProofTtlMinutes || 60));
+    const verifiedAt = Date.now();
+    const proofToken = signVerificationPayload(
+      {
+        quoteId: acceptancePayload.quoteId,
+        dealId: acceptancePayload.dealId,
+        email: challengeEmail,
+        verifiedAt,
+        iat: verifiedAt,
+        exp: verifiedAt + proofMinutes * 60 * 1000,
+        v: 1,
+      },
+      "quote_email_verified"
+    );
+
+    sendJson(res, 200, {
+      success: true,
+      verificationToken: proofToken,
+      verifiedAt: new Date(verifiedAt).toISOString(),
+      verifiedEmail: challengeEmail,
+      message: "Correo verificado correctamente.",
+    });
+  } catch (error) {
+    const isExpired = toText(error?.code) === "TOKEN_EXPIRED";
+    sendJson(res, isExpired ? 410 : 400, {
+      success: false,
+      error: isExpired
+        ? "El codigo expiro. Solicita uno nuevo."
+        : "No se pudo validar el codigo de verificacion.",
+      detail: toText(error?.message || error),
+    });
+  }
+}

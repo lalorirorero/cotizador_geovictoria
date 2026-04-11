@@ -2,6 +2,7 @@ const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
 const { getRecord, updateRecordBestEffort, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { runOnboardingHandoff } = require("../_shared/onboarding-handoff");
+const { verifyVerificationToken, normalizeEmail } = require("../_shared/verification-token");
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -124,6 +125,7 @@ export default async function handler(req, res) {
   try {
     const body = parseBody(req);
     const token = toText(body?.token);
+    const verificationToken = toText(body?.verificationToken);
     const termsAccepted = body?.termsAccepted === true;
     const acceptanceData = body?.acceptanceData || {};
 
@@ -153,6 +155,7 @@ export default async function handler(req, res) {
     const currentOnboardingLookup = toText(quote?.[config.quoteOnboardingLookupField]?.id);
 
     const currentStatus = toText(quote?.[config.quoteStatusField]);
+    const alreadyAccepted = /Aceptada/i.test(currentStatus);
     if (/Aceptada/i.test(currentStatus) && currentOnboardingUrl && currentOnboardingToken) {
       sendJson(res, 200, {
         success: true,
@@ -165,9 +168,60 @@ export default async function handler(req, res) {
       return;
     }
 
+    const billingEmail = normalizeEmail(acceptanceData.billingEmail);
+    if (!alreadyAccepted) {
+      if (!verificationToken) {
+        sendJson(res, 400, {
+          success: false,
+          error: "Debes verificar el correo de facturacion antes de aceptar la cotizacion.",
+        });
+        return;
+      }
+      if (!billingEmail) {
+        sendJson(res, 400, {
+          success: false,
+          error: "Debes ingresar un correo de facturacion valido.",
+        });
+        return;
+      }
+
+      let verificationPayload = null;
+      try {
+        verificationPayload = verifyVerificationToken(verificationToken, "quote_email_verified");
+      } catch (_error) {
+        sendJson(res, 400, {
+          success: false,
+          error: "La verificacion de correo no es valida o expiro. Solicita un nuevo codigo.",
+        });
+        return;
+      }
+
+      if (toText(verificationPayload?.quoteId) !== toText(payload?.quoteId)) {
+        sendJson(res, 400, {
+          success: false,
+          error: "La verificacion de correo no corresponde a esta cotizacion.",
+        });
+        return;
+      }
+      if (toText(verificationPayload?.dealId) !== toText(payload?.dealId)) {
+        sendJson(res, 400, {
+          success: false,
+          error: "La verificacion de correo no corresponde al Deal de esta cotizacion.",
+        });
+        return;
+      }
+      if (normalizeEmail(verificationPayload?.email) !== billingEmail) {
+        sendJson(res, 400, {
+          success: false,
+          error: "El correo verificado no coincide con el correo de facturacion ingresado.",
+        });
+        return;
+      }
+    }
+
     const existingAcceptedAt = toText(quote?.[config.quoteAcceptanceAtField]);
     const acceptedAtIso = existingAcceptedAt || toZohoDateTime();
-    if (!/Aceptada/i.test(currentStatus)) {
+    if (!alreadyAccepted) {
       const updateMap = {
         [config.quoteStatusField]: "Aceptada",
         [config.quoteAcceptanceAtField]: acceptedAtIso,
@@ -182,6 +236,12 @@ export default async function handler(req, res) {
         [config.quoteHandoffStatusField]: config.quoteOnboardingStatusPending || "En Curso",
         [config.quoteHandoffErrorField]: "",
       };
+      if (config.quoteEmailVerifiedField) {
+        updateMap[config.quoteEmailVerifiedField] = true;
+      }
+      if (config.quoteEmailVerifiedAtField) {
+        updateMap[config.quoteEmailVerifiedAtField] = acceptedAtIso;
+      }
       await updateRecordBestEffort(config.quoteModule, payload.quoteId, updateMap, true);
     }
 

@@ -30,6 +30,8 @@ function getAcceptanceConfig(req) {
     quoteAcceptanceAtField: toText(process.env.QUOTE_ACCEPTED_AT_FIELD || "Fecha_Hora_Cotizacion"),
     quoteTermsAcceptedField: toText(process.env.QUOTE_TERMS_ACCEPTED_FIELD || ""),
     quoteTermsVersionField: toText(process.env.QUOTE_TERMS_VERSION_FIELD || ""),
+    quoteEmailVerifiedField: toText(process.env.QUOTE_EMAIL_VERIFIED_FIELD || ""),
+    quoteEmailVerifiedAtField: toText(process.env.QUOTE_EMAIL_VERIFIED_AT_FIELD || ""),
     quoteHandoffStatusField: toText(process.env.QUOTE_HANDOFF_STATUS_FIELD || "Onboarding_Status"),
     quoteHandoffErrorField: toText(process.env.QUOTE_HANDOFF_ERROR_FIELD || ""),
     quoteOnboardingLookupField: toText(process.env.QUOTE_ONBOARDING_LOOKUP_FIELD || "Auto_Onboarding_Asociado"),
@@ -90,6 +92,14 @@ function getAcceptanceConfig(req) {
     ),
     termsVersion: toText(process.env.QUOTE_TERMS_VERSION || "TYC-CL-2026-04"),
     validityDays: toInt(process.env.QUOTE_ACCEPTANCE_VALIDITY_DAYS, 30),
+    verificationCodeTtlMinutes: toInt(process.env.QUOTE_VERIFICATION_CODE_TTL_MINUTES, 10),
+    verificationProofTtlMinutes: toInt(process.env.QUOTE_VERIFICATION_PROOF_TTL_MINUTES, 60),
+    supportContactLabel: toText(
+      process.env.QUOTE_SUPPORT_CONTACT_LABEL || "Soporte Comercial"
+    ),
+    supportContactEmail: toText(
+      process.env.QUOTE_SUPPORT_CONTACT_EMAIL || "egomez@geovictoria.com"
+    ),
     handoffWebhookUrl: toText(process.env.QUOTE_HANDOFF_WEBHOOK_URL),
   };
 }

@@ -153,6 +153,47 @@
         opacity: 0.55;
         cursor: not-allowed;
       }
+      .btn.secondary {
+        margin-top: 0;
+        width: 100%;
+        height: 42px;
+        border: 1px solid #8fb8db;
+        background: #fff;
+        color: #0b5a88;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .btn.secondary.ok {
+        border-color: #15803d;
+        color: #166534;
+      }
+      .verify-box {
+        border: 1px solid #c6d5e6;
+        border-radius: 12px;
+        padding: 12px;
+        margin-top: 12px;
+        background: #f8fbff;
+      }
+      .verify-head {
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .verify-hint {
+        margin: 6px 0 10px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .verify-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        gap: 10px;
+        align-items: end;
+      }
+      .verify-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
       .message {
         margin-top: 10px;
         font-size: 13px;
@@ -166,7 +207,9 @@
       }
       @media (max-width: 800px) {
         .grid,
-        .fields {
+        .fields,
+        .verify-grid,
+        .verify-actions {
           grid-template-columns: 1fr;
         }
       }
@@ -278,6 +321,24 @@
             </div>
           </div>
 
+          <div class="verify-box">
+            <div class="verify-head">Verificacion de correo *</div>
+            <p class="verify-hint">
+              Enviaremos un codigo de 6 digitos al correo de facturacion para validar la aceptacion.
+            </p>
+            <div class="verify-grid">
+              <div>
+                <label for="verifyCode">Codigo de verificacion *</label>
+                <input id="verifyCode" type="text" maxlength="6" inputmode="numeric" />
+              </div>
+              <div class="verify-actions">
+                <button id="sendCodeBtn" type="button" class="btn secondary">Enviar codigo</button>
+                <button id="verifyCodeBtn" type="button" class="btn secondary">Validar codigo</button>
+              </div>
+            </div>
+            <div id="verifyMessage" class="message"></div>
+          </div>
+
           <div class="accept">
             <input id="termsAccepted" type="checkbox" style="width: 18px; height: 18px; margin-top: 2px" />
             <label for="termsAccepted" style="margin: 0">
@@ -295,6 +356,9 @@
       const token = new URLSearchParams(window.location.search).get("token") || "";
       const statusEl = document.getElementById("status");
       const messageEl = document.getElementById("message");
+      const verifyMessageEl = document.getElementById("verifyMessage");
+      const sendCodeBtn = document.getElementById("sendCodeBtn");
+      const verifyCodeBtn = document.getElementById("verifyCodeBtn");
       const fields = {
         billingEmail: document.getElementById("billingEmail"),
         billingPhone: document.getElementById("billingPhone"),
@@ -302,7 +366,21 @@
         companyGiro: document.getElementById("companyGiro"),
         companyComuna: document.getElementById("companyComuna"),
         companyAddress: document.getElementById("companyAddress"),
+        verifyCode: document.getElementById("verifyCode"),
       };
+      const verificationState = {
+        challengeToken: "",
+        verificationToken: "",
+        verifiedEmail: "",
+      };
+
+      function normalizeEmail(value) {
+        return String(value || "").trim().toLowerCase();
+      }
+
+      function emailLooksValid(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
+      }
 
       function setStatus(text, level) {
         statusEl.textContent = text || "";
@@ -312,6 +390,11 @@
       function setMessage(text, level) {
         messageEl.textContent = text || "";
         messageEl.className = "message" + (level ? " " + level : "");
+      }
+
+      function setVerifyMessage(text, level) {
+        verifyMessageEl.textContent = text || "";
+        verifyMessageEl.className = "message" + (level ? " " + level : "");
       }
 
       function fmtCLP(value) {
@@ -324,14 +407,40 @@
         return Number(value || 0).toFixed(3) + " UF";
       }
 
+      function resetVerification(reason) {
+        verificationState.challengeToken = "";
+        verificationState.verificationToken = "";
+        verificationState.verifiedEmail = "";
+        sendCodeBtn.classList.remove("ok");
+        verifyCodeBtn.classList.remove("ok");
+        if (reason) {
+          setVerifyMessage(reason, "warn");
+        } else {
+          setVerifyMessage("");
+        }
+      }
+
+      function isEmailVerifiedForCurrentInput() {
+        const currentEmail = normalizeEmail(fields.billingEmail.value);
+        return Boolean(
+          verificationState.verificationToken &&
+            verificationState.verifiedEmail &&
+            verificationState.verifiedEmail === currentEmail
+        );
+      }
+
       function validateRequired() {
         for (const [key, input] of Object.entries(fields)) {
+          if (key === "verifyCode") continue;
           if (!String(input.value || "").trim()) {
             return { ok: false, field: key };
           }
         }
         if (!document.getElementById("termsAccepted").checked) {
           return { ok: false, field: "termsAccepted" };
+        }
+        if (!isEmailVerifiedForCurrentInput()) {
+          return { ok: false, field: "emailVerification" };
         }
         return { ok: true };
       }
@@ -403,6 +512,8 @@
           setStatus(q.isExpired ? "Cotizacion expirada" : "Cotizacion vigente", q.isExpired ? "warn" : "ok");
           if (q.isExpired) {
             document.getElementById("confirmBtn").disabled = true;
+            sendCodeBtn.disabled = true;
+            verifyCodeBtn.disabled = true;
             setMessage("Esta cotizacion expiro. Contacta a tu ejecutivo comercial para actualizarla.", "error");
           }
         } catch (error) {
@@ -411,12 +522,109 @@
         }
       }
 
+      async function onSendCode() {
+        const email = normalizeEmail(fields.billingEmail.value);
+        if (!emailLooksValid(email)) {
+          setVerifyMessage("Ingresa un correo de facturacion valido para enviar el codigo.", "error");
+          return;
+        }
+
+        sendCodeBtn.disabled = true;
+        verifyCodeBtn.disabled = true;
+        setVerifyMessage("Enviando codigo de verificacion...");
+        try {
+          const res = await fetch("/api/quote-acceptance/send-email-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token,
+              billingEmail: email,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || "No se pudo enviar el codigo.");
+          }
+
+          verificationState.challengeToken = data.challengeToken || "";
+          verificationState.verificationToken = "";
+          verificationState.verifiedEmail = "";
+          fields.verifyCode.value = "";
+          sendCodeBtn.classList.add("ok");
+          verifyCodeBtn.classList.remove("ok");
+          setVerifyMessage(
+            "Codigo enviado a " + (data.maskedEmail || email) + ". Revisa tu correo y valida para continuar.",
+            "ok"
+          );
+        } catch (error) {
+          setVerifyMessage((error && error.message) || "No se pudo enviar el codigo.", "error");
+        } finally {
+          sendCodeBtn.disabled = false;
+          verifyCodeBtn.disabled = false;
+        }
+      }
+
+      async function onVerifyCode() {
+        const email = normalizeEmail(fields.billingEmail.value);
+        const code = String(fields.verifyCode.value || "").trim();
+        if (!verificationState.challengeToken) {
+          setVerifyMessage("Primero debes enviar el codigo al correo de facturacion.", "error");
+          return;
+        }
+        if (!/^\d{6}$/.test(code)) {
+          setVerifyMessage("Ingresa un codigo valido de 6 digitos.", "error");
+          return;
+        }
+        if (!emailLooksValid(email)) {
+          setVerifyMessage("Ingresa un correo de facturacion valido antes de validar.", "error");
+          return;
+        }
+
+        sendCodeBtn.disabled = true;
+        verifyCodeBtn.disabled = true;
+        setVerifyMessage("Validando codigo...");
+        try {
+          const res = await fetch("/api/quote-acceptance/verify-email-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token,
+              challengeToken: verificationState.challengeToken,
+              code,
+              billingEmail: email,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || "No se pudo validar el codigo.");
+          }
+
+          verificationState.verificationToken = data.verificationToken || "";
+          verificationState.verifiedEmail = normalizeEmail(data.verifiedEmail || email);
+          verifyCodeBtn.classList.add("ok");
+          setVerifyMessage("Correo verificado correctamente. Ya puedes aceptar la cotizacion.", "ok");
+        } catch (error) {
+          verificationState.verificationToken = "";
+          verificationState.verifiedEmail = "";
+          verifyCodeBtn.classList.remove("ok");
+          setVerifyMessage((error && error.message) || "Codigo invalido o expirado.", "error");
+        } finally {
+          sendCodeBtn.disabled = false;
+          verifyCodeBtn.disabled = false;
+        }
+      }
+
       async function onConfirm() {
         const check = validateRequired();
         if (!check.ok) {
-          setMessage("Completa todos los datos obligatorios y acepta terminos para continuar.", "error");
+          if (check.field === "emailVerification") {
+            setMessage("Debes verificar el correo de facturacion antes de continuar.", "error");
+          } else {
+            setMessage("Completa todos los datos obligatorios y acepta terminos para continuar.", "error");
+          }
           return;
         }
+
         const btn = document.getElementById("confirmBtn");
         btn.disabled = true;
         setMessage("Procesando aceptacion...");
@@ -426,6 +634,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               token,
+              verificationToken: verificationState.verificationToken,
               termsAccepted: true,
               acceptanceData: {
                 billingEmail: fields.billingEmail.value.trim(),
@@ -457,9 +666,19 @@
         }
       }
 
+      fields.billingEmail.addEventListener("input", () => {
+        if (verificationState.verifiedEmail !== normalizeEmail(fields.billingEmail.value)) {
+          resetVerification("Cambiaste el correo de facturacion. Debes volver a verificarlo.");
+        }
+      });
+      fields.verifyCode.addEventListener("keyup", (event) => {
+        if (event.key === "Enter") onVerifyCode();
+      });
+
+      sendCodeBtn.addEventListener("click", onSendCode);
+      verifyCodeBtn.addEventListener("click", onVerifyCode);
       document.getElementById("confirmBtn").addEventListener("click", onConfirm);
       boot();
     </script>
   </body>
 </html>
-

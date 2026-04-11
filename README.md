@@ -89,14 +89,21 @@ Endpoint de validación:
   - output: `acceptanceUrl` con token firmado para cliente final.
 - `GET /api/quote-acceptance/session?token=...`
   - carga datos de cotizacion + detalle de items para mostrar en web.
+- `POST /api/quote-acceptance/send-email-code`
+  - input: `{ "token": "...", "billingEmail": "cliente@empresa.cl" }`
+  - output: `challengeToken` y expiración del código OTP.
+- `POST /api/quote-acceptance/verify-email-code`
+  - input: `{ "token": "...", "challengeToken": "...", "code": "123456", "billingEmail": "..." }`
+  - output: `verificationToken` para habilitar confirmación final.
 - `POST /api/quote-acceptance/confirm`
-  - confirma TyC y datos de facturacion, marca cotizacion `Aceptada`, y dispara handoff a onboarding.
+  - confirma TyC + datos de facturación + `verificationToken` válido, marca cotización `Aceptada`, y dispara handoff a onboarding.
 
 ### Web de aceptacion
 - URL base: `/quote-acceptance.html?token=...`
 - Esta pantalla:
   - muestra resumen + items + terminos,
   - solicita datos obligatorios de facturacion,
+  - exige verificacion por codigo enviado al correo de facturacion,
   - confirma TyC,
   - y redirige a onboarding si handoff devuelve `onboardingUrl`.
   - por defecto usa handoff interno Zoho+Onboarding (si no se define webhook externo).
@@ -106,6 +113,13 @@ Endpoint de validación:
 - `QUOTE_ACCEPT_BASE_URL` (opcional, recomendado para links publicos)
 - `QUOTE_ACCEPTANCE_VALIDITY_DAYS` (opcional, default `30`)
 - `QUOTE_TERMS_VERSION` (opcional, default `TYC-CL-2026-04`)
+- `QUOTE_VERIFICATION_SECRET` (opcional; si no existe usa `QUOTE_ACCEPTANCE_SECRET`)
+- `QUOTE_VERIFICATION_CODE_TTL_MINUTES` (opcional, default `10`)
+- `QUOTE_VERIFICATION_PROOF_TTL_MINUTES` (opcional, default `60`)
+- `QUOTE_SUPPORT_CONTACT_LABEL` (opcional, default `Soporte Comercial`)
+- `QUOTE_SUPPORT_CONTACT_EMAIL` (opcional, default `egomez@geovictoria.com`)
+- `RESEND_API_KEY` y `RESEND_FROM_EMAIL` (opcionales; si están definidos se usa Resend para enviar OTP)
+- `ZOHO_VERIFICATION_FROM_EMAIL` y `ZOHO_VERIFICATION_FROM_NAME` (opcionales; override remitente si se envía por Zoho CRM)
 - `QUOTE_HANDOFF_WEBHOOK_URL` (opcional; si existe, se invoca al confirmar)
   - si no existe, `confirm` usa handoff interno:
     1. crea/reutiliza `Autoservicio_Onboarding`,
@@ -124,6 +138,8 @@ Los siguientes defaults asumen API names ya creados en `Cotizaciones_GeoVictoria
 - `QUOTE_ACCEPTED_AT_FIELD` => `Fecha_Aceptacion_Web`
 - `QUOTE_TERMS_ACCEPTED_FIELD` => `TyC_Aceptados_Web`
 - `QUOTE_TERMS_VERSION_FIELD` => `Version_TyC_Web`
+- `QUOTE_EMAIL_VERIFIED_FIELD` => (opcional, ej: `Correo_Verificado_Web`)
+- `QUOTE_EMAIL_VERIFIED_AT_FIELD` => (opcional, ej: `Fecha_Verificacion_Correo_Web`)
 - `QUOTE_HANDOFF_STATUS_FIELD` => `Estado_Handoff`
 - `QUOTE_HANDOFF_ERROR_FIELD` => `Error_Handoff`
 - `QUOTE_ONBOARDING_LOOKUP_FIELD` => `Auto_Onboarding_Asociado`
