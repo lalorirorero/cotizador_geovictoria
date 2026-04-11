@@ -77,6 +77,9 @@ Para dejar conexión estable con renovación automática de token:
 Endpoint de validación:
 - `GET /api/zoho/token-health`
 - Responde `success: true` cuando el token está vigente y hay acceso real a CRM (`/crm/v3/users?type=CurrentUser`).
+- `GET /api/zoho/access-check?module=Autoservicio_Onboarding`
+  - Endpoint de diagnostico integral (users/modules/fields/records/write-probe).
+  - Requiere header `x-diagnostics-secret` con valor de `ZOHO_DIAGNOSTICS_SECRET` (o `CRON_SECRET` como fallback).
 
 ## Flujo de aceptacion web de cotizacion (MVP)
 
