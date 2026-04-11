@@ -13,12 +13,12 @@ function buildVerificationEmailHtml({ code, quoteId, ttlMinutes, supportLabel, s
     : `${supportLabel}: no disponible`;
   return (
     `<div style="font-family:Arial,sans-serif;line-height:1.45;color:#0f172a">` +
-    `<h2 style="margin:0 0 12px 0;color:#0f172a">Validación de correo - Cotización GeoVictoria</h2>` +
-    `<p style="margin:0 0 8px 0">Tu código de verificación es:</p>` +
+    `<h2 style="margin:0 0 12px 0;color:#0f172a">Validacion de correo - Cotizacion GeoVictoria</h2>` +
+    `<p style="margin:0 0 8px 0">Tu codigo de verificacion es:</p>` +
     `<p style="margin:0 0 14px 0;font-size:28px;font-weight:700;letter-spacing:2px;color:#0284c7">${code}</p>` +
-    `<p style="margin:0 0 8px 0">Este código vence en ${ttlMinutes} minutos.</p>` +
-    `<p style="margin:0 0 8px 0">Cotización: <strong>${toText(quoteId) || "-"}</strong></p>` +
-    `<p style="margin:0;color:#334155">Si no solicitaste este código, ignora este correo.</p>` +
+    `<p style="margin:0 0 8px 0">Este codigo vence en ${ttlMinutes} minutos.</p>` +
+    `<p style="margin:0 0 8px 0">Cotizacion: <strong>${toText(quoteId) || "-"}</strong></p>` +
+    `<p style="margin:0;color:#334155">Si no solicitaste este codigo, ignora este correo.</p>` +
     `<p style="margin:14px 0 0 0;color:#334155">${supportLine}</p>` +
     `</div>`
   );
@@ -26,13 +26,13 @@ function buildVerificationEmailHtml({ code, quoteId, ttlMinutes, supportLabel, s
 
 function buildVerificationEmailText({ code, quoteId, ttlMinutes, supportLabel, supportEmail }) {
   return [
-    "Validación de correo - Cotización GeoVictoria",
+    "Validacion de correo - Cotizacion GeoVictoria",
     "",
-    `Código de verificación: ${code}`,
+    `Codigo de verificacion: ${code}`,
     `Vence en ${ttlMinutes} minutos.`,
-    `Cotización: ${toText(quoteId) || "-"}`,
+    `Cotizacion: ${toText(quoteId) || "-"}`,
     "",
-    "Si no solicitaste este código, ignora este correo.",
+    "Si no solicitaste este codigo, ignora este correo.",
     `${supportLabel}: ${supportEmail || "no disponible"}`,
   ].join("\n");
 }
@@ -43,7 +43,7 @@ async function sendViaResend({ toEmail, subject, html, text }) {
 
   const fromEmail = toText(process.env.RESEND_FROM_EMAIL);
   if (!fromEmail) {
-    throw new Error("Falta RESEND_FROM_EMAIL para enviar verificación por correo.");
+    throw new Error("Falta RESEND_FROM_EMAIL para enviar verificacion por correo.");
   }
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -90,14 +90,11 @@ async function getCurrentZohoUser() {
 async function resolveZohoSender({ quoteModule, quoteId, quoteDealLookupField }) {
   const senderEmailEnv = toText(process.env.ZOHO_VERIFICATION_FROM_EMAIL);
   let dealId = "";
-  let deal = null;
   try {
     const quote = await getRecordWithFields(quoteModule, quoteId, [quoteDealLookupField]);
     dealId = toText(quote?.[quoteDealLookupField]?.id || quote?.[quoteDealLookupField]);
-    deal = dealId ? await getRecordWithFields("Deals", dealId, ["Owner"]) : null;
   } catch (_error) {
     dealId = "";
-    deal = null;
   }
 
   if (senderEmailEnv) {
@@ -108,9 +105,26 @@ async function resolveZohoSender({ quoteModule, quoteId, quoteDealLookupField })
     };
   }
 
+  // First preference: OAuth current user, which Zoho allows reliably as sender.
+  const currentUser = await getCurrentZohoUser().catch(() => null);
+  const currentEmail = toText(currentUser?.email);
+  if (currentEmail) {
+    return {
+      email: currentEmail,
+      name: toText(currentUser?.full_name || currentUser?.name) || currentEmail,
+      dealId,
+    };
+  }
+
+  // Fallback only if current user cannot be resolved.
+  let deal = null;
+  try {
+    deal = dealId ? await getRecordWithFields("Deals", dealId, ["Owner"]) : null;
+  } catch (_error) {
+    deal = null;
+  }
   const ownerId = toText(deal?.Owner?.id);
   const owner = ownerId ? await getUserById(ownerId).catch(() => null) : null;
-
   const ownerEmail = toText(owner?.email);
   if (ownerEmail) {
     return {
@@ -120,16 +134,7 @@ async function resolveZohoSender({ quoteModule, quoteId, quoteDealLookupField })
     };
   }
 
-  const currentUser = await getCurrentZohoUser();
-  const currentEmail = toText(currentUser?.email);
-  if (!currentEmail) {
-    throw new Error("No se encontró email de usuario remitente en Zoho.");
-  }
-  return {
-    email: currentEmail,
-    name: toText(currentUser?.full_name || currentUser?.name) || currentEmail,
-    dealId,
-  };
+  throw new Error("No se encontro email remitente permitido en Zoho.");
 }
 
 async function sendViaZohoCrm({ quoteModule, quoteId, quoteDealLookupField, toEmail, toName, subject, html }) {
@@ -195,10 +200,10 @@ async function sendVerificationCodeEmail({
 }) {
   const normalizedTo = toText(toEmail).toLowerCase();
   if (!validateEmail(normalizedTo)) {
-    throw new Error("Correo de destino inválido para verificación.");
+    throw new Error("Correo de destino invalido para verificacion.");
   }
 
-  const subject = "Código de verificación - Cotización GeoVictoria";
+  const subject = "Codigo de verificacion - Cotizacion GeoVictoria";
   const html = buildVerificationEmailHtml({
     code,
     quoteId,
