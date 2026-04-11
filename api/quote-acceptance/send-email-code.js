@@ -15,17 +15,39 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-function parseBody(req) {
-  if (!req?.body) return {};
-  if (typeof req.body === "string") {
+async function parseBody(req) {
+  let bodyValue;
+  try {
+    bodyValue = req?.body;
+  } catch (_error) {
+    bodyValue = undefined;
+  }
+
+  if (bodyValue && typeof bodyValue === "object") return bodyValue;
+  if (typeof bodyValue === "string") {
     try {
-      return JSON.parse(req.body || "{}");
+      return JSON.parse(bodyValue || "{}");
     } catch (_error) {
       return {};
     }
   }
-  if (typeof req.body === "object") return req.body;
-  return {};
+
+  if (!req || typeof req.on !== "function") return {};
+
+  const chunks = [];
+  await new Promise((resolve) => {
+    req.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    req.on("end", resolve);
+    req.on("error", resolve);
+  });
+
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch (_error) {
+    return {};
+  }
 }
 
 function randomCode6() {
@@ -57,7 +79,7 @@ export default async function handler(req, res) {
 
   try {
     stage = "parse_body";
-    const body = parseBody(req);
+    const body = await parseBody(req);
     const token = toText(body?.token);
     const recipientName = toText(body?.recipientName);
 
