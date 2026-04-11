@@ -228,6 +228,74 @@
         background: #f8fbff;
         font-size: 13px;
       }
+      .brand-band {
+        margin-top: 14px;
+        border: 1px solid #b8dcf6;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .brand-band-h {
+        background: #00aff2;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 900;
+        padding: 9px 12px;
+        border-left: 5px solid #ffc20e;
+      }
+      .brand-band-b {
+        background: #fff;
+        padding: 12px 12px;
+      }
+      .about-list p {
+        margin: 0 0 8px;
+        color: #556b86;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .about-list p:last-child {
+        margin-bottom: 0;
+      }
+      .benefits-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .benefit {
+        border: 1px solid #c8ddf0;
+        border-left: 4px solid #00aff2;
+        border-radius: 10px;
+        background: #f7fbff;
+        padding: 9px 10px;
+      }
+      .benefit-title {
+        margin: 0 0 4px;
+        color: #0b5d91;
+        font-size: 12px;
+        font-weight: 900;
+      }
+      .benefit-desc {
+        margin: 0;
+        color: #556b86;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      .included-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .included-table th,
+      .included-table td {
+        border: 1px solid #d5e3f0;
+        padding: 7px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .included-table th {
+        background: #f2f9ff;
+        color: #3f5d7f;
+        font-weight: 900;
+      }
       .pdf-link {
         margin-top: 10px;
         display: inline-flex;
@@ -469,6 +537,7 @@
         .hero-top,
         .grid,
         .steps,
+        .benefits-grid,
         .fields,
         .verify-grid,
         .verify-actions {
@@ -542,6 +611,96 @@
           </div>
           <div style="margin-top: 10px">
             <a id="pdfLink" class="pdf-link" target="_blank" rel="noopener noreferrer">Ver PDF de cotizacion</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="card stage" id="stageInfoValue">
+        <div class="head">
+          <h2 class="title"><span class="icon">1</span>Valor de elegir GeoVictoria</h2>
+          <div class="k">Resumen comercial de la propuesta</div>
+        </div>
+        <div class="content">
+          <div class="brand-band">
+            <div class="brand-band-h">Acerca de GeoVictoria</div>
+            <div class="brand-band-b about-list">
+              <p>
+                GeoVictoria es una empresa de tecnologia lider en Latinoamerica, especializada en control de asistencia,
+                gestion de tiempo y productividad laboral, con presencia en mas de 40 paises y miles de clientes activos.
+              </p>
+              <p>
+                Nuestra plataforma integra marcaje biometrico, app movil y web, mas gestion de turnos, vacaciones,
+                horas extras y documentos, todo en tiempo real sobre infraestructura Microsoft Azure.
+              </p>
+              <p>
+                Incluimos soporte tecnico continuo, capacitaciones y actualizaciones para asegurar una implementacion
+                operativa y escalable desde el inicio.
+              </p>
+            </div>
+          </div>
+
+          <div class="brand-band">
+            <div class="brand-band-h">Por que GeoVictoria</div>
+            <div class="brand-band-b">
+              <div class="benefits-grid">
+                <article class="benefit">
+                  <h3 class="benefit-title">Control en tiempo real</h3>
+                  <p class="benefit-desc">Visualiza asistencia y novedades operativas al instante.</p>
+                </article>
+                <article class="benefit">
+                  <h3 class="benefit-title">Reduccion de costos</h3>
+                  <p class="benefit-desc">Disminuye ausentismo y errores en horas extras con datos precisos.</p>
+                </article>
+                <article class="benefit">
+                  <h3 class="benefit-title">Multiples metodos de marcaje</h3>
+                  <p class="benefit-desc">Biometria, app movil, marcaje web y llamada.</p>
+                </article>
+                <article class="benefit">
+                  <h3 class="benefit-title">Plataforma cloud robusta</h3>
+                  <p class="benefit-desc">Disponibilidad objetivo 99,5% y respaldo empresarial.</p>
+                </article>
+                <article class="benefit">
+                  <h3 class="benefit-title">Integracion con nomina</h3>
+                  <p class="benefit-desc">Exporta datos para remuneraciones sin reprocesos manuales.</p>
+                </article>
+                <article class="benefit">
+                  <h3 class="benefit-title">Soporte y capacitacion</h3>
+                  <p class="benefit-desc">Acompanamiento comercial y tecnico durante todo el rollout.</p>
+                </article>
+              </div>
+            </div>
+          </div>
+
+          <div class="brand-band">
+            <div class="brand-band-h">Servicios incluidos sin costo adicional</div>
+            <div class="brand-band-b">
+              <table class="included-table">
+                <thead>
+                  <tr>
+                    <th>Servicio</th>
+                    <th>Descripcion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Soporte tecnico</td>
+                    <td>Mesa de ayuda por telefono, correo y chat en horario habil.</td>
+                  </tr>
+                  <tr>
+                    <td>Capacitacion inicial</td>
+                    <td>Induccion online para administradores y uso base de la plataforma.</td>
+                  </tr>
+                  <tr>
+                    <td>Actualizaciones</td>
+                    <td>Mejoras y actualizaciones del software sin costo adicional.</td>
+                  </tr>
+                  <tr>
+                    <td>Portal del colaborador</td>
+                    <td>Acceso para consulta de asistencia y trazabilidad operacional.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -698,6 +857,7 @@
       const stepTermsEl = document.getElementById("stepTerms");
       const stepVerifyEl = document.getElementById("stepVerify");
       const stageInfoMainEl = document.getElementById("stageInfoMain");
+      const stageInfoValueEl = document.getElementById("stageInfoValue");
       const stageInfoItemsEl = document.getElementById("stageInfoItems");
       const stageTermsCardEl = document.getElementById("stageTermsCard");
       const stageVerifyCardEl = document.getElementById("stageVerifyCard");
@@ -786,6 +946,7 @@
         const isStep3 = step === 3;
 
         stageInfoMainEl.classList.toggle("hidden", !isStep1);
+        stageInfoValueEl.classList.toggle("hidden", !isStep1);
         stageInfoItemsEl.classList.toggle("hidden", !isStep1);
         stageTermsCardEl.classList.toggle("hidden", !isStep2);
         stageVerifyCardEl.classList.toggle("hidden", !isStep3);
@@ -833,7 +994,8 @@
         }
 
         if (stage === 1) {
-          journeyHintEl.textContent = "Revisa detalle y montos. Cuando todo este correcto, continua a terminos.";
+          journeyHintEl.textContent =
+            "Revisa propuesta, valor comercial y detalle de costos. Cuando estes listo, continua a terminos.";
           return;
         }
 
