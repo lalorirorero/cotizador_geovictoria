@@ -3,6 +3,31 @@ const { signAcceptancePayload } = require("../_shared/acceptance-token");
 const { getRecord, updateRecord, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 
+function setCors(req, res) {
+  const origin = req.headers.origin || "";
+  const allowedList = (process.env.ALLOWED_UPLOAD_ORIGINS || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  const allowedByRule =
+    /^https:\/\/[a-z0-9-]+\.zappsusercontent\.com$/i.test(origin) ||
+    /^https:\/\/([a-z0-9-]+\.)?zoho\.[a-z.]+$/i.test(origin) ||
+    origin === "https://cotizador-geovictoria.vercel.app" ||
+    origin === "http://127.0.0.1:5000" ||
+    origin === "http://localhost:3000";
+
+  const allowed = !origin || allowedByRule || allowedList.includes(origin);
+
+  if (origin && allowed) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  return allowed;
+}
+
 function sendJson(res, status, payload) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -31,6 +56,18 @@ function getExpirationMs(quoteDateRaw, validityDays) {
 }
 
 export default async function handler(req, res) {
+  const corsAllowed = setCors(req, res);
+  if (req.method === "OPTIONS") {
+    res.statusCode = corsAllowed ? 204 : 403;
+    res.end();
+    return;
+  }
+
+  if (!corsAllowed) {
+    sendJson(res, 403, { success: false, error: "Origin no permitido." });
+    return;
+  }
+
   if (req.method !== "POST") {
     sendJson(res, 405, { success: false, error: "Metodo no permitido." });
     return;
@@ -94,4 +131,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
