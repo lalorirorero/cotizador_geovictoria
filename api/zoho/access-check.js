@@ -8,7 +8,11 @@ function sendJson(res, status, payload) {
 }
 
 function getDiagnosticsSecret() {
-  return toText(process.env.ZOHO_DIAGNOSTICS_SECRET || process.env.CRON_SECRET);
+  return toText(
+    process.env.ZOHO_DIAGNOSTICS_SECRET ||
+      process.env.CRON_SECRET ||
+      process.env.QUOTE_ACCEPTANCE_SECRET
+  );
 }
 
 function isPrimitiveUpdatableField(field) {
@@ -236,4 +240,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
