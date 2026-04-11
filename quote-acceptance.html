@@ -234,6 +234,10 @@
         border-radius: 12px;
         overflow: hidden;
       }
+      .acc-list {
+        display: grid;
+        gap: 12px;
+      }
       .brand-band-h {
         background: #00aff2;
         color: #fff;
@@ -241,6 +245,24 @@
         font-weight: 900;
         padding: 9px 12px;
         border-left: 5px solid #ffc20e;
+      }
+      .acc-toggle {
+        width: 100%;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        text-align: left;
+        cursor: pointer;
+      }
+      .acc-chevron {
+        font-size: 14px;
+        line-height: 1;
+        transition: transform 0.2s ease;
+      }
+      .acc-toggle[aria-expanded="false"] .acc-chevron {
+        transform: rotate(-90deg);
       }
       .brand-band-b {
         background: #fff;
@@ -639,189 +661,200 @@
         <div id="journeyHint" class="journey-hint">Cargando cotizacion...</div>
       </section>
 
-      <section class="card stage" id="stageInfoMain">
+      <section class="card stage" id="stageInfoCard">
         <div class="head">
-          <h1 class="title"><span class="icon">1</span>Resumen de la cotizacion</h1>
-          <div class="k">Paso clave: validar informacion comercial</div>
+          <h1 class="title"><span class="icon">1</span>Informacion comercial</h1>
+          <div class="k">Revisa cada seccion antes de continuar</div>
         </div>
         <div class="content">
-          <div class="grid">
-            <div class="item">
-              <div class="k">Cotizacion</div>
-              <div id="qName" class="v">-</div>
-            </div>
-            <div class="item">
-              <div class="k">Vigencia</div>
-              <div id="qExpiry" class="v">-</div>
-            </div>
-            <div class="item">
-              <div class="k">Estado</div>
-              <div id="qStatus" class="v">-</div>
-            </div>
-            <div class="item">
-              <div class="k">Subtotal referencia</div>
-              <div id="qSubtotal" class="v">-</div>
-            </div>
-            <div class="item">
-              <div class="k">IVA (19%)</div>
-              <div id="qIva" class="v">-</div>
-            </div>
-            <div class="item">
-              <div class="k">Total con IVA</div>
-              <div id="qTotal" class="v">-</div>
-            </div>
-            <div class="item">
-              <div class="k">Recurrente mensual</div>
-              <div id="qRecurring" class="v">-</div>
-            </div>
-            <div class="item">
-              <div class="k">No recurrente</div>
-              <div id="qNonRecurring" class="v">-</div>
-            </div>
-          </div>
-          <div class="info-help">
-            Si detectas diferencias en items o precios, no aceptes aun. Contacta a tu ejecutivo comercial para ajustar la propuesta.
-          </div>
-          <div style="margin-top: 10px">
-            <a id="pdfLink" class="pdf-link" target="_blank" rel="noopener noreferrer">Ver PDF de cotizacion</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="card stage" id="stageInfoValue">
-        <div class="head">
-          <h2 class="title"><span class="icon">1</span>Valor de elegir GeoVictoria</h2>
-          <div class="k">Resumen comercial de la propuesta</div>
-        </div>
-        <div class="content">
-          <div class="brand-band">
-            <div class="brand-band-h">Acerca de GeoVictoria</div>
-            <div class="brand-band-b about-list">
-              <p>
-                GeoVictoria es una empresa de tecnologia lider en Latinoamerica, especializada en control de asistencia,
-                gestion de tiempo y productividad laboral, con presencia en mas de 40 paises y miles de clientes activos.
-              </p>
-              <p>
-                Nuestra plataforma integra marcaje biometrico, app movil y web, mas gestion de turnos, vacaciones,
-                horas extras y documentos, todo en tiempo real sobre infraestructura Microsoft Azure.
-              </p>
-              <p>
-                Incluimos soporte tecnico continuo, capacitaciones y actualizaciones para asegurar una implementacion
-                operativa y escalable desde el inicio.
-              </p>
-            </div>
-          </div>
-
-          <div class="brand-band">
-            <div class="brand-band-h">Por que GeoVictoria</div>
-            <div class="brand-band-b">
-              <div class="benefits-grid">
-                <article class="benefit">
-                  <h3 class="benefit-title">Control en tiempo real</h3>
-                  <p class="benefit-desc">Visualiza asistencia y novedades operativas al instante.</p>
-                </article>
-                <article class="benefit">
-                  <h3 class="benefit-title">Reduccion de costos</h3>
-                  <p class="benefit-desc">Disminuye ausentismo y errores en horas extras con datos precisos.</p>
-                </article>
-                <article class="benefit">
-                  <h3 class="benefit-title">Multiples metodos de marcaje</h3>
-                  <p class="benefit-desc">Biometria, app movil, marcaje web y llamada.</p>
-                </article>
-                <article class="benefit">
-                  <h3 class="benefit-title">Plataforma cloud robusta</h3>
-                  <p class="benefit-desc">Disponibilidad objetivo 99,5% y respaldo empresarial.</p>
-                </article>
-                <article class="benefit">
-                  <h3 class="benefit-title">Integracion con nomina</h3>
-                  <p class="benefit-desc">Exporta datos para remuneraciones sin reprocesos manuales.</p>
-                </article>
-                <article class="benefit">
-                  <h3 class="benefit-title">Soporte y capacitacion</h3>
-                  <p class="benefit-desc">Acompanamiento comercial y tecnico durante todo el rollout.</p>
-                </article>
+          <div class="acc-list">
+            <section class="brand-band acc-section">
+              <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
+                <span>Acerca de GeoVictoria</span>
+                <span class="acc-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div class="brand-band-b about-list acc-body">
+                <p>
+                  GeoVictoria es una empresa de tecnologia lider en Latinoamerica, especializada en control de asistencia,
+                  gestion de tiempo y productividad laboral, con presencia en mas de 40 paises y miles de clientes activos.
+                </p>
+                <p>
+                  Nuestra plataforma integra marcaje biometrico, app movil y web, mas gestion de turnos, vacaciones,
+                  horas extras y documentos, todo en tiempo real sobre infraestructura Microsoft Azure.
+                </p>
+                <p>
+                  Incluimos soporte tecnico continuo, capacitaciones y actualizaciones para asegurar una implementacion
+                  operativa y escalable desde el inicio.
+                </p>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <div class="brand-band">
-            <div class="brand-band-h">Servicios incluidos sin costo adicional</div>
-            <div class="brand-band-b">
-              <table class="included-table">
-                <thead>
-                  <tr>
-                    <th>Servicio</th>
-                    <th>Descripcion</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Soporte tecnico</td>
-                    <td>Mesa de ayuda por telefono, correo y chat en horario habil.</td>
-                  </tr>
-                  <tr>
-                    <td>Capacitacion inicial</td>
-                    <td>Induccion online para administradores y uso base de la plataforma.</td>
-                  </tr>
-                  <tr>
-                    <td>Actualizaciones</td>
-                    <td>Mejoras y actualizaciones del software sin costo adicional.</td>
-                  </tr>
-                  <tr>
-                    <td>Portal del colaborador</td>
-                    <td>Acceso para consulta de asistencia y trazabilidad operacional.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
+            <section class="brand-band acc-section">
+              <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
+                <span>¡Por que GeoVictoria?</span>
+                <span class="acc-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div class="brand-band-b acc-body">
+                <div class="benefits-grid">
+                  <article class="benefit">
+                    <h3 class="benefit-title">Control en tiempo real</h3>
+                    <p class="benefit-desc">Visualiza asistencia y novedades operativas al instante.</p>
+                  </article>
+                  <article class="benefit">
+                    <h3 class="benefit-title">Reduccion de costos</h3>
+                    <p class="benefit-desc">Disminuye ausentismo y errores en horas extras con datos precisos.</p>
+                  </article>
+                  <article class="benefit">
+                    <h3 class="benefit-title">Multiples metodos de marcaje</h3>
+                    <p class="benefit-desc">Biometria, app movil, marcaje web y llamada.</p>
+                  </article>
+                  <article class="benefit">
+                    <h3 class="benefit-title">Plataforma cloud robusta</h3>
+                    <p class="benefit-desc">Disponibilidad objetivo 99,5% y respaldo empresarial.</p>
+                  </article>
+                  <article class="benefit">
+                    <h3 class="benefit-title">Integracion con nomina</h3>
+                    <p class="benefit-desc">Exporta datos para remuneraciones sin reprocesos manuales.</p>
+                  </article>
+                  <article class="benefit">
+                    <h3 class="benefit-title">Soporte y capacitacion</h3>
+                    <p class="benefit-desc">Acompanamiento comercial y tecnico durante todo el rollout.</p>
+                  </article>
+                </div>
+              </div>
+            </section>
 
-      <section class="card stage" id="stageInfoItems">
-        <div class="head">
-          <h2 class="title"><span class="icon">1</span>Detalle de costos</h2>
-        </div>
-        <div class="content">
-          <div class="brand-band cost-block">
-            <div class="brand-band-h">Detalle de Costos</div>
-            <div class="brand-band-b">
-              <table class="cost-table">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Tipo</th>
-                    <th>Modalidad</th>
-                    <th>Cant.</th>
-                    <th>Precio Unit.</th>
-                    <th>Dcto.</th>
-                    <th>Subtotal (UF)</th>
-                    <th>Ref. CLP</th>
-                  </tr>
-                </thead>
-                <tbody id="itemsRows">
-                  <tr><td colspan="8">Sin datos.</td></tr>
-                </tbody>
-              </table>
-              <p id="ufReferenceNote" class="uf-note"></p>
-            </div>
-          </div>
+            <section class="brand-band acc-section">
+              <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
+                <span>Resumen de la Propuesta</span>
+                <span class="acc-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div class="brand-band-b acc-body">
+                <div class="grid">
+                  <div class="item">
+                    <div class="k">Cotizacion</div>
+                    <div id="qName" class="v">-</div>
+                  </div>
+                  <div class="item">
+                    <div class="k">Vigencia</div>
+                    <div id="qExpiry" class="v">-</div>
+                  </div>
+                  <div class="item">
+                    <div class="k">Estado</div>
+                    <div id="qStatus" class="v">-</div>
+                  </div>
+                  <div class="item">
+                    <div class="k">Subtotal referencia</div>
+                    <div id="qSubtotal" class="v">-</div>
+                  </div>
+                  <div class="item">
+                    <div class="k">IVA (19%)</div>
+                    <div id="qIva" class="v">-</div>
+                  </div>
+                  <div class="item">
+                    <div class="k">Total con IVA</div>
+                    <div id="qTotal" class="v">-</div>
+                  </div>
+                  <div class="item">
+                    <div class="k">Recurrente mensual</div>
+                    <div id="qRecurring" class="v">-</div>
+                  </div>
+                  <div class="item">
+                    <div class="k">No recurrente</div>
+                    <div id="qNonRecurring" class="v">-</div>
+                  </div>
+                </div>
+                <div class="info-help">
+                  Si detectas diferencias en items o precios, no aceptes aun. Contacta a tu ejecutivo comercial para ajustar
+                  la propuesta.
+                </div>
+                <div style="margin-top: 10px">
+                  <a id="pdfLink" class="pdf-link" target="_blank" rel="noopener noreferrer">Ver PDF de cotizacion</a>
+                </div>
+              </div>
+            </section>
 
-          <div class="brand-band cost-block" style="margin-top: 14px">
-            <div class="brand-band-h">Tabla de Precios — Asistencia</div>
-            <div class="brand-band-b">
-              <table class="pricing-table">
-                <thead>
-                  <tr>
-                    <th>Rango de usuarios</th>
-                    <th>Precio mensual</th>
-                  </tr>
-                </thead>
-                <tbody id="asistenciaPricingRows">
-                  <tr><td colspan="2">Sin datos de tramos.</td></tr>
-                </tbody>
-              </table>
-            </div>
+            <section class="brand-band acc-section">
+              <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
+                <span>Tabla de Precios — Asistencia</span>
+                <span class="acc-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div class="brand-band-b acc-body">
+                <table class="pricing-table">
+                  <thead>
+                    <tr>
+                      <th>Rango de usuarios</th>
+                      <th>Precio mensual</th>
+                    </tr>
+                  </thead>
+                  <tbody id="asistenciaPricingRows">
+                    <tr><td colspan="2">Sin datos de tramos.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="brand-band acc-section">
+              <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
+                <span>Detalle de Costos</span>
+                <span class="acc-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div class="brand-band-b acc-body">
+                <table class="cost-table">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Tipo</th>
+                      <th>Modalidad</th>
+                      <th>Cant.</th>
+                      <th>Precio Unit.</th>
+                      <th>Dcto.</th>
+                      <th>Subtotal (UF)</th>
+                      <th>Ref. CLP</th>
+                    </tr>
+                  </thead>
+                  <tbody id="itemsRows">
+                    <tr><td colspan="8">Sin datos.</td></tr>
+                  </tbody>
+                </table>
+                <p id="ufReferenceNote" class="uf-note"></p>
+              </div>
+            </section>
+
+            <section class="brand-band acc-section">
+              <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
+                <span>Servicios Adicionales sin Costo</span>
+                <span class="acc-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div class="brand-band-b acc-body">
+                <table class="included-table">
+                  <thead>
+                    <tr>
+                      <th>Servicio</th>
+                      <th>Descripcion</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Soporte tecnico</td>
+                      <td>Mesa de ayuda por telefono, correo y chat en horario habil.</td>
+                    </tr>
+                    <tr>
+                      <td>Capacitacion inicial</td>
+                      <td>Induccion online para administradores y uso base de la plataforma.</td>
+                    </tr>
+                    <tr>
+                      <td>Actualizaciones</td>
+                      <td>Mejoras y actualizaciones del software sin costo adicional.</td>
+                    </tr>
+                    <tr>
+                      <td>Portal del colaborador</td>
+                      <td>Acceso para consulta de asistencia y trazabilidad operacional.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
 
           <div class="stage-actions">
@@ -956,9 +989,7 @@
       const stepInfoEl = document.getElementById("stepInfo");
       const stepTermsEl = document.getElementById("stepTerms");
       const stepVerifyEl = document.getElementById("stepVerify");
-      const stageInfoMainEl = document.getElementById("stageInfoMain");
-      const stageInfoValueEl = document.getElementById("stageInfoValue");
-      const stageInfoItemsEl = document.getElementById("stageInfoItems");
+      const stageInfoCardEl = document.getElementById("stageInfoCard");
       const stageTermsCardEl = document.getElementById("stageTermsCard");
       const stageVerifyCardEl = document.getElementById("stageVerifyCard");
       const toTermsBtn = document.getElementById("toTermsBtn");
@@ -1039,17 +1070,30 @@
         if (mode) el.classList.add(mode);
       }
 
+      function bindAccordions() {
+        const toggles = document.querySelectorAll(".acc-toggle");
+        toggles.forEach((toggle) => {
+          toggle.addEventListener("click", () => {
+            const expanded = toggle.getAttribute("aria-expanded") === "true";
+            toggle.setAttribute("aria-expanded", String(!expanded));
+            const section = toggle.closest(".acc-section");
+            const body = section ? section.querySelector(".acc-body") : null;
+            if (body) {
+              body.classList.toggle("hidden", expanded);
+            }
+          });
+        });
+      }
+
       function renderStage() {
         const step = Number(stageState.current || 1);
         const isStep1 = step === 1;
         const isStep2 = step === 2;
         const isStep3 = step === 3;
 
-        stageInfoMainEl.classList.toggle("hidden", !isStep1);
-        stageInfoValueEl.classList.toggle("hidden", !isStep1);
-        stageInfoItemsEl.classList.toggle("hidden", !isStep1);
-        stageTermsCardEl.classList.toggle("hidden", !isStep2);
-        stageVerifyCardEl.classList.toggle("hidden", !isStep3);
+        if (stageInfoCardEl) stageInfoCardEl.classList.toggle("hidden", !isStep1);
+        if (stageTermsCardEl) stageTermsCardEl.classList.toggle("hidden", !isStep2);
+        if (stageVerifyCardEl) stageVerifyCardEl.classList.toggle("hidden", !isStep3);
       }
 
       function goToStage(step) {
@@ -1723,6 +1767,7 @@
       verifyCodeBtn.addEventListener("click", onVerifyCode);
       document.getElementById("confirmBtn").addEventListener("click", onConfirm);
       toggleWhatsappCard(false);
+      bindAccordions();
       renderStage();
       updateJourneyState();
       boot();
