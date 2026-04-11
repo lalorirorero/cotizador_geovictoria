@@ -152,6 +152,15 @@
         font-size: 13px;
         font-weight: 700;
       }
+      .stage.hidden {
+        display: none;
+      }
+      .stage-actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
       .card {
         background: #fff;
         border: 1px solid var(--line);
@@ -335,6 +344,24 @@
         border-color: #15803d;
         color: #166534;
       }
+      .btn.ghost {
+        margin-top: 0;
+        width: auto;
+        min-width: 160px;
+        height: 42px;
+        border: 1px solid #8fb8db;
+        background: #fff;
+        color: #0b5a88;
+        font-size: 14px;
+      }
+      .btn.inline {
+        margin-top: 0;
+        width: auto;
+        min-width: 220px;
+        height: 42px;
+        font-size: 14px;
+        padding: 0 16px;
+      }
       .verify-box {
         border: 1px solid #c6d5e6;
         border-radius: 12px;
@@ -486,7 +513,7 @@
         <div id="journeyHint" class="journey-hint">Cargando cotizacion...</div>
       </section>
 
-      <section class="card">
+      <section class="card stage" id="stageInfoMain">
         <div class="head">
           <h1 class="title"><span class="icon">1</span>Resumen de la cotizacion</h1>
           <div class="k">Paso clave: validar informacion comercial</div>
@@ -519,7 +546,7 @@
         </div>
       </section>
 
-      <section class="card">
+      <section class="card stage" id="stageInfoItems">
         <div class="head">
           <h2 class="title"><span class="icon">1</span>Detalle de items</h2>
         </div>
@@ -538,10 +565,13 @@
               <tr><td colspan="5">Sin datos.</td></tr>
             </tbody>
           </table>
+          <div class="stage-actions">
+            <button id="toTermsBtn" type="button" class="btn inline">Continuar a terminos</button>
+          </div>
         </div>
       </section>
 
-      <section class="card">
+      <section class="card stage hidden" id="stageTermsCard">
         <div class="head">
           <h2 class="title"><span class="icon">2</span>Terminos y condiciones (Chile)</h2>
         </div>
@@ -567,10 +597,14 @@
               Acepto los terminos y condiciones de la cotizacion y confirmo que los datos de facturacion son correctos.
             </label>
           </div>
+          <div class="stage-actions">
+            <button id="backToInfoBtn" type="button" class="btn ghost">Volver</button>
+            <button id="toVerifyBtn" type="button" class="btn inline">Continuar a verificacion</button>
+          </div>
         </div>
       </section>
 
-      <section class="card">
+      <section class="card stage hidden" id="stageVerifyCard">
         <div class="head">
           <h2 class="title"><span class="icon">3</span>Datos para facturacion y confirmacion</h2>
         </div>
@@ -626,6 +660,9 @@
           </div>
 
           <button id="confirmBtn" class="btn">Aceptar cotizacion y continuar</button>
+          <div class="stage-actions">
+            <button id="backToTermsBtn" type="button" class="btn ghost">Volver a terminos</button>
+          </div>
           <div id="message" class="message"></div>
         </div>
       </section>
@@ -660,6 +697,14 @@
       const stepInfoEl = document.getElementById("stepInfo");
       const stepTermsEl = document.getElementById("stepTerms");
       const stepVerifyEl = document.getElementById("stepVerify");
+      const stageInfoMainEl = document.getElementById("stageInfoMain");
+      const stageInfoItemsEl = document.getElementById("stageInfoItems");
+      const stageTermsCardEl = document.getElementById("stageTermsCard");
+      const stageVerifyCardEl = document.getElementById("stageVerifyCard");
+      const toTermsBtn = document.getElementById("toTermsBtn");
+      const backToInfoBtn = document.getElementById("backToInfoBtn");
+      const toVerifyBtn = document.getElementById("toVerifyBtn");
+      const backToTermsBtn = document.getElementById("backToTermsBtn");
 
       const waPanel = document.getElementById("waPanel");
       const waChip = document.getElementById("waChip");
@@ -693,6 +738,9 @@
         contactName: "",
         whatsappLink: "",
         isOpen: false,
+      };
+      const stageState = {
+        current: 1,
       };
 
       function normalizeEmail(value) {
@@ -731,10 +779,33 @@
         if (mode) el.classList.add(mode);
       }
 
+      function renderStage() {
+        const step = Number(stageState.current || 1);
+        const isStep1 = step === 1;
+        const isStep2 = step === 2;
+        const isStep3 = step === 3;
+
+        stageInfoMainEl.classList.toggle("hidden", !isStep1);
+        stageInfoItemsEl.classList.toggle("hidden", !isStep1);
+        stageTermsCardEl.classList.toggle("hidden", !isStep2);
+        stageVerifyCardEl.classList.toggle("hidden", !isStep3);
+      }
+
+      function goToStage(step) {
+        const next = Number(step || 1);
+        if (!verificationState.sessionLoaded) return;
+        if (![1, 2, 3].includes(next)) return;
+        stageState.current = next;
+        renderStage();
+        updateJourneyState();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
       function updateJourneyState() {
         const termsAccepted = !!termsAcceptedInput.checked;
         const verified = isEmailVerifiedForCurrentInput();
         const remaining = getCodeRemainingSeconds();
+        const stage = Number(stageState.current || 1);
 
         if (!verificationState.sessionLoaded) {
           setStepClass(stepInfoEl, "current");
@@ -744,21 +815,38 @@
           return;
         }
 
-        setStepClass(stepInfoEl, "done");
-        if (!termsAccepted) {
-          setStepClass(stepTermsEl, "current");
-          setStepClass(stepVerifyEl, "");
-          journeyHintEl.textContent = verificationState.quoteExpired
-            ? "Cotizacion expirada. Debes solicitar una nueva version a tu ejecutivo comercial."
-            : "Siguiente paso: acepta los terminos y condiciones.";
+        setStepClass(stepInfoEl, stage === 1 ? "current" : "done");
+        if (termsAccepted) {
+          setStepClass(stepTermsEl, stage === 2 ? "current" : "done");
+        } else {
+          setStepClass(stepTermsEl, stage >= 2 ? "current" : "");
+        }
+        if (verified) {
+          setStepClass(stepVerifyEl, stage === 3 ? "current" : "done");
+        } else {
+          setStepClass(stepVerifyEl, stage === 3 ? "current" : "");
+        }
+
+        if (verificationState.quoteExpired) {
+          journeyHintEl.textContent = "Cotizacion expirada. Debes solicitar una nueva version a tu ejecutivo comercial.";
           return;
         }
 
-        setStepClass(stepTermsEl, "done");
-        if (!verified) {
-          setStepClass(stepVerifyEl, "current");
-          if (verificationState.quoteExpired) {
-            journeyHintEl.textContent = "Cotizacion expirada. Debes solicitar una nueva version a tu ejecutivo comercial.";
+        if (stage === 1) {
+          journeyHintEl.textContent = "Revisa detalle y montos. Cuando todo este correcto, continua a terminos.";
+          return;
+        }
+
+        if (stage === 2) {
+          journeyHintEl.textContent = termsAccepted
+            ? "Terminos aceptados. Continua al paso de verificacion."
+            : "Debes aceptar los terminos y condiciones para continuar.";
+          return;
+        }
+
+        if (stage === 3) {
+          if (verified) {
+            journeyHintEl.textContent = "Correo validado. Puedes aceptar la cotizacion y continuar al onboarding.";
           } else if (remaining > 0) {
             journeyHintEl.textContent = "Codigo enviado. Ingresalo para validar y habilitar la confirmacion.";
           } else if (verificationState.challengeToken) {
@@ -766,13 +854,7 @@
           } else {
             journeyHintEl.textContent = "Solicita y valida un codigo OTP al correo de contacto.";
           }
-          return;
         }
-
-        setStepClass(stepVerifyEl, "done");
-        journeyHintEl.textContent = verificationState.quoteExpired
-          ? "Cotizacion expirada. Debes solicitar una nueva version a tu ejecutivo comercial."
-          : "Listo: puedes aceptar la cotizacion y continuar al onboarding.";
       }
 
       function normalizeWhatsappPhone(value) {
@@ -1209,6 +1291,25 @@
         if (event.key === "Enter") onVerifyCode();
       });
 
+      toTermsBtn.addEventListener("click", () => {
+        goToStage(2);
+      });
+      backToInfoBtn.addEventListener("click", () => {
+        goToStage(1);
+      });
+      toVerifyBtn.addEventListener("click", () => {
+        if (!termsAcceptedInput.checked) {
+          journeyHintEl.textContent = "Debes aceptar los terminos y condiciones para continuar.";
+          termsAcceptedInput.focus();
+          updateJourneyState();
+          return;
+        }
+        goToStage(3);
+      });
+      backToTermsBtn.addEventListener("click", () => {
+        goToStage(2);
+      });
+
       termsAcceptedInput.addEventListener("change", updateJourneyState);
       waChip.addEventListener("click", () => toggleWhatsappCard(true));
       waClose.addEventListener("click", () => toggleWhatsappCard(false));
@@ -1221,6 +1322,7 @@
       verifyCodeBtn.addEventListener("click", onVerifyCode);
       document.getElementById("confirmBtn").addEventListener("click", onConfirm);
       toggleWhatsappCard(false);
+      renderStage();
       updateJourneyState();
       boot();
     </script>
