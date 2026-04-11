@@ -126,12 +126,18 @@ export default async function handler(req, res) {
         termsVersion: config.termsVersion,
         expiresAt: new Date(payload.exp).toISOString(),
         isExpired: Date.now() >= Number(payload.exp),
-        billingEmail: pickFirst(quote?.[config.billingEmailField]),
-        billingPhone: pickFirst(
-          quote?.[config.billingPhoneField],
+        contactEmail: pickFirst(
+          quote?.[config.contactEmailField],
+          fallback?.contact?.Email,
+          fallback?.deal?.Contact_Email
+        ),
+        contactPhone: pickFirst(
+          quote?.[config.contactPhoneField],
           fallback?.contact?.Phone,
           fallback?.deal?.Contact_Phone
         ),
+        billingEmail: pickFirst(quote?.[config.billingEmailField]),
+        billingPhone: pickFirst(quote?.[config.billingPhoneField]),
         companyRut: pickFirst(
           quote?.[config.companyRutField],
           fallback?.deal?.Rut_ID_Account,

@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     if (!challengeEmail) {
       sendJson(res, 400, {
         success: false,
-        error: "No se encontró correo de facturación asociado al desafío de verificación.",
+        error: "No se encontró correo de contacto asociado al desafío de verificación.",
       });
       return;
     }

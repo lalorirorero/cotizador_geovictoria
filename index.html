@@ -665,14 +665,6 @@
                     <input type="tel" id="propContactoTelefono" placeholder="+56912345678">
                 </div>
                 <div class="form-group">
-                    <label for="propBillingEmail">Email Facturación</label>
-                    <input type="email" id="propBillingEmail" placeholder="facturacion@cliente.com">
-                </div>
-                <div class="form-group">
-                    <label for="propBillingTelefono">Teléfono Facturación</label>
-                    <input type="tel" id="propBillingTelefono" placeholder="+56912345678">
-                </div>
-                <div class="form-group">
                     <label for="propEjecutivo">Ejecutivo/a Comercial</label>
                     <select id="propEjecutivo" class="region-select" style="padding:10px 14px;font-size:14px;border:2px solid #ddd;border-radius:8px;font-family:'Nunito',sans-serif;color:var(--gray);">
                         <option value="">Selecciona ejecutivo/a</option>
@@ -1851,8 +1843,6 @@
             const contacto = document.getElementById('propContacto').value.trim();
             const contactoEmail = document.getElementById('propContactoEmail').value.trim().toLowerCase();
             const contactoTelefono = document.getElementById('propContactoTelefono').value.trim();
-            const billingEmail = document.getElementById('propBillingEmail').value.trim().toLowerCase();
-            const billingTelefono = document.getElementById('propBillingTelefono').value.trim();
             const ejecutivo = document.getElementById('propEjecutivo').value || '';
             const ejData = EJECUTIVOS[ejecutivo] || { email: '', telefono: '', cargo: 'Ejecutivo Comercial' };
             const ejecutivoEmail = ejData.email;
@@ -1970,8 +1960,6 @@
                 contacto,
                 contactoEmail,
                 contactoTelefono,
-                billingEmail,
-                billingTelefono,
                 ejecutivo,
                 ejecutivoEmail,
                 ejecutivoTelefono,
@@ -2346,15 +2334,6 @@
             if (!data.contactoTelefono) {
                 throw new Error('Debes completar el teléfono del contacto cliente.');
             }
-            if (!data.billingEmail) {
-                throw new Error('Debes completar el correo de facturación.');
-            }
-            if (!isValidEmail(data.billingEmail)) {
-                throw new Error('El correo de facturación no tiene un formato válido.');
-            }
-            if (!data.billingTelefono) {
-                throw new Error('Debes completar el teléfono de facturación.');
-            }
             if (!data.ejecutivo) {
                 throw new Error('Debes seleccionar el ejecutivo comercial.');
             }
@@ -2477,12 +2456,10 @@
             const contacto = params.get('contacto') || '';
             const contactoEmail = params.get('contactoEmail') || '';
             const contactoTelefono = params.get('contactoTelefono') || '';
-            const billingEmail = params.get('billingEmail') || '';
-            const billingTelefono = params.get('billingTelefono') || '';
             const ejecutivo = params.get('ejecutivo') || '';
             const userCount = params.get('userCount') || '';
-            if (!empresa && !contacto && !contactoEmail && !contactoTelefono && !billingEmail && !billingTelefono && !ejecutivo && !userCount) return null;
-            return { empresa, contacto, contactoEmail, contactoTelefono, billingEmail, billingTelefono, ejecutivo, userCount };
+            if (!empresa && !contacto && !contactoEmail && !contactoTelefono && !ejecutivo && !userCount) return null;
+            return { empresa, contacto, contactoEmail, contactoTelefono, ejecutivo, userCount };
         }
 
         function setInputValue(inputId, value) {
@@ -2515,8 +2492,6 @@
             if (prefill.contacto) setInputValue('propContacto', prefill.contacto);
             if (prefill.contactoEmail) setInputValue('propContactoEmail', prefill.contactoEmail);
             if (prefill.contactoTelefono) setInputValue('propContactoTelefono', prefill.contactoTelefono);
-            if (prefill.billingEmail) setInputValue('propBillingEmail', prefill.billingEmail);
-            if (prefill.billingTelefono) setInputValue('propBillingTelefono', prefill.billingTelefono);
             if (prefill.ejecutivo) setSelectValueByLabel('propEjecutivo', prefill.ejecutivo);
 
             const users = Number.parseInt(prefill.userCount, 10);
@@ -2535,8 +2510,6 @@
                 contacto: prefill.contacto || '',
                 contactoEmail: prefill.contactoEmail || '',
                 contactoTelefono: prefill.contactoTelefono || '',
-                billingEmail: prefill.billingEmail || '',
-                billingTelefono: prefill.billingTelefono || '',
                 ejecutivo: prefill.ejecutivo || '',
                 userCount: users || 0,
             });

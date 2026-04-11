@@ -66,11 +66,11 @@ export default async function handler(req, res) {
 
     const acceptancePayload = verifyAcceptanceToken(token);
     const quote = await getRecord(config.quoteModule, acceptancePayload.quoteId);
-    const billingEmail = normalizeEmail(quote?.[config.billingEmailField]);
-    if (!billingEmail || !validateEmail(billingEmail)) {
+    const contactEmail = normalizeEmail(quote?.[config.contactEmailField]);
+    if (!contactEmail || !validateEmail(contactEmail)) {
       sendJson(res, 400, {
         success: false,
-        error: `No hay un correo de facturacion valido configurado en la cotizacion.${supportSuffix}`,
+        error: `No hay un correo de contacto valido configurado en la cotizacion.${supportSuffix}`,
       });
       return;
     }
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
 
     const otpHash = hashOtpCode({
       quoteId: acceptancePayload.quoteId,
-      email: billingEmail,
+      email: contactEmail,
       nonce,
       code,
     });
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
       {
         quoteId: acceptancePayload.quoteId,
         dealId: acceptancePayload.dealId,
-        email: billingEmail,
+        email: contactEmail,
         nonce,
         otpHash,
         iat: Date.now(),
@@ -104,7 +104,7 @@ export default async function handler(req, res) {
       quoteModule: config.quoteModule,
       quoteId: acceptancePayload.quoteId,
       quoteDealLookupField: config.quoteDealLookupField,
-      toEmail: billingEmail,
+      toEmail: contactEmail,
       toName: recipientName,
       code,
       ttlMinutes,
@@ -116,7 +116,7 @@ export default async function handler(req, res) {
       success: true,
       challengeToken,
       expiresAt: new Date(exp).toISOString(),
-      maskedEmail: maskEmail(billingEmail),
+      maskedEmail: maskEmail(contactEmail),
       ttlMinutes,
       message: "Codigo enviado correctamente.",
     });

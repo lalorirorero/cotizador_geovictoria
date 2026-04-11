@@ -296,8 +296,12 @@
         <div class="content">
           <div class="fields">
             <div>
-              <label for="billingEmail">Correo de facturacion (definido en cotizacion) *</label>
-              <input id="billingEmail" type="email" readonly />
+              <label for="contactEmail">Correo de contacto (definido en cotizacion) *</label>
+              <input id="contactEmail" type="email" readonly />
+            </div>
+            <div>
+              <label for="billingEmail">Correo de facturacion *</label>
+              <input id="billingEmail" type="email" />
             </div>
             <div>
               <label for="billingPhone">Telefono de facturacion *</label>
@@ -324,7 +328,7 @@
           <div class="verify-box">
             <div class="verify-head">Verificacion de correo *</div>
             <p class="verify-hint">
-              Enviaremos un codigo de 6 digitos al correo de facturacion para validar la aceptacion.
+              Enviaremos un codigo de 6 digitos al correo de contacto para validar la aceptacion.
             </p>
             <div class="verify-grid">
               <div>
@@ -360,6 +364,7 @@
       const sendCodeBtn = document.getElementById("sendCodeBtn");
       const verifyCodeBtn = document.getElementById("verifyCodeBtn");
       const fields = {
+        contactEmail: document.getElementById("contactEmail"),
         billingEmail: document.getElementById("billingEmail"),
         billingPhone: document.getElementById("billingPhone"),
         companyRut: document.getElementById("companyRut"),
@@ -408,7 +413,7 @@
       }
 
       function isEmailVerifiedForCurrentInput() {
-        const currentEmail = normalizeEmail(fields.billingEmail.value);
+        const currentEmail = normalizeEmail(fields.contactEmail.value);
         return Boolean(
           verificationState.verificationToken &&
             verificationState.verifiedEmail &&
@@ -417,11 +422,26 @@
       }
 
       function validateRequired() {
-        for (const [key, input] of Object.entries(fields)) {
-          if (key === "verifyCode") continue;
-          if (!String(input.value || "").trim()) {
+        const requiredTextFields = [
+          "contactEmail",
+          "billingEmail",
+          "billingPhone",
+          "companyRut",
+          "companyGiro",
+          "companyComuna",
+          "companyAddress",
+        ];
+        for (const key of requiredTextFields) {
+          const input = fields[key];
+          if (!input || !String(input.value || "").trim()) {
             return { ok: false, field: key };
           }
+        }
+        if (!emailLooksValid(fields.contactEmail.value)) {
+          return { ok: false, field: "contactEmail" };
+        }
+        if (!emailLooksValid(fields.billingEmail.value)) {
+          return { ok: false, field: "billingEmail" };
         }
         if (!document.getElementById("termsAccepted").checked) {
           return { ok: false, field: "termsAccepted" };
@@ -464,6 +484,7 @@
 
           fields.billingEmail.value = q.billingEmail || "";
           fields.billingPhone.value = q.billingPhone || "";
+          fields.contactEmail.value = q.contactEmail || "";
           fields.companyRut.value = q.companyRut || "";
           fields.companyGiro.value = q.companyGiro || "";
           fields.companyComuna.value = q.companyComuna || "";
@@ -510,10 +531,10 @@
       }
 
       async function onSendCode() {
-        const email = normalizeEmail(fields.billingEmail.value);
+        const email = normalizeEmail(fields.contactEmail.value);
         if (!emailLooksValid(email)) {
           setVerifyMessage(
-            "No hay correo de facturacion valido en la cotizacion. Solicita a tu ejecutivo comercial actualizarla.",
+            "No hay correo de contacto valido en la cotizacion. Solicita a tu ejecutivo comercial actualizarla.",
             "error"
           );
           return;
@@ -554,10 +575,10 @@
       }
 
       async function onVerifyCode() {
-        const email = normalizeEmail(fields.billingEmail.value);
+        const email = normalizeEmail(fields.contactEmail.value);
         const code = String(fields.verifyCode.value || "").trim();
         if (!verificationState.challengeToken) {
-          setVerifyMessage("Primero debes enviar el codigo al correo de facturacion.", "error");
+          setVerifyMessage("Primero debes enviar el codigo al correo de contacto.", "error");
           return;
         }
         if (!/^\d{6}$/.test(code)) {
@@ -565,7 +586,7 @@
           return;
         }
         if (!emailLooksValid(email)) {
-          setVerifyMessage("No hay correo de facturacion valido para validar este codigo.", "error");
+          setVerifyMessage("No hay correo de contacto valido para validar este codigo.", "error");
           return;
         }
 
@@ -606,7 +627,7 @@
         const check = validateRequired();
         if (!check.ok) {
           if (check.field === "emailVerification") {
-            setMessage("Debes verificar el correo de facturacion antes de continuar.", "error");
+            setMessage("Debes verificar el correo de contacto antes de continuar.", "error");
           } else {
             setMessage("Completa todos los datos obligatorios y acepta terminos para continuar.", "error");
           }

@@ -176,6 +176,7 @@ async function fetchDealContext(config, dealId) {
 }
 
 function buildOnboardingDraft({
+  config,
   quote,
   dealContext,
   acceptanceData,
@@ -196,13 +197,13 @@ function buildOnboardingDraft({
     comuna: pickNonEmpty(acceptanceData?.companyComuna, quote?.Comuna, account?.Comuna, contact?.Mailing_City),
     emailFacturacion: pickNonEmpty(
       acceptanceData?.billingEmail,
-      quote?.Email_Cliente,
+      quote?.[config.billingEmailField],
       contact?.Email,
       deal?.Contact_Email
     ),
     telefonoContacto: pickNonEmpty(
       acceptanceData?.billingPhone,
-      quote?.Telefono_Cliente,
+      quote?.[config.billingPhoneField],
       contact?.Phone,
       deal?.Contact_Phone
     ),
@@ -360,6 +361,7 @@ async function runOnboardingHandoff({ config, quoteId, dealId, acceptanceData })
 
   const context = await fetchDealContext(config, realDealId);
   const draft = buildOnboardingDraft({
+    config,
     quote,
     dealContext: context,
     acceptanceData: acceptanceData || {},

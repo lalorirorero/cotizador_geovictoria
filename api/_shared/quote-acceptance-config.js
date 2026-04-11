@@ -46,8 +46,10 @@ function getAcceptanceConfig(req) {
     quoteOnboardingStatusError: toText(
       process.env.QUOTE_ONBOARDING_STATUS_ERROR || "Error"
     ),
-    billingEmailField: toText(process.env.QUOTE_BILLING_EMAIL_FIELD || "Email_Cliente"),
-    billingPhoneField: toText(process.env.QUOTE_BILLING_PHONE_FIELD || "Telefono_Cliente"),
+    contactEmailField: toText(process.env.QUOTE_CONTACT_EMAIL_FIELD || "Email_Cliente"),
+    contactPhoneField: toText(process.env.QUOTE_CONTACT_PHONE_FIELD || "Telefono_Cliente"),
+    billingEmailField: toText(process.env.QUOTE_BILLING_EMAIL_FIELD || "Email_Facturacion"),
+    billingPhoneField: toText(process.env.QUOTE_BILLING_PHONE_FIELD || "Telefono_Facturacion"),
     companyRutField: toText(process.env.QUOTE_COMPANY_RUT_FIELD || "RUT_Cliente"),
     companyGiroField: toText(process.env.QUOTE_COMPANY_GIRO_FIELD || ""),
     companyComunaField: toText(process.env.QUOTE_COMPANY_COMUNA_FIELD || ""),
