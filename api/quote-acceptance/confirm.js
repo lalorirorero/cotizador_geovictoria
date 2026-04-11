@@ -1,0 +1,207 @@
+const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
+const { getRecord, updateRecord, toText } = require("../_shared/zoho-crm");
+const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
+
+function sendJson(res, status, payload) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(payload));
+}
+
+function parseBody(req) {
+  if (!req?.body) return {};
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body || "{}");
+    } catch (_error) {
+      return {};
+    }
+  }
+  if (typeof req.body === "object") return req.body;
+  return {};
+}
+
+function validateRequiredInput(fields) {
+  const required = [
+    ["billingEmail", "correo de facturacion"],
+    ["billingPhone", "telefono de facturacion"],
+    ["companyGiro", "giro"],
+    ["companyRut", "RUT de empresa"],
+    ["companyComuna", "comuna"],
+    ["companyAddress", "direccion"],
+  ];
+  const missing = required
+    .filter(([key]) => !toText(fields?.[key]))
+    .map(([, label]) => label);
+  return missing;
+}
+
+async function triggerHandoff(config, payload) {
+  if (!config.handoffWebhookUrl) {
+    return {
+      status: "SKIPPED",
+      message: "handoff webhook no configurado",
+      onboardingUrl: "",
+    };
+  }
+
+  const response = await fetch(config.handoffWebhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await response.text();
+  let parsed = {};
+  try {
+    parsed = JSON.parse(text || "{}");
+  } catch (_error) {
+    parsed = { raw: text || "" };
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `handoff webhook HTTP ${response.status}: ${toText(parsed?.message || parsed?.error || parsed?.raw)}`
+    );
+  }
+
+  const onboardingUrl = toText(parsed?.onboardingUrl || parsed?.link || parsed?.url);
+  return {
+    status: "OK",
+    message: "handoff enviado",
+    onboardingUrl,
+    response: parsed,
+  };
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { success: false, error: "Metodo no permitido." });
+    return;
+  }
+
+  try {
+    const body = parseBody(req);
+    const token = toText(body?.token);
+    const termsAccepted = body?.termsAccepted === true;
+    const acceptanceData = body?.acceptanceData || {};
+
+    if (!token) {
+      sendJson(res, 400, { success: false, error: "Falta token." });
+      return;
+    }
+    if (!termsAccepted) {
+      sendJson(res, 400, { success: false, error: "Debes aceptar terminos y condiciones." });
+      return;
+    }
+
+    const missing = validateRequiredInput(acceptanceData);
+    if (missing.length > 0) {
+      sendJson(res, 400, {
+        success: false,
+        error: `Faltan datos requeridos: ${missing.join(", ")}.`,
+      });
+      return;
+    }
+
+    const config = getAcceptanceConfig(req);
+    const payload = verifyAcceptanceToken(token);
+    const quote = await getRecord(config.quoteModule, payload.quoteId);
+
+    const currentStatus = toText(quote?.[config.quoteStatusField]);
+    if (/Aceptada/i.test(currentStatus)) {
+      sendJson(res, 200, {
+        success: true,
+        alreadyAccepted: true,
+        quoteId: payload.quoteId,
+        message: "La cotizacion ya estaba aceptada.",
+      });
+      return;
+    }
+
+    const acceptedAtIso = new Date().toISOString();
+    const updateMap = {
+      [config.quoteStatusField]: "Aceptada",
+      [config.quoteAcceptanceAtField]: acceptedAtIso,
+      [config.quoteTermsAcceptedField]: true,
+      [config.quoteTermsVersionField]: config.termsVersion,
+      [config.billingEmailField]: toText(acceptanceData.billingEmail),
+      [config.billingPhoneField]: toText(acceptanceData.billingPhone),
+      [config.companyGiroField]: toText(acceptanceData.companyGiro),
+      [config.companyRutField]: toText(acceptanceData.companyRut),
+      [config.companyComunaField]: toText(acceptanceData.companyComuna),
+      [config.companyAddressField]: toText(acceptanceData.companyAddress),
+      [config.quoteHandoffStatusField]: "PENDING",
+      [config.quoteHandoffErrorField]: "",
+    };
+
+    await updateRecord(config.quoteModule, payload.quoteId, updateMap, true);
+
+    let handoffResult = null;
+    try {
+      handoffResult = await triggerHandoff(config, {
+        eventType: "quote.accepted",
+        quoteId: payload.quoteId,
+        dealId: payload.dealId,
+        acceptedAt: acceptedAtIso,
+        termsVersion: config.termsVersion,
+        acceptanceData: {
+          billingEmail: toText(acceptanceData.billingEmail),
+          billingPhone: toText(acceptanceData.billingPhone),
+          companyGiro: toText(acceptanceData.companyGiro),
+          companyRut: toText(acceptanceData.companyRut),
+          companyComuna: toText(acceptanceData.companyComuna),
+          companyAddress: toText(acceptanceData.companyAddress),
+        },
+      });
+
+      await updateRecord(
+        config.quoteModule,
+        payload.quoteId,
+        {
+          [config.quoteHandoffStatusField]: handoffResult.status,
+          [config.quoteHandoffErrorField]: "",
+        },
+        true
+      );
+    } catch (handoffError) {
+      const handoffMessage = toText(handoffError?.message || handoffError).slice(0, 255);
+      await updateRecord(
+        config.quoteModule,
+        payload.quoteId,
+        {
+          [config.quoteHandoffStatusField]: "ERROR",
+          [config.quoteHandoffErrorField]: handoffMessage,
+        },
+        true
+      );
+
+      sendJson(res, 502, {
+        success: false,
+        error:
+          "La cotizacion fue aceptada, pero fallo el enlace hacia onboarding. Contacta a tu ejecutivo comercial.",
+        detail: handoffMessage,
+      });
+      return;
+    }
+
+    sendJson(res, 200, {
+      success: true,
+      quoteId: payload.quoteId,
+      dealId: payload.dealId,
+      acceptedAt: acceptedAtIso,
+      onboardingUrl: toText(handoffResult?.onboardingUrl),
+      message: "Cotizacion aceptada correctamente.",
+    });
+  } catch (error) {
+    const isExpired = toText(error?.code) === "TOKEN_EXPIRED";
+    sendJson(res, isExpired ? 410 : 500, {
+      success: false,
+      error: isExpired
+        ? "Esta cotizacion ya expiro. Contacta a tu ejecutivo comercial para actualizarla."
+        : "No se pudo confirmar la aceptacion.",
+      detail: String(error?.message || error),
+    });
+  }
+}
+

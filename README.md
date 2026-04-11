@@ -78,6 +78,52 @@ Endpoint de validación:
 - `GET /api/zoho/token-health`
 - Responde `success: true` cuando el token está vigente y hay acceso real a CRM (`/crm/v3/users?type=CurrentUser`).
 
+## Flujo de aceptacion web de cotizacion (MVP)
+
+### Endpoints nuevos
+- `POST /api/quote-acceptance/create-link`
+  - input: `{ "quoteId": "<ID_COTIZACION>" }`
+  - output: `acceptanceUrl` con token firmado para cliente final.
+- `GET /api/quote-acceptance/session?token=...`
+  - carga datos de cotizacion + detalle de items para mostrar en web.
+- `POST /api/quote-acceptance/confirm`
+  - confirma TyC y datos de facturacion, marca cotizacion `Aceptada`, y dispara handoff opcional a onboarding.
+
+### Web de aceptacion
+- URL base: `/quote-acceptance.html?token=...`
+- Esta pantalla:
+  - muestra resumen + items + terminos,
+  - solicita datos obligatorios de facturacion,
+  - confirma TyC,
+  - y redirige a onboarding si `handoff webhook` devuelve `onboardingUrl`.
+
+### Variables de entorno adicionales
+- `QUOTE_ACCEPTANCE_SECRET` (obligatoria para firmar/verificar token)
+- `QUOTE_ACCEPT_BASE_URL` (opcional, recomendado para links publicos)
+- `QUOTE_ACCEPTANCE_VALIDITY_DAYS` (opcional, default `30`)
+- `QUOTE_TERMS_VERSION` (opcional, default `TYC-CL-2026-04`)
+- `QUOTE_HANDOFF_WEBHOOK_URL` (opcional; si existe, se invoca al confirmar)
+
+### Mapeo de campos CRM (customizable por env)
+Los siguientes defaults asumen API names ya creados en `Cotizaciones_GeoVictoria`:
+- `QUOTE_STATUS_FIELD` => `Estado_Cotizacion`
+- `QUOTE_DATE_FIELD` => `Fecha_Cotizacion`
+- `QUOTE_DEAL_LOOKUP_FIELD` => `Deal_Asociado`
+- `QUOTE_PDF_URL_FIELD` => `PDF_URL`
+- `QUOTE_ITEMS_SUBFORM_FIELD` => `Detalle_Items_Cotizacion`
+- `QUOTE_ACCEPTANCE_URL_FIELD` => `URL_Aceptacion_Web`
+- `QUOTE_ACCEPTED_AT_FIELD` => `Fecha_Aceptacion_Web`
+- `QUOTE_TERMS_ACCEPTED_FIELD` => `TyC_Aceptados_Web`
+- `QUOTE_TERMS_VERSION_FIELD` => `Version_TyC_Web`
+- `QUOTE_HANDOFF_STATUS_FIELD` => `Estado_Handoff`
+- `QUOTE_HANDOFF_ERROR_FIELD` => `Error_Handoff`
+- `QUOTE_BILLING_EMAIL_FIELD` => `Email_Facturacion`
+- `QUOTE_BILLING_PHONE_FIELD` => `Telefono_Facturacion`
+- `QUOTE_COMPANY_RUT_FIELD` => `RUT_Empresa`
+- `QUOTE_COMPANY_GIRO_FIELD` => `Giro`
+- `QUOTE_COMPANY_COMUNA_FIELD` => `Comuna`
+- `QUOTE_COMPANY_ADDRESS_FIELD` => `Direccion`
+
 ### Validación backend en Blueprint (Before Transition)
 - Archivo de referencia: `zoho-widget/DELUGE_before_transition_validar_cotizacion.deluge`
 - Este control evita bypass de UI y bloquea la transición si no existe cotización válida con `PDF_URL`.

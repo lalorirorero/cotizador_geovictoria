@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aceptacion de Cotizacion - GeoVictoria</title>
+    <style>
+      :root {
+        --brand: #00aff2;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --line: #dbe3ee;
+        --ok: #166534;
+        --warn: #9a3412;
+        --bg: #f4f8fb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Nunito, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 24px 16px 40px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        margin-bottom: 14px;
+      }
+      .head {
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+      .title {
+        margin: 0;
+        font-size: 22px;
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .status.ok {
+        color: var(--ok);
+      }
+      .status.warn {
+        color: var(--warn);
+      }
+      .content {
+        padding: 18px 20px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fafcff;
+      }
+      .k {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .v {
+        margin-top: 4px;
+        font-weight: 700;
+        word-break: break-word;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 9px 8px;
+        text-align: left;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .terms {
+        margin: 0;
+        padding-left: 18px;
+        line-height: 1.45;
+        font-size: 14px;
+      }
+      .fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--ink);
+        margin-bottom: 5px;
+      }
+      input {
+        width: 100%;
+        height: 42px;
+        border-radius: 10px;
+        border: 1px solid #bfd0e3;
+        padding: 0 12px;
+        font-size: 14px;
+      }
+      input:focus {
+        outline: none;
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(0, 175, 242, 0.16);
+      }
+      .full {
+        grid-column: 1 / -1;
+      }
+      .accept {
+        border: 1px solid #c6d5e6;
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        margin-top: 10px;
+      }
+      .btn {
+        width: 100%;
+        margin-top: 12px;
+        border: 0;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 800;
+        height: 46px;
+        border-radius: 12px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .btn[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .message {
+        margin-top: 10px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .message.error {
+        color: #b91c1c;
+      }
+      .message.ok {
+        color: var(--ok);
+      }
+      @media (max-width: 800px) {
+        .grid,
+        .fields {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="card">
+        <div class="head">
+          <h1 class="title">Revision y aceptacion de cotizacion</h1>
+          <div id="status" class="status">Cargando...</div>
+        </div>
+        <div class="content">
+          <div class="grid">
+            <div class="item">
+              <div class="k">Cotizacion</div>
+              <div id="qName" class="v">-</div>
+            </div>
+            <div class="item">
+              <div class="k">Vigencia</div>
+              <div id="qExpiry" class="v">-</div>
+            </div>
+            <div class="item">
+              <div class="k">Estado</div>
+              <div id="qStatus" class="v">-</div>
+            </div>
+            <div class="item">
+              <div class="k">Subtotal referencia</div>
+              <div id="qSubtotal" class="v">-</div>
+            </div>
+          </div>
+          <div style="margin-top: 12px">
+            <a id="pdfLink" target="_blank" rel="noopener noreferrer">Ver PDF de cotizacion</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <h2 class="title" style="font-size: 18px">Detalle de items</h2>
+        </div>
+        <div class="content">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Modalidad</th>
+                <th>Cantidad</th>
+                <th>Subtotal UF</th>
+                <th>Subtotal CLP</th>
+              </tr>
+            </thead>
+            <tbody id="itemsRows">
+              <tr><td colspan="5">Sin datos.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <h2 class="title" style="font-size: 18px">Terminos y condiciones (Chile)</h2>
+        </div>
+        <div class="content">
+          <ol class="terms">
+            <li>Plazo estimado de implementacion: 2 a 3 semanas desde recepcion de planilla de usuarios validada.</li>
+            <li>24 horas habiles: habilitacion del portal y creacion de empresa.</li>
+            <li>72 horas habiles: contacto de implementacion para induccion/capacitacion online.</li>
+            <li>5 a 7 dias habiles: envio e instalacion de equipos segun region.</li>
+            <li>Alcance: aplica para hasta 300 usuarios, sin modulos adicionales ni desarrollos especiales.</li>
+            <li>Mesa de ayuda disponible por chat, telefono, correo y WhatsApp.</li>
+            <li>Horario de atencion: lunes a viernes, 8:30 a 18:30, dias habiles.</li>
+            <li>Infraestructura y datos en Microsoft Azure, uptime minimo 99,5%.</li>
+            <li>Precios con revision anual por IPC o equivalente UF.</li>
+            <li>La vigencia de la cotizacion es de 30 dias corridos desde su emision.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <h2 class="title" style="font-size: 18px">Datos para facturacion y confirmacion</h2>
+        </div>
+        <div class="content">
+          <div class="fields">
+            <div>
+              <label for="billingEmail">Correo de facturacion *</label>
+              <input id="billingEmail" type="email" />
+            </div>
+            <div>
+              <label for="billingPhone">Telefono de facturacion *</label>
+              <input id="billingPhone" type="text" />
+            </div>
+            <div>
+              <label for="companyRut">RUT empresa *</label>
+              <input id="companyRut" type="text" />
+            </div>
+            <div>
+              <label for="companyGiro">Giro *</label>
+              <input id="companyGiro" type="text" />
+            </div>
+            <div>
+              <label for="companyComuna">Comuna *</label>
+              <input id="companyComuna" type="text" />
+            </div>
+            <div class="full">
+              <label for="companyAddress">Direccion *</label>
+              <input id="companyAddress" type="text" />
+            </div>
+          </div>
+
+          <div class="accept">
+            <input id="termsAccepted" type="checkbox" style="width: 18px; height: 18px; margin-top: 2px" />
+            <label for="termsAccepted" style="margin: 0">
+              Acepto los terminos y condiciones de la cotizacion y confirmo que los datos de facturacion son correctos.
+            </label>
+          </div>
+
+          <button id="confirmBtn" class="btn">Aceptar cotizacion y continuar</button>
+          <div id="message" class="message"></div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const token = new URLSearchParams(window.location.search).get("token") || "";
+      const statusEl = document.getElementById("status");
+      const messageEl = document.getElementById("message");
+      const fields = {
+        billingEmail: document.getElementById("billingEmail"),
+        billingPhone: document.getElementById("billingPhone"),
+        companyRut: document.getElementById("companyRut"),
+        companyGiro: document.getElementById("companyGiro"),
+        companyComuna: document.getElementById("companyComuna"),
+        companyAddress: document.getElementById("companyAddress"),
+      };
+
+      function setStatus(text, level) {
+        statusEl.textContent = text || "";
+        statusEl.className = "status" + (level ? " " + level : "");
+      }
+
+      function setMessage(text, level) {
+        messageEl.textContent = text || "";
+        messageEl.className = "message" + (level ? " " + level : "");
+      }
+
+      function fmtCLP(value) {
+        return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(
+          Number(value || 0)
+        );
+      }
+
+      function fmtUF(value) {
+        return Number(value || 0).toFixed(3) + " UF";
+      }
+
+      function validateRequired() {
+        for (const [key, input] of Object.entries(fields)) {
+          if (!String(input.value || "").trim()) {
+            return { ok: false, field: key };
+          }
+        }
+        if (!document.getElementById("termsAccepted").checked) {
+          return { ok: false, field: "termsAccepted" };
+        }
+        return { ok: true };
+      }
+
+      async function loadSession() {
+        if (!token) {
+          setStatus("Token no encontrado.", "warn");
+          setMessage("Link invalido. Solicita una nueva cotizacion a tu ejecutivo comercial.", "error");
+          return;
+        }
+        setStatus("Cargando cotizacion...");
+        const res = await fetch("/api/quote-acceptance/session?token=" + encodeURIComponent(token));
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "No se pudo cargar la cotizacion.");
+        }
+        return data;
+      }
+
+      async function boot() {
+        try {
+          const data = await loadSession();
+          if (!data) return;
+
+          const q = data.quote || {};
+          document.getElementById("qName").textContent = q.name || q.id || "-";
+          document.getElementById("qStatus").textContent = q.status || "-";
+          document.getElementById("qExpiry").textContent = q.expiresAt ? new Date(q.expiresAt).toLocaleString("es-CL") : "-";
+          document.getElementById("qSubtotal").textContent = fmtUF(data.totals?.subtotalUf) + " / " + fmtCLP(data.totals?.subtotalClp);
+          const pdfLink = document.getElementById("pdfLink");
+          pdfLink.href = q.pdfUrl || "#";
+          pdfLink.textContent = q.pdfUrl ? "Ver PDF de cotizacion" : "PDF no disponible";
+          if (!q.pdfUrl) pdfLink.removeAttribute("target");
+
+          fields.billingEmail.value = q.billingEmail || "";
+          fields.billingPhone.value = q.billingPhone || "";
+          fields.companyRut.value = q.companyRut || "";
+          fields.companyGiro.value = q.companyGiro || "";
+          fields.companyComuna.value = q.companyComuna || "";
+          fields.companyAddress.value = q.companyAddress || "";
+
+          const rows = data.items || [];
+          const tbody = document.getElementById("itemsRows");
+          tbody.innerHTML = rows.length
+            ? rows
+                .map(
+                  (row) =>
+                    "<tr>" +
+                    "<td>" +
+                    (row.nombre || "-") +
+                    "</td>" +
+                    "<td>" +
+                    (row.modalidad || "-") +
+                    "</td>" +
+                    "<td>" +
+                    Number(row.cantidad || 0) +
+                    "</td>" +
+                    "<td>" +
+                    fmtUF(row.subtotalUf) +
+                    "</td>" +
+                    "<td>" +
+                    fmtCLP(row.subtotalClp) +
+                    "</td>" +
+                    "</tr>"
+                )
+                .join("")
+            : '<tr><td colspan="5">Sin datos.</td></tr>';
+
+          setStatus(q.isExpired ? "Cotizacion expirada" : "Cotizacion vigente", q.isExpired ? "warn" : "ok");
+          if (q.isExpired) {
+            document.getElementById("confirmBtn").disabled = true;
+            setMessage("Esta cotizacion expiro. Contacta a tu ejecutivo comercial para actualizarla.", "error");
+          }
+        } catch (error) {
+          setStatus("No disponible", "warn");
+          setMessage((error && error.message) || "No se pudo cargar la cotizacion.", "error");
+        }
+      }
+
+      async function onConfirm() {
+        const check = validateRequired();
+        if (!check.ok) {
+          setMessage("Completa todos los datos obligatorios y acepta terminos para continuar.", "error");
+          return;
+        }
+        const btn = document.getElementById("confirmBtn");
+        btn.disabled = true;
+        setMessage("Procesando aceptacion...");
+        try {
+          const res = await fetch("/api/quote-acceptance/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token,
+              termsAccepted: true,
+              acceptanceData: {
+                billingEmail: fields.billingEmail.value.trim(),
+                billingPhone: fields.billingPhone.value.trim(),
+                companyRut: fields.companyRut.value.trim(),
+                companyGiro: fields.companyGiro.value.trim(),
+                companyComuna: fields.companyComuna.value.trim(),
+                companyAddress: fields.companyAddress.value.trim(),
+              },
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || "No se pudo confirmar aceptacion.");
+          }
+
+          setMessage("Cotizacion aceptada correctamente. Redirigiendo al onboarding...", "ok");
+          if (data.onboardingUrl) {
+            setTimeout(() => {
+              window.location.href = data.onboardingUrl;
+            }, 1100);
+          } else {
+            setMessage("Cotizacion aceptada. Tu ejecutivo comercial te compartira el enlace de onboarding.", "ok");
+          }
+        } catch (error) {
+          setMessage((error && error.message) || "Error de aceptacion.", "error");
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      document.getElementById("confirmBtn").addEventListener("click", onConfirm);
+      boot();
+    </script>
+  </body>
+</html>
+
