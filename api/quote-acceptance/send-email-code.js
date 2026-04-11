@@ -8,7 +8,7 @@ const {
   normalizeEmail,
   hashOtpCode,
 } = require("../_shared/verification-token");
-const resendThrottle = new Map();
+const activeOtpChallenges = new Map();
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -66,19 +66,13 @@ function maskEmail(email) {
   return `${safeLocal}@${domain}`;
 }
 
-function getCooldownSeconds() {
-  const raw = Number(process.env.QUOTE_ACCEPTANCE_RESEND_COOLDOWN_SECONDS || 60);
-  if (!Number.isFinite(raw)) return 60;
-  return Math.min(600, Math.max(15, Math.floor(raw)));
-}
-
 function pruneThrottle(nowMs) {
   // Keep memory bounded in long-lived lambdas.
-  if (resendThrottle.size < 600) return;
-  const tenMinutesMs = 10 * 60 * 1000;
-  for (const [key, value] of resendThrottle.entries()) {
-    if (!value || nowMs - value > tenMinutesMs) {
-      resendThrottle.delete(key);
+  if (activeOtpChallenges.size < 600) return;
+  for (const [key, value] of activeOtpChallenges.entries()) {
+    const expiresAtMs = Number(value?.expiresAtMs || 0);
+    if (!expiresAtMs || nowMs > expiresAtMs) {
+      activeOtpChallenges.delete(key);
     }
   }
 }
@@ -121,25 +115,28 @@ export default async function handler(req, res) {
     }
 
     stage = "resend_cooldown";
-    const cooldownSeconds = getCooldownSeconds();
-    const cooldownMs = cooldownSeconds * 1000;
+    const ttlMinutes = Math.max(3, Number(config.verificationCodeTtlMinutes || 10));
     const throttleKey = `${acceptancePayload.quoteId}:${contactEmail}`;
     const nowMs = Date.now();
     pruneThrottle(nowMs);
-    const lastSentAtMs = Number(resendThrottle.get(throttleKey) || 0);
-    const remainingMs = cooldownMs - (nowMs - lastSentAtMs);
+    const active = activeOtpChallenges.get(throttleKey);
+    const activeExpiresAtMs = Number(active?.expiresAtMs || 0);
+    const remainingMs = activeExpiresAtMs - nowMs;
     if (remainingMs > 0) {
       const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
-      sendJson(res, 429, {
+      sendJson(res, 409, {
         success: false,
-        error: `Ya enviamos un codigo hace instantes. Espera ${remainingSeconds} segundos para reenviar.`,
+        error: `Ya existe un codigo vigente. Revisa tu correo o espera ${remainingSeconds} segundos para solicitar uno nuevo.`,
+        alreadyActive: true,
         remainingSeconds,
+        expiresAt: new Date(activeExpiresAtMs).toISOString(),
+        challengeToken: toText(active?.challengeToken),
+        maskedEmail: active?.maskedEmail || maskEmail(contactEmail),
       });
       return;
     }
 
     stage = "build_challenge";
-    const ttlMinutes = Math.max(3, Number(config.verificationCodeTtlMinutes || 10));
     const code = randomCode6();
     const nonce = crypto.randomBytes(12).toString("hex");
     const exp = Date.now() + ttlMinutes * 60 * 1000;
@@ -176,7 +173,11 @@ export default async function handler(req, res) {
       supportLabel: config.supportContactLabel,
       supportEmail: config.supportContactEmail,
     });
-    resendThrottle.set(throttleKey, Date.now());
+    activeOtpChallenges.set(throttleKey, {
+      expiresAtMs: exp,
+      challengeToken,
+      maskedEmail: maskEmail(contactEmail),
+    });
 
     stage = "response_ok";
     sendJson(res, 200, {
@@ -185,7 +186,6 @@ export default async function handler(req, res) {
       expiresAt: new Date(exp).toISOString(),
       maskedEmail: maskEmail(contactEmail),
       ttlMinutes,
-      resendCooldownSeconds: cooldownSeconds,
       message: "Codigo enviado correctamente.",
     });
   } catch (error) {

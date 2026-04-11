@@ -341,6 +341,7 @@
               </div>
             </div>
             <div id="verifyMessage" class="message"></div>
+            <div id="verifyCountdown" class="message"></div>
           </div>
 
           <div class="accept">
@@ -361,6 +362,7 @@
       const statusEl = document.getElementById("status");
       const messageEl = document.getElementById("message");
       const verifyMessageEl = document.getElementById("verifyMessage");
+      const verifyCountdownEl = document.getElementById("verifyCountdown");
       const sendCodeBtn = document.getElementById("sendCodeBtn");
       const verifyCodeBtn = document.getElementById("verifyCodeBtn");
       const fields = {
@@ -378,8 +380,8 @@
         verificationToken: "",
         verifiedEmail: "",
         sendCodeInFlight: false,
-        resendLockedUntil: 0,
-        resendTimer: null,
+        codeExpiresAtMs: 0,
+        countdownTimer: null,
         quoteExpired: false,
       };
 
@@ -406,10 +408,22 @@
         verifyMessageEl.className = "message" + (level ? " " + level : "");
       }
 
-      function getResendRemainingSeconds() {
-        const remaining = verificationState.resendLockedUntil - Date.now();
+      function setVerifyCountdown(text, level) {
+        verifyCountdownEl.textContent = text || "";
+        verifyCountdownEl.className = "message" + (level ? " " + level : "");
+      }
+
+      function getCodeRemainingSeconds() {
+        const remaining = verificationState.codeExpiresAtMs - Date.now();
         if (remaining <= 0) return 0;
         return Math.max(1, Math.ceil(remaining / 1000));
+      }
+
+      function formatDuration(seconds) {
+        const safe = Math.max(0, Number(seconds || 0));
+        const mm = String(Math.floor(safe / 60)).padStart(2, "0");
+        const ss = String(safe % 60).padStart(2, "0");
+        return mm + ":" + ss;
       }
 
       function updateSendCodeButton() {
@@ -423,30 +437,42 @@
           sendCodeBtn.textContent = "Enviando...";
           return;
         }
-        const remaining = getResendRemainingSeconds();
+        const remaining = getCodeRemainingSeconds();
         if (remaining > 0) {
           sendCodeBtn.disabled = true;
-          sendCodeBtn.textContent = "Reenviar (" + remaining + "s)";
+          sendCodeBtn.textContent = "Codigo vigente (" + formatDuration(remaining) + ")";
           return;
         }
         sendCodeBtn.disabled = false;
-        sendCodeBtn.textContent = verificationState.challengeToken ? "Reenviar codigo" : "Enviar codigo";
+        sendCodeBtn.textContent = verificationState.challengeToken ? "Solicitar nuevo codigo" : "Enviar codigo";
       }
 
-      function startResendCooldown(seconds) {
-        const safeSeconds = Math.max(15, Number(seconds || 60));
-        verificationState.resendLockedUntil = Date.now() + safeSeconds * 1000;
-        if (verificationState.resendTimer) {
-          clearInterval(verificationState.resendTimer);
+      function startCodeValidityCountdown(expiresAtValue) {
+        const parsedMs = new Date(expiresAtValue || "").getTime();
+        if (!Number.isFinite(parsedMs) || parsedMs <= Date.now()) {
+          verificationState.codeExpiresAtMs = 0;
+          setVerifyCountdown("", "");
+          updateSendCodeButton();
+          return;
         }
-        verificationState.resendTimer = setInterval(() => {
-          const remaining = getResendRemainingSeconds();
+        verificationState.codeExpiresAtMs = parsedMs;
+        if (verificationState.countdownTimer) {
+          clearInterval(verificationState.countdownTimer);
+        }
+        verificationState.countdownTimer = setInterval(() => {
+          const remaining = getCodeRemainingSeconds();
+          if (remaining > 0) {
+            setVerifyCountdown("Codigo vigente por " + formatDuration(remaining) + ".", "ok");
+          } else {
+            setVerifyCountdown("El codigo expiro. Puedes solicitar uno nuevo.", "warn");
+          }
           updateSendCodeButton();
           if (remaining <= 0) {
-            clearInterval(verificationState.resendTimer);
-            verificationState.resendTimer = null;
+            clearInterval(verificationState.countdownTimer);
+            verificationState.countdownTimer = null;
           }
-        }, 500);
+        }, 1000);
+        setVerifyCountdown("Codigo vigente por " + formatDuration(getCodeRemainingSeconds()) + ".", "ok");
         updateSendCodeButton();
       }
 
@@ -593,9 +619,12 @@
         if (verificationState.sendCodeInFlight) {
           return;
         }
-        const remaining = getResendRemainingSeconds();
+        const remaining = getCodeRemainingSeconds();
         if (remaining > 0) {
-          setVerifyMessage("Espera " + remaining + " segundos antes de reenviar otro codigo.", "error");
+          setVerifyMessage(
+            "Ya existe un codigo vigente. Revisa tu correo o espera " + remaining + " segundos.",
+            "error"
+          );
           updateSendCodeButton();
           return;
         }
@@ -614,7 +643,9 @@
           });
           const data = await res.json();
           if (!res.ok || !data.success) {
-            throw new Error(data.error || "No se pudo enviar el codigo.");
+            const apiError = new Error(data.error || "No se pudo enviar el codigo.");
+            apiError.payload = data || {};
+            throw apiError;
           }
 
           verificationState.challengeToken = data.challengeToken || "";
@@ -623,7 +654,7 @@
           fields.verifyCode.value = "";
           sendCodeBtn.classList.add("ok");
           verifyCodeBtn.classList.remove("ok");
-          startResendCooldown(data.resendCooldownSeconds || 60);
+          startCodeValidityCountdown(data.expiresAt);
           setVerifyMessage(
             "Codigo enviado a " + (data.maskedEmail || email) + ". Revisa tu correo y valida para continuar.",
             "ok"
@@ -631,9 +662,14 @@
         } catch (error) {
           const message = (error && error.message) || "No se pudo enviar el codigo.";
           setVerifyMessage(message, "error");
-          const cooldownMatch = message.match(/(\d+)\s*segundos/i);
-          if (cooldownMatch) {
-            startResendCooldown(Number(cooldownMatch[1]));
+          const payload = (error && error.payload) || {};
+          if (payload && payload.alreadyActive) {
+            if (payload.challengeToken) {
+              verificationState.challengeToken = payload.challengeToken;
+              verificationState.verificationToken = "";
+              verificationState.verifiedEmail = "";
+            }
+            startCodeValidityCountdown(payload.expiresAt);
           }
         } finally {
           verificationState.sendCodeInFlight = false;
