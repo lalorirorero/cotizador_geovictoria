@@ -296,6 +296,63 @@
         color: #3f5d7f;
         font-weight: 900;
       }
+      .cost-block {
+        margin-top: 0;
+      }
+      .cost-table,
+      .pricing-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .cost-table thead th,
+      .pricing-table thead th {
+        background: #bfe8fa;
+        color: #058ac2;
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        padding: 8px 7px;
+        border-bottom: 1px solid #9fd8f5;
+        text-align: center;
+      }
+      .cost-table td,
+      .pricing-table td {
+        border-bottom: 1px solid #dbe6ef;
+        padding: 8px 7px;
+        color: #5d6a79;
+        vertical-align: top;
+      }
+      .cost-table td:nth-child(1) {
+        text-align: left;
+        font-weight: 700;
+      }
+      .cost-table td:not(:first-child),
+      .pricing-table td:not(:first-child) {
+        text-align: center;
+      }
+      .cost-row-sub {
+        background: #f4f4f4;
+      }
+      .cost-row-sub td {
+        font-weight: 800;
+        color: #545f6b;
+      }
+      .cost-row-total {
+        background: #00aff2;
+      }
+      .cost-row-total td {
+        color: #fff;
+        font-weight: 900;
+        border-bottom-color: #00aff2;
+      }
+      .uf-note {
+        margin: 8px 0 0;
+        font-size: 11px;
+        color: #8a96a5;
+        font-style: italic;
+      }
       .pdf-link {
         margin-top: 10px;
         display: inline-flex;
@@ -723,26 +780,50 @@
 
       <section class="card stage" id="stageInfoItems">
         <div class="head">
-          <h2 class="title"><span class="icon">1</span>Detalle de items</h2>
+          <h2 class="title"><span class="icon">1</span>Detalle de costos</h2>
         </div>
         <div class="content">
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Modalidad</th>
-                <th>Cantidad</th>
-                <th>Precio UF</th>
-                <th>Precio CLP</th>
-                <th>Subtotal UF</th>
-                <th>Subtotal CLP</th>
-                <th>Afecto IVA</th>
-              </tr>
-            </thead>
-            <tbody id="itemsRows">
-              <tr><td colspan="8">Sin datos.</td></tr>
-            </tbody>
-          </table>
+          <div class="brand-band cost-block">
+            <div class="brand-band-h">Detalle de Costos</div>
+            <div class="brand-band-b">
+              <table class="cost-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Tipo</th>
+                    <th>Modalidad</th>
+                    <th>Cant.</th>
+                    <th>Precio Unit.</th>
+                    <th>Dcto.</th>
+                    <th>Subtotal (UF)</th>
+                    <th>Ref. CLP</th>
+                  </tr>
+                </thead>
+                <tbody id="itemsRows">
+                  <tr><td colspan="8">Sin datos.</td></tr>
+                </tbody>
+              </table>
+              <p id="ufReferenceNote" class="uf-note"></p>
+            </div>
+          </div>
+
+          <div class="brand-band cost-block" style="margin-top: 14px">
+            <div class="brand-band-h">Tabla de Precios — Asistencia</div>
+            <div class="brand-band-b">
+              <table class="pricing-table">
+                <thead>
+                  <tr>
+                    <th>Rango de usuarios</th>
+                    <th>Precio mensual</th>
+                  </tr>
+                </thead>
+                <tbody id="asistenciaPricingRows">
+                  <tr><td colspan="2">Sin datos de tramos.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="stage-actions">
             <button id="toTermsBtn" type="button" class="btn inline">Continuar a terminos</button>
           </div>
@@ -1146,6 +1227,91 @@
         return Number(value || 0).toFixed(3) + " UF";
       }
 
+      const ASISTENCIA_PRICING_TIERS = [
+        { min: 1, max: 10, type: "fijo", uf: 0.75 },
+        { min: 11, max: 20, type: "por_usuario", uf: 0.09 },
+        { min: 21, max: 30, type: "por_usuario", uf: 0.08 },
+        { min: 31, max: 50, type: "por_usuario", uf: 0.07 },
+        { min: 51, max: 100, type: "por_usuario", uf: 0.065 },
+        { min: 101, max: 200, type: "por_usuario", uf: 0.06 },
+        { min: 201, max: 500, type: "por_usuario", uf: 0.055 },
+        { min: 501, max: 1000, type: "por_usuario", uf: 0.05 },
+        { min: 1001, max: 3000, type: "por_usuario", uf: 0.045 },
+        { min: 3001, max: 5000, type: "por_usuario", uf: 0.04 },
+        { min: 5001, max: 8000, type: "por_usuario", uf: 0.035 },
+        { min: 8001, max: Infinity, type: "por_usuario", uf: 0.03 },
+      ];
+
+      function formatTierRange(tier) {
+        if (!tier) return "-";
+        return tier.max === Infinity ? `${tier.min}+` : `${tier.min} - ${tier.max}`;
+      }
+
+      function formatTierPrice(tier) {
+        if (!tier) return "-";
+        if (tier.type === "fijo") return `${Number(tier.uf).toFixed(3)} UF (Fijo)`;
+        return `${Number(tier.uf).toFixed(3)} UF/usuario`;
+      }
+
+      function renderAsistenciaPricingTable() {
+        const tbody = document.getElementById("asistenciaPricingRows");
+        if (!tbody) return;
+        tbody.innerHTML = ASISTENCIA_PRICING_TIERS.map(
+          (tier) =>
+            "<tr>" +
+            "<td>" +
+            formatTierRange(tier) +
+            "</td>" +
+            "<td>" +
+            formatTierPrice(tier) +
+            "</td>" +
+            "</tr>"
+        ).join("");
+      }
+
+      function inferItemType(row) {
+        const modalidad = String(row?.modalidad || "").toLowerCase();
+        if (modalidad === "fijo" || modalidad === "por usuario") return "Servicio";
+        if (modalidad === "venta" || modalidad === "arriendo") return "Equipo";
+        return "Servicio";
+      }
+
+      function normalizeModalidadLabel(row) {
+        const modalidad = String(row?.modalidad || "");
+        if (modalidad === "fijo" || modalidad === "Fijo") return "Mensual";
+        if (modalidad === "por usuario" || modalidad === "Por usuario") return "Mensual";
+        return modalidad || "-";
+      }
+
+      function formatUnitPriceCell(row) {
+        const modalidad = String(row?.modalidad || "");
+        const value = Number(row?.precioUnitarioUf || 0);
+        if (modalidad === "fijo" || modalidad === "Fijo") {
+          return "Fijo: " + value.toFixed(3) + " UF";
+        }
+        if (modalidad === "por usuario" || modalidad === "Por usuario") {
+          return value.toFixed(3) + " UF/u";
+        }
+        return value.toFixed(3) + " UF";
+      }
+
+      function formatCLPReferenceNote(q, totals) {
+        const subtotalUf = Number(totals?.subtotalUf || 0);
+        const subtotalClp = Number(totals?.subtotalClp || 0);
+        if (!(subtotalUf > 0 && subtotalClp > 0)) {
+          return "* Valores referenciales en CLP calculados en base a la cotizacion vigente. El cobro se realiza en UF.";
+        }
+        const ufRef = Math.round(subtotalClp / subtotalUf);
+        let dateLabel = "hoy";
+        if (q && q.quoteDate) {
+          const parsedDate = new Date(q.quoteDate);
+          if (!Number.isNaN(parsedDate.getTime())) {
+            dateLabel = parsedDate.toLocaleDateString("es-CL");
+          }
+        }
+        return `* Valores referenciales en CLP calculados con UF del ${dateLabel}: ${fmtCLP(ufRef)}. El cobro se realiza en UF.`;
+      }
+
       function isEmailVerifiedForCurrentInput() {
         const currentEmail = normalizeEmail(fields.contactEmail.value);
         return Boolean(
@@ -1241,7 +1407,7 @@
 
           const rows = data.items || [];
           const tbody = document.getElementById("itemsRows");
-          tbody.innerHTML = rows.length
+          const itemRowsHtml = rows.length
             ? rows
                 .map(
                   (row) =>
@@ -1250,30 +1416,66 @@
                     (row.nombre || "-") +
                     "</td>" +
                     "<td>" +
-                    (row.modalidad || "-") +
+                    inferItemType(row) +
+                    "</td>" +
+                    "<td>" +
+                    normalizeModalidadLabel(row) +
                     "</td>" +
                     "<td>" +
                     Number(row.cantidad || 0) +
                     "</td>" +
                     "<td>" +
-                    fmtUF(row.precioUnitarioUf) +
+                    formatUnitPriceCell(row) +
                     "</td>" +
-                    "<td>" +
-                    fmtCLP(row.precioUnitarioClp) +
-                    "</td>" +
+                    "<td>-</td>" +
                     "<td>" +
                     fmtUF(row.subtotalUf) +
                     "</td>" +
                     "<td>" +
                     fmtCLP(row.subtotalClp) +
                     "</td>" +
-                    "<td>" +
-                    (row.afectoIva ? "Si" : "No") +
-                    "</td>" +
                     "</tr>"
                 )
                 .join("")
             : '<tr><td colspan="8">Sin datos.</td></tr>';
+
+          const totalsRowsHtml =
+            '<tr class="cost-row-sub">' +
+            '<td colspan="6">Subtotal (sin IVA)</td>' +
+            "<td>" +
+            fmtUF(data.totals?.subtotalUf) +
+            "</td>" +
+            "<td>" +
+            fmtCLP(data.totals?.subtotalClp) +
+            "</td>" +
+            "</tr>" +
+            '<tr class="cost-row-sub">' +
+            '<td colspan="6">IVA (19%)</td>' +
+            "<td>" +
+            fmtUF(data.totals?.ivaUf) +
+            "</td>" +
+            "<td>" +
+            fmtCLP(data.totals?.ivaClp) +
+            "</td>" +
+            "</tr>" +
+            '<tr class="cost-row-total">' +
+            '<td colspan="6">Total con IVA</td>' +
+            "<td>" +
+            fmtUF(data.totals?.totalUf) +
+            "</td>" +
+            "<td>" +
+            fmtCLP(data.totals?.totalClp) +
+            "</td>" +
+            "</tr>";
+
+          tbody.innerHTML = itemRowsHtml + totalsRowsHtml;
+
+          const ufNote = document.getElementById("ufReferenceNote");
+          if (ufNote) {
+            ufNote.textContent = formatCLPReferenceNote(q, data.totals || {});
+          }
+
+          renderAsistenciaPricingTable();
 
           supportState.quoteLabel = q.name || "esta cotizacion";
           supportState.contactName = (data.support && data.support.executiveName) || "tu ejecutivo comercial";
