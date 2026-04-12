@@ -61,6 +61,9 @@ function getAcceptanceConfig(req) {
     ),
     onboardingNameField: toText(process.env.ONBOARDING_NAME_FIELD || "Name"),
     onboardingDealLookupField: toText(process.env.ONBOARDING_DEAL_LOOKUP_FIELD || "Deal_asociado"),
+    onboardingAccountLookupField: toText(
+      process.env.ONBOARDING_ACCOUNT_LOOKUP_FIELD || "Account_asociada"
+    ),
     onboardingExecutorContactLookupField: toText(
       process.env.ONBOARDING_EXECUTOR_CONTACT_LOOKUP_FIELD || "Contacto_Ejecutor"
     ),

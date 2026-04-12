@@ -217,6 +217,7 @@ function buildOnboardingDraft({
 
   return {
     onboardingName: buildOnboardingName(quote, deal, account, contact),
+    accountId: pickNonEmpty(account?.id, deal?.Account_Name?.id),
     executorContactId: pickNonEmpty(contact?.id, deal?.Contact_Name?.id),
     empresa,
     ejecutivoNombre,
@@ -262,6 +263,9 @@ async function getOrCreateOnboardingRecord({ config, quoteId, dealId, quote, dra
     [config.onboardingSistemasField]: draft.sistemas,
     [config.onboardingModulosField]: draft.modulosAdicionales,
   };
+  if (config.onboardingAccountLookupField && draft.accountId) {
+    createMap[config.onboardingAccountLookupField] = { id: draft.accountId };
+  }
   if (config.onboardingExecutorContactLookupField && draft.executorContactId) {
     createMap[config.onboardingExecutorContactLookupField] = { id: draft.executorContactId };
   }
