@@ -158,6 +158,7 @@ Los siguientes defaults asumen API names ya creados en `Cotizaciones_GeoVictoria
 
 Campos de `Autoservicio_Onboarding` usados por handoff interno (default):
 - `ONBOARDING_DEAL_LOOKUP_FIELD` => `Deal_asociado`
+- `ONBOARDING_EXECUTOR_CONTACT_LOOKUP_FIELD` => `Contacto_Ejecutor` (lookup al contacto del Deal)
 - `ONBOARDING_QUOTE_LOOKUP_FIELD` => `Cotizacion_Asociada`
 - `ONBOARDING_ORIGIN_ACCEPTANCE_ID_FIELD` => `Origen_Aceptacion_Id`
 - `ONBOARDING_CHANNEL_FIELD` => `Canal_Entrega_Link` (`ONBOARDING_CHANNEL_VALUE=redirect_web`)
