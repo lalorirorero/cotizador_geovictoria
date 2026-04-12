@@ -156,6 +156,11 @@ export default async function handler(req, res) {
     const payload = verifyAcceptanceToken(token);
     const quote = await getRecord(config.quoteModule, payload.quoteId);
     const status = toText(quote?.[config.quoteStatusField]);
+    const isAcceptedLocked = /Aceptada/i.test(status);
+    const acceptedAt = toText(quote?.[config.quoteAcceptanceAtField]);
+    const onboardingUrl = toText(quote?.[config.quoteOnboardingUrlField]);
+    const onboardingToken = toText(quote?.[config.quoteOnboardingTokenField]);
+    const onboardingId = toText(quote?.[config.quoteOnboardingLookupField]?.id);
     const pdfUrl = toText(quote?.[config.quotePdfUrlField]);
     const dealId = toText(quote?.[config.quoteDealLookupField]?.id || quote?.[config.quoteDealLookupField]);
     const fallback = await getFallbackData(dealId);
@@ -187,6 +192,11 @@ export default async function handler(req, res) {
         dealId: payload.dealId,
         name: toText(quote?.Name),
         status,
+        isAcceptedLocked,
+        acceptedAt,
+        onboardingUrl,
+        onboardingId,
+        onboardingReady: Boolean(isAcceptedLocked && onboardingUrl && onboardingToken),
         quoteDate: toText(quote?.[config.quoteDateField]),
         pdfUrl,
         termsVersion: config.termsVersion,

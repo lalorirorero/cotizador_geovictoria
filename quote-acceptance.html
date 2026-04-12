@@ -619,6 +619,52 @@
       .hidden {
         display: none !important;
       }
+      .redirect-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 140;
+        background: rgba(8, 19, 36, 0.62);
+        backdrop-filter: blur(3px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+      }
+      .redirect-card {
+        width: min(560px, 100%);
+        border-radius: 16px;
+        border: 1px solid #c9def0;
+        background: linear-gradient(160deg, #ffffff 0%, #eff8ff 62%, #e9f5ff 100%);
+        box-shadow: 0 24px 50px rgba(15, 23, 42, 0.26);
+        padding: 24px;
+        text-align: center;
+      }
+      .redirect-spinner {
+        width: 62px;
+        height: 62px;
+        margin: 0 auto 14px;
+        border-radius: 999px;
+        border: 4px solid #b9dcf2;
+        border-top-color: #00aff2;
+        animation: gv-spin 0.9s linear infinite;
+      }
+      .redirect-title {
+        margin: 0 0 6px;
+        font-size: 24px;
+        font-weight: 700;
+        color: #0f2b47;
+      }
+      .redirect-text {
+        margin: 0;
+        color: #45617f;
+        font-size: 15px;
+        line-height: 1.42;
+      }
+      @keyframes gv-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
       @media (max-width: 900px) {
         .hero-top,
         .grid,
@@ -984,6 +1030,15 @@
         </div>
       </div>
     </aside>
+    <div id="redirectOverlay" class="redirect-overlay hidden" role="status" aria-live="polite">
+      <div class="redirect-card">
+        <div class="redirect-spinner"></div>
+        <h3 id="redirectTitle" class="redirect-title">Estamos preparando todo para ti</h3>
+        <p id="redirectText" class="redirect-text">
+          Ahora comienza tu experiencia con GeoVictoria. Estamos cargando tu informacion para redirigirte al auto-onboarding.
+        </p>
+      </div>
+    </div>
 
     <script>
       const token = new URLSearchParams(window.location.search).get("token") || "";
@@ -1013,6 +1068,9 @@
       const waOpen = document.getElementById("waOpen");
       const waTitle = document.getElementById("waTitle");
       const waBody = document.getElementById("waBody");
+      const redirectOverlayEl = document.getElementById("redirectOverlay");
+      const redirectTitleEl = document.getElementById("redirectTitle");
+      const redirectTextEl = document.getElementById("redirectText");
       const fields = {
         contactEmail: document.getElementById("contactEmail"),
         billingEmail: document.getElementById("billingEmail"),
@@ -1041,6 +1099,12 @@
       };
       const stageState = {
         current: 1,
+      };
+      const flowState = {
+        acceptedLocked: false,
+        acceptedAt: "",
+        onboardingUrl: "",
+        redirectPending: false,
       };
 
       function normalizeEmail(value) {
@@ -1071,6 +1135,88 @@
         verifyCountdownEl.textContent = text || "";
         verifyCountdownEl.className = "message" + (level ? " " + level : "");
         verifyCountdownEl.style.display = "none";
+      }
+
+      function showRedirectOverlay(title, detail) {
+        if (redirectTitleEl) {
+          redirectTitleEl.textContent = title || "Estamos preparando todo para ti";
+        }
+        if (redirectTextEl) {
+          redirectTextEl.textContent =
+            detail ||
+            "Ahora comienza tu experiencia con GeoVictoria. Estamos cargando tu informacion para redirigirte al auto-onboarding.";
+        }
+        if (redirectOverlayEl) {
+          redirectOverlayEl.classList.remove("hidden");
+        }
+      }
+
+      function startOnboardingRedirect(urlValue, options) {
+        const url = String(urlValue || "").trim();
+        if (!url) return false;
+        const opts = options || {};
+        flowState.redirectPending = true;
+        showRedirectOverlay(
+          opts.title || "Estamos preparando todo para ti",
+          opts.detail ||
+            "Ahora comienza tu experiencia con GeoVictoria. Estamos cargando tu informacion para redirigirte al auto-onboarding."
+        );
+        const delayMs = Number(opts.delayMs || 1700);
+        window.setTimeout(() => {
+          window.location.href = url;
+        }, Math.max(900, delayMs));
+        return true;
+      }
+
+      function lockAcceptedJourney() {
+        flowState.acceptedLocked = true;
+        const acceptedAtLabel = flowState.acceptedAt
+          ? new Date(flowState.acceptedAt).toLocaleString("es-CL")
+          : "";
+
+        termsAcceptedInput.checked = true;
+        termsAcceptedInput.disabled = true;
+
+        Object.values(fields).forEach((input) => {
+          if (!input) return;
+          input.readOnly = true;
+          input.disabled = true;
+        });
+
+        sendCodeBtn.disabled = true;
+        verifyCodeBtn.disabled = true;
+        toTermsBtn.classList.add("hidden");
+        backToInfoBtn.classList.add("hidden");
+        toVerifyBtn.classList.add("hidden");
+        backToTermsBtn.classList.add("hidden");
+
+        const confirmBtn = document.getElementById("confirmBtn");
+        if (confirmBtn) {
+          confirmBtn.textContent = flowState.onboardingUrl
+            ? "Ir a mi auto-onboarding"
+            : "Cotizacion ya aceptada";
+          confirmBtn.disabled = !flowState.onboardingUrl;
+        }
+
+        setStatus("Cotizacion ya aceptada", "ok");
+        if (flowState.onboardingUrl) {
+          setMessage(
+            "Esta cotizacion ya fue aceptada" +
+              (acceptedAtLabel ? " el " + acceptedAtLabel : "") +
+              ". Ya puedes continuar a tu auto-onboarding.",
+            "ok"
+          );
+        } else {
+          setMessage(
+            "Esta cotizacion ya fue aceptada" +
+              (acceptedAtLabel ? " el " + acceptedAtLabel : "") +
+              ", pero aun no tenemos listo tu enlace de onboarding. Contacta a tu ejecutivo comercial.",
+            "error"
+          );
+        }
+
+        stageState.current = 3;
+        renderStage();
       }
 
       function setStepClass(el, mode) {
@@ -1108,6 +1254,12 @@
       function goToStage(step) {
         const next = Number(step || 1);
         if (!verificationState.sessionLoaded) return;
+        if (flowState.acceptedLocked) {
+          stageState.current = 3;
+          renderStage();
+          updateJourneyState();
+          return;
+        }
         if (![1, 2, 3].includes(next)) return;
         stageState.current = next;
         renderStage();
@@ -1126,6 +1278,16 @@
           setStepClass(stepTermsEl, "");
           setStepClass(stepVerifyEl, "");
           journeyHintEl.textContent = "Cargando cotizacion...";
+          return;
+        }
+
+        if (flowState.acceptedLocked) {
+          setStepClass(stepInfoEl, "done");
+          setStepClass(stepTermsEl, "done");
+          setStepClass(stepVerifyEl, "done");
+          journeyHintEl.textContent = flowState.onboardingUrl
+            ? "Tu cotizacion ya fue aceptada. Te llevamos al auto-onboarding para iniciar tu experiencia con GeoVictoria."
+            : "Tu cotizacion ya fue aceptada. Estamos terminando de preparar tu enlace de onboarding.";
           return;
         }
 
@@ -1224,6 +1386,11 @@
       }
 
       function updateSendCodeButton() {
+        if (flowState.acceptedLocked) {
+          sendCodeBtn.disabled = true;
+          sendCodeBtn.textContent = "Codigo no requerido";
+          return;
+        }
         if (verificationState.quoteExpired) {
           sendCodeBtn.disabled = true;
           sendCodeBtn.textContent = "Enviar codigo";
@@ -1457,6 +1624,9 @@
           fields.companyGiro.value = q.companyGiro || "";
           fields.companyComuna.value = q.companyComuna || "";
           fields.companyAddress.value = q.companyAddress || "";
+          flowState.acceptedLocked = q.isAcceptedLocked === true;
+          flowState.acceptedAt = q.acceptedAt || "";
+          flowState.onboardingUrl = q.onboardingUrl || "";
 
           const rows = data.items || [];
           const tbody = document.getElementById("itemsRows");
@@ -1544,6 +1714,9 @@
 
           verificationState.sessionLoaded = true;
           setStatus(q.isExpired ? "Cotizacion expirada" : "Cotizacion vigente", q.isExpired ? "warn" : "ok");
+          if (flowState.acceptedLocked) {
+            lockAcceptedJourney();
+          }
           if (q.isExpired) {
             verificationState.quoteExpired = true;
             document.getElementById("confirmBtn").disabled = true;
@@ -1561,6 +1734,18 @@
       }
 
       async function onSendCode() {
+        if (flowState.acceptedLocked) {
+          if (flowState.onboardingUrl) {
+            setMessage("Esta cotizacion ya fue aceptada. Continua con tu auto-onboarding.", "ok");
+          } else {
+            setMessage(
+              "Esta cotizacion ya fue aceptada. Tu enlace de onboarding se esta preparando. Contacta a tu ejecutivo comercial si persiste.",
+              "error"
+            );
+          }
+          updateJourneyState();
+          return;
+        }
         const email = normalizeEmail(fields.contactEmail.value);
         if (!emailLooksValid(email)) {
           setMessage(
@@ -1616,6 +1801,13 @@
           const message = (error && error.message) || "No se pudo enviar el codigo.";
           setMessage(message, "error");
           const payload = (error && error.payload) || {};
+          if (payload && payload.alreadyAccepted) {
+            flowState.acceptedLocked = true;
+            flowState.onboardingUrl = payload.onboardingUrl || flowState.onboardingUrl;
+            lockAcceptedJourney();
+            updateJourneyState();
+            return;
+          }
           if (payload && payload.alreadyActive) {
             if (payload.challengeToken) {
               verificationState.challengeToken = payload.challengeToken;
@@ -1633,6 +1825,18 @@
       }
 
       async function onVerifyCode() {
+        if (flowState.acceptedLocked) {
+          if (flowState.onboardingUrl) {
+            setMessage("Esta cotizacion ya fue aceptada. Continua con tu auto-onboarding.", "ok");
+          } else {
+            setMessage(
+              "Esta cotizacion ya fue aceptada. Tu enlace de onboarding se esta preparando. Contacta a tu ejecutivo comercial si persiste.",
+              "error"
+            );
+          }
+          updateJourneyState();
+          return;
+        }
         const email = normalizeEmail(fields.contactEmail.value);
         const code = String(fields.verifyCode.value || "").trim();
         if (!verificationState.challengeToken) {
@@ -1666,7 +1870,9 @@
           });
           const data = await res.json();
           if (!res.ok || !data.success) {
-            throw new Error(data.error || "No se pudo validar el codigo.");
+            const apiError = new Error(data.error || "No se pudo validar el codigo.");
+            apiError.payload = data || {};
+            throw apiError;
           }
 
           verificationState.verificationToken = data.verificationToken || "";
@@ -1675,6 +1881,14 @@
           verifyCodeBtn.textContent = "Correo validado";
           setMessage("Correo verificado correctamente. Ya puedes aceptar la cotizacion.", "ok");
         } catch (error) {
+          const payload = (error && error.payload) || {};
+          if (payload.alreadyAccepted) {
+            flowState.acceptedLocked = true;
+            flowState.onboardingUrl = payload.onboardingUrl || flowState.onboardingUrl;
+            lockAcceptedJourney();
+            updateJourneyState();
+            return;
+          }
           verificationState.verificationToken = "";
           verificationState.verifiedEmail = "";
           verifyCodeBtn.classList.remove("ok");
@@ -1689,6 +1903,21 @@
       }
 
       async function onConfirm() {
+        if (flowState.acceptedLocked) {
+          if (flowState.onboardingUrl) {
+            startOnboardingRedirect(flowState.onboardingUrl, {
+              title: "Ahora comienza tu experiencia con GeoVictoria",
+              detail: "Estamos recuperando tu proceso y redirigiendote al auto-onboarding.",
+              delayMs: 1500,
+            });
+          } else {
+            setMessage(
+              "Esta cotizacion ya fue aceptada, pero aun no tenemos tu enlace de onboarding. Contacta a tu ejecutivo comercial.",
+              "error"
+            );
+          }
+          return;
+        }
         const check = validateRequired();
         if (!check.ok) {
           if (check.field === "emailVerification") {
@@ -1702,6 +1931,7 @@
 
         const btn = document.getElementById("confirmBtn");
         btn.disabled = true;
+        flowState.redirectPending = false;
         setMessage("Procesando aceptacion...");
         try {
           const res = await fetch("/api/quote-acceptance/confirm", {
@@ -1726,18 +1956,30 @@
             throw new Error(data.error || "No se pudo confirmar aceptacion.");
           }
 
-          setMessage("Cotizacion aceptada correctamente. Redirigiendo al onboarding...", "ok");
+          if (data.alreadyAccepted) {
+            flowState.acceptedLocked = true;
+            flowState.onboardingUrl = data.onboardingUrl || flowState.onboardingUrl;
+            flowState.acceptedAt = data.acceptedAt || flowState.acceptedAt;
+            lockAcceptedJourney();
+          }
+          setMessage("Cotizacion aceptada correctamente. Estamos preparando tu onboarding...", "ok");
           if (data.onboardingUrl) {
-            setTimeout(() => {
-              window.location.href = data.onboardingUrl;
-            }, 1100);
+            flowState.onboardingUrl = data.onboardingUrl;
+            startOnboardingRedirect(data.onboardingUrl, {
+              title: "Estamos preparando todo para ti",
+              detail:
+                "Ahora comienza tu experiencia con GeoVictoria. Estamos cargando tu informacion y en segundos te llevamos al auto-onboarding.",
+              delayMs: 1700,
+            });
           } else {
             setMessage("Cotizacion aceptada. Tu ejecutivo comercial te compartira el enlace de onboarding.", "ok");
           }
         } catch (error) {
           setMessage((error && error.message) || "Error de aceptacion.", "error");
         } finally {
-          btn.disabled = false;
+          if (!flowState.redirectPending) {
+            btn.disabled = false;
+          }
         }
       }
 

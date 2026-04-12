@@ -1,6 +1,6 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
-const { toText } = require("../_shared/zoho-crm");
+const { getRecord, toText } = require("../_shared/zoho-crm");
 const {
   verifyVerificationToken,
   signVerificationPayload,
@@ -78,6 +78,19 @@ export default async function handler(req, res) {
     }
 
     const acceptancePayload = verifyAcceptanceToken(token);
+    const config = getAcceptanceConfig(req);
+    const quote = await getRecord(config.quoteModule, acceptancePayload.quoteId);
+    const quoteStatus = toText(quote?.[config.quoteStatusField]);
+    if (/Aceptada/i.test(quoteStatus)) {
+      sendJson(res, 409, {
+        success: false,
+        alreadyAccepted: true,
+        onboardingUrl: toText(quote?.[config.quoteOnboardingUrlField]),
+        error: "Esta cotizacion ya fue aceptada. Ya no requiere validacion OTP.",
+      });
+      return;
+    }
+
     const challenge = verifyVerificationToken(challengeToken, "quote_email_challenge");
 
     if (toText(challenge?.quoteId) !== toText(acceptancePayload?.quoteId)) {
@@ -112,7 +125,6 @@ export default async function handler(req, res) {
       return;
     }
 
-    const config = getAcceptanceConfig(req);
     const proofMinutes = Math.max(10, Number(config.verificationProofTtlMinutes || 60));
     const verifiedAt = Date.now();
     const proofToken = signVerificationPayload(

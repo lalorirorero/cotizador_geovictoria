@@ -164,34 +164,81 @@ export default async function handler(req, res) {
       return;
     }
 
-    const missing = validateRequiredInput(acceptanceData);
-    if (missing.length > 0) {
-      sendJson(res, 400, {
-        success: false,
-        error: `Faltan datos requeridos: ${missing.join(", ")}.`,
-      });
-      return;
-    }
-
     const config = getAcceptanceConfig(req);
     const payload = verifyAcceptanceToken(token);
     const quote = await getRecord(config.quoteModule, payload.quoteId);
     const currentOnboardingUrl = toText(quote?.[config.quoteOnboardingUrlField]);
-    const currentOnboardingToken = toText(quote?.[config.quoteOnboardingTokenField]);
     const currentOnboardingLookup = toText(quote?.[config.quoteOnboardingLookupField]?.id);
     const authoritativeContactEmail = normalizeEmail(quote?.[config.contactEmailField]);
     const billingEmailFromForm = normalizeEmail(acceptanceData?.billingEmail);
 
     const currentStatus = toText(quote?.[config.quoteStatusField]);
     const alreadyAccepted = /Aceptada/i.test(currentStatus);
-    if (/Aceptada/i.test(currentStatus) && currentOnboardingUrl && currentOnboardingToken) {
+    const existingAcceptedAt = toText(quote?.[config.quoteAcceptanceAtField]);
+    const acceptedAtIso = existingAcceptedAt || toZohoDateTime();
+
+    if (alreadyAccepted && currentOnboardingUrl) {
       sendJson(res, 200, {
         success: true,
         alreadyAccepted: true,
         quoteId: payload.quoteId,
         onboardingUrl: currentOnboardingUrl,
         onboardingId: currentOnboardingLookup,
+        acceptedAt: acceptedAtIso,
         message: "La cotizacion ya estaba aceptada.",
+      });
+      return;
+    }
+    if (alreadyAccepted) {
+      try {
+        const handoffResult = await triggerHandoff(config, {
+          eventType: "quote.accepted.recover",
+          quoteId: payload.quoteId,
+          dealId: payload.dealId,
+          acceptedAt: acceptedAtIso,
+          termsVersion: toText(quote?.[config.quoteTermsVersionField]) || config.termsVersion,
+          acceptanceData: {
+            billingEmail: normalizeEmail(quote?.[config.billingEmailField]),
+            billingPhone: toText(quote?.[config.billingPhoneField]),
+            companyGiro: toText(quote?.[config.companyGiroField]),
+            companyRut: toText(quote?.[config.companyRutField]),
+            companyComuna: toText(quote?.[config.companyComunaField]),
+            companyAddress: toText(quote?.[config.companyAddressField]),
+          },
+        });
+        const recoveredOnboardingUrl = toText(handoffResult?.onboardingUrl);
+        if (!recoveredOnboardingUrl) {
+          throw new Error("No se pudo recuperar el enlace de onboarding para cotizacion aceptada.");
+        }
+        sendJson(res, 200, {
+          success: true,
+          alreadyAccepted: true,
+          quoteId: payload.quoteId,
+          onboardingUrl: recoveredOnboardingUrl,
+          onboardingId: toText(handoffResult?.onboardingId || currentOnboardingLookup),
+          acceptedAt: acceptedAtIso,
+          message: "La cotizacion ya estaba aceptada.",
+        });
+        return;
+      } catch (recoveryError) {
+        sendJson(res, 409, {
+          success: false,
+          alreadyAccepted: true,
+          quoteId: payload.quoteId,
+          acceptedAt: acceptedAtIso,
+          error:
+            "Esta cotizacion ya fue aceptada y no se pudo recuperar el enlace de onboarding. Contacta a tu ejecutivo comercial.",
+          detail: toText(recoveryError?.message || recoveryError),
+        });
+        return;
+      }
+    }
+
+    const missing = validateRequiredInput(acceptanceData);
+    if (missing.length > 0) {
+      sendJson(res, 400, {
+        success: false,
+        error: `Faltan datos requeridos: ${missing.join(", ")}.`,
       });
       return;
     }
@@ -255,8 +302,6 @@ export default async function handler(req, res) {
       }
     }
 
-    const existingAcceptedAt = toText(quote?.[config.quoteAcceptanceAtField]);
-    const acceptedAtIso = existingAcceptedAt || toZohoDateTime();
     if (!alreadyAccepted) {
       const updateMap = {
         [config.quoteStatusField]: "Aceptada",

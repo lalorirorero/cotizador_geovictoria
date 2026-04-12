@@ -104,6 +104,18 @@ export default async function handler(req, res) {
     const acceptancePayload = verifyAcceptanceToken(token);
     stage = "read_quote";
     const quote = await getRecord(config.quoteModule, acceptancePayload.quoteId);
+    const quoteStatus = toText(quote?.[config.quoteStatusField]);
+    if (/Aceptada/i.test(quoteStatus)) {
+      const onboardingUrl = toText(quote?.[config.quoteOnboardingUrlField]);
+      sendJson(res, 409, {
+        success: false,
+        alreadyAccepted: true,
+        onboardingUrl,
+        error:
+          "Esta cotizacion ya fue aceptada. Ya no es necesario solicitar un nuevo codigo de verificacion.",
+      });
+      return;
+    }
     stage = "resolve_contact_email";
     const contactEmail = normalizeEmail(quote?.[config.contactEmailField]);
     if (!contactEmail || !validateEmail(contactEmail)) {
