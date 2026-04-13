@@ -16,6 +16,14 @@ const MODULOS_PERMITIDOS = [
   "Permisos y Vacaciones",
 ];
 
+const SISTEMAS_VALIDOS = [
+  "GeoVictoria BOX",
+  "GeoVictoria CALL",
+  "GeoVictoria APP",
+  "GeoVictoria USB",
+  "GeoVictoria WEB",
+];
+
 const SISTEMA_MAP = {
   "Relojes Biométricos": "GeoVictoria BOX",
   "Relojes Biometricos": "GeoVictoria BOX",
@@ -52,16 +60,81 @@ function pickNonEmpty(...values) {
   return emptyString;
 }
 
+function normalizeText(value) {
+  return toText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function canonicalizeSistema(value) {
+  const text = toText(value);
+  if (!text) return emptyString;
+  if (SISTEMAS_VALIDOS.includes(text)) return text;
+
+  const byLabel = SISTEMA_MAP[text];
+  if (byLabel) return byLabel;
+
+  const normalized = normalizeText(text);
+  const normalizedMap = {
+    "relojes biometricos": "GeoVictoria BOX",
+    "marcaje por llamada": "GeoVictoria CALL",
+    "aplicacion movil": "GeoVictoria APP",
+    "lector usb biometrico": "GeoVictoria USB",
+    "portal web": "GeoVictoria WEB",
+    "geovictoria box": "GeoVictoria BOX",
+    "geovictoria call": "GeoVictoria CALL",
+    "geovictoria app": "GeoVictoria APP",
+    "geovictoria usb": "GeoVictoria USB",
+    "geovictoria web": "GeoVictoria WEB",
+  };
+  return normalizedMap[normalized] || emptyString;
+}
+
 function normalizeSistemas(raw) {
   const list = Array.isArray(raw) ? raw : [];
   return uniqueStrings(
     list.map((item) => {
-      const text = toText(item);
-      if (!text) return emptyString;
-      if (text.startsWith("GeoVictoria ")) return text;
-      return SISTEMA_MAP[text] || emptyString;
+      return canonicalizeSistema(item);
     })
   );
+}
+
+function inferSistemasFromQuoteItems(rawItems) {
+  const items = Array.isArray(rawItems) ? rawItems : [];
+  const sistemas = new Set();
+  let hasAsistencia = false;
+
+  for (const item of items) {
+    const itemName = normalizeText(item?.Nombre_Item || item?.nombre || item?.name || "");
+    if (!itemName) continue;
+
+    if (itemName.includes("asistencia")) hasAsistencia = true;
+
+    const isUsb = itemName.includes("usb") || itemName.includes("uru4500");
+    const isBiometrico =
+      itemName.includes("senseface") ||
+      itemName.includes("speedface") ||
+      itemName.includes("mb10") ||
+      itemName.includes("mb560") ||
+      itemName.includes("in01") ||
+      itemName.includes("x628") ||
+      itemName.includes("s922") ||
+      itemName.includes("ct58") ||
+      itemName.includes("armorpad") ||
+      itemName.includes("reloj") ||
+      itemName.includes("biometric") ||
+      itemName.includes("biometr") ||
+      itemName.includes("huella");
+
+    if (isUsb) sistemas.add("GeoVictoria USB");
+    if (isBiometrico) sistemas.add("GeoVictoria BOX");
+  }
+
+  // Regla solicitada: CALL por defecto cuando se cotiza Asistencia.
+  if (hasAsistencia) sistemas.add("GeoVictoria CALL");
+
+  return Array.from(sistemas);
 }
 
 function normalizeModulos(raw) {
@@ -212,7 +285,14 @@ function buildOnboardingDraft({
 
   const ejecutivoNombre = pickNonEmpty(owner?.full_name, owner?.name, deal?.Owner?.name);
   const ejecutivoTelefono = pickNonEmpty(owner?.phone, owner?.mobile);
-  const sistemas = normalizeSistemas(deal?.M_todo_de_Marcaje);
+  const sistemasDesdeCotizacion = normalizeSistemas(quote?.[config.quoteMarkingMethodsField]);
+  const sistemasInferidosItems = inferSistemasFromQuoteItems(quote?.[config.quoteItemsSubformField]);
+  const sistemasDesdeDeal = normalizeSistemas(deal?.M_todo_de_Marcaje);
+  const sistemas = uniqueStrings([
+    ...sistemasDesdeCotizacion,
+    ...sistemasInferidosItems,
+    ...sistemasDesdeDeal,
+  ]);
   const modulosAdicionales = normalizeModulos(deal?.Modulos_adicionales);
 
   return {
@@ -272,6 +352,32 @@ async function getOrCreateOnboardingRecord({ config, quoteId, dealId, quote, dra
 
   const createResult = await createRecord(config.onboardingModule, createMap, true);
   return { onboardingId: createResult.id, created: true };
+}
+
+async function syncOnboardingDraft({ config, onboardingId, draft }) {
+  const map = {
+    [config.onboardingRazonSocialField]: draft.empresa.razonSocial,
+    [config.onboardingNombreFantasiaField]: draft.empresa.nombreFantasia,
+    [config.onboardingRutField]: draft.empresa.rut,
+    [config.onboardingGiroField]: draft.empresa.giro,
+    [config.onboardingDireccionField]: draft.empresa.direccion,
+    [config.onboardingComunaField]: draft.empresa.comuna,
+    [config.onboardingEmailFacturacionField]: draft.empresa.emailFacturacion,
+    [config.onboardingTelefonoContactoField]: draft.empresa.telefonoContacto,
+    [config.onboardingRubroField]: draft.empresa.rubro,
+    [config.onboardingSistemasField]: draft.sistemas,
+    [config.onboardingModulosField]: draft.modulosAdicionales,
+    [config.onboardingHandoffErrorField]: "",
+  };
+
+  if (config.onboardingAccountLookupField && draft.accountId) {
+    map[config.onboardingAccountLookupField] = { id: draft.accountId };
+  }
+  if (config.onboardingExecutorContactLookupField && draft.executorContactId) {
+    map[config.onboardingExecutorContactLookupField] = { id: draft.executorContactId };
+  }
+
+  await updateRecordBestEffort(config.onboardingModule, onboardingId, map, true);
 }
 
 async function updateOnboardingReady({ config, onboardingId, link, token }) {
@@ -379,6 +485,13 @@ async function runOnboardingHandoff({ config, quoteId, dealId, acceptanceData })
     quoteId,
     dealId: realDealId,
     quote,
+    draft,
+  });
+
+  // Mantiene Auto-Onboarding sincronizado con el snapshot actual usado para generar el link.
+  await syncOnboardingDraft({
+    config,
+    onboardingId: onboardingRow.onboardingId,
     draft,
   });
 

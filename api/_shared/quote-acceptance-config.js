@@ -26,6 +26,9 @@ function getAcceptanceConfig(req) {
     quoteDealLookupField: toText(process.env.QUOTE_DEAL_LOOKUP_FIELD || "Deal_Asociado"),
     quotePdfUrlField: toText(process.env.QUOTE_PDF_URL_FIELD || "PDF_URL"),
     quoteItemsSubformField: toText(process.env.QUOTE_ITEMS_SUBFORM_FIELD || "Detalle_Items_Cotizacion"),
+    quoteMarkingMethodsField: toText(
+      process.env.QUOTE_MARKING_METHODS_FIELD || "Metodos_de_Marcaje"
+    ),
     quoteAcceptanceUrlField: toText(process.env.QUOTE_ACCEPTANCE_URL_FIELD || "URL_Aceptacion_Web"),
     quoteAcceptanceAtField: toText(process.env.QUOTE_ACCEPTED_AT_FIELD || "Fecha_Hora_Cotizacion"),
     quoteTermsAcceptedField: toText(process.env.QUOTE_TERMS_ACCEPTED_FIELD || ""),
