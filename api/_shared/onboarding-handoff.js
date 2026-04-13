@@ -5,6 +5,7 @@ const {
   updateRecordBestEffort,
   getUserById,
   searchRecords,
+  getModuleFieldNames,
   toText,
 } = require("./zoho-crm");
 
@@ -34,6 +35,22 @@ const SISTEMA_MAP = {
   "Lector USB Biometrico": "GeoVictoria USB",
   "Portal Web": "GeoVictoria WEB",
 };
+
+const ONBOARDING_ACCOUNT_LOOKUP_CANDIDATES = [
+  "Account_asociada",
+  "Account_Asociada",
+  "Account_Name",
+  "Cuenta_Asociada",
+];
+
+const ONBOARDING_CONTACT_LOOKUP_CANDIDATES = [
+  "Contacto_Ejecutor",
+  "Contacto_ejecutor",
+  "Contacto_Asociado",
+  "Contacto_asociado",
+  "Contact_Name",
+  "Contacto",
+];
 
 const emptyString = "";
 
@@ -147,6 +164,48 @@ function normalizeModulos(raw) {
     })
   );
   return normalized.filter((value) => MODULOS_PERMITIDOS.includes(value));
+}
+
+function extractLookupId(value) {
+  if (value && typeof value === "object") {
+    return toText(value.id || value.ID);
+  }
+  return toText(value);
+}
+
+function pickExistingFieldName(fieldNamesSet, preferred, candidates) {
+  const normalized = new Map();
+  for (const name of fieldNamesSet || []) {
+    const key = toText(name).toLowerCase();
+    if (key) normalized.set(key, toText(name));
+  }
+
+  const preferredKey = toText(preferred).toLowerCase();
+  if (preferredKey && normalized.has(preferredKey)) {
+    return normalized.get(preferredKey);
+  }
+
+  for (const candidate of candidates || []) {
+    const key = toText(candidate).toLowerCase();
+    if (key && normalized.has(key)) return normalized.get(key);
+  }
+  return "";
+}
+
+async function resolveOnboardingLookupFields(config) {
+  const fieldNames = await getModuleFieldNames(config.onboardingModule, false);
+  return {
+    accountLookupField: pickExistingFieldName(
+      fieldNames,
+      config.onboardingAccountLookupField,
+      ONBOARDING_ACCOUNT_LOOKUP_CANDIDATES
+    ),
+    contactLookupField: pickExistingFieldName(
+      fieldNames,
+      config.onboardingExecutorContactLookupField,
+      ONBOARDING_CONTACT_LOOKUP_CANDIDATES
+    ),
+  };
 }
 
 function buildOnboardingName(quote, deal, account, contact) {
@@ -298,7 +357,13 @@ function buildOnboardingDraft({
   return {
     onboardingName: buildOnboardingName(quote, deal, account, contact),
     accountId: pickNonEmpty(account?.id, deal?.Account_Name?.id),
-    executorContactId: pickNonEmpty(contact?.id, deal?.Contact_Name?.id),
+    executorContactId: pickNonEmpty(
+      contact?.id,
+      deal?.Contact_Name?.id,
+      extractLookupId(quote?.[config.quoteContactLookupField]),
+      extractLookupId(quote?.Contacto_Asociado),
+      extractLookupId(quote?.Contact_Name)
+    ),
     empresa,
     ejecutivoNombre,
     ejecutivoTelefono,
@@ -307,7 +372,7 @@ function buildOnboardingDraft({
   };
 }
 
-async function getOrCreateOnboardingRecord({ config, quoteId, dealId, quote, draft }) {
+async function getOrCreateOnboardingRecord({ config, quoteId, dealId, quote, draft, lookupFields }) {
   const currentLookupId = toText(quote?.[config.quoteOnboardingLookupField]?.id);
   if (currentLookupId) {
     return { onboardingId: currentLookupId, created: false };
@@ -343,18 +408,18 @@ async function getOrCreateOnboardingRecord({ config, quoteId, dealId, quote, dra
     [config.onboardingSistemasField]: draft.sistemas,
     [config.onboardingModulosField]: draft.modulosAdicionales,
   };
-  if (config.onboardingAccountLookupField && draft.accountId) {
-    createMap[config.onboardingAccountLookupField] = { id: draft.accountId };
+  if (lookupFields?.accountLookupField && draft.accountId) {
+    createMap[lookupFields.accountLookupField] = { id: draft.accountId };
   }
-  if (config.onboardingExecutorContactLookupField && draft.executorContactId) {
-    createMap[config.onboardingExecutorContactLookupField] = { id: draft.executorContactId };
+  if (lookupFields?.contactLookupField && draft.executorContactId) {
+    createMap[lookupFields.contactLookupField] = { id: draft.executorContactId };
   }
 
   const createResult = await createRecord(config.onboardingModule, createMap, true);
   return { onboardingId: createResult.id, created: true };
 }
 
-async function syncOnboardingDraft({ config, onboardingId, draft }) {
+async function syncOnboardingDraft({ config, onboardingId, draft, lookupFields }) {
   const map = {
     [config.onboardingRazonSocialField]: draft.empresa.razonSocial,
     [config.onboardingNombreFantasiaField]: draft.empresa.nombreFantasia,
@@ -370,11 +435,11 @@ async function syncOnboardingDraft({ config, onboardingId, draft }) {
     [config.onboardingHandoffErrorField]: "",
   };
 
-  if (config.onboardingAccountLookupField && draft.accountId) {
-    map[config.onboardingAccountLookupField] = { id: draft.accountId };
+  if (lookupFields?.accountLookupField && draft.accountId) {
+    map[lookupFields.accountLookupField] = { id: draft.accountId };
   }
-  if (config.onboardingExecutorContactLookupField && draft.executorContactId) {
-    map[config.onboardingExecutorContactLookupField] = { id: draft.executorContactId };
+  if (lookupFields?.contactLookupField && draft.executorContactId) {
+    map[lookupFields.contactLookupField] = { id: draft.executorContactId };
   }
 
   await updateRecordBestEffort(config.onboardingModule, onboardingId, map, true);
@@ -463,7 +528,22 @@ async function runOnboardingHandoff({ config, quoteId, dealId, acceptanceData })
   const existingOnboardingUrl = toText(quote?.[config.quoteOnboardingUrlField]);
   const existingToken = toText(quote?.[config.quoteOnboardingTokenField]);
   const existingOnboardingId = toText(quote?.[config.quoteOnboardingLookupField]?.id);
+  const context = await fetchDealContext(config, realDealId);
+  const lookupFields = await resolveOnboardingLookupFields(config);
+  const draft = buildOnboardingDraft({
+    config,
+    quote,
+    dealContext: context,
+    acceptanceData: acceptanceData || {},
+  });
+
   if (existingOnboardingUrl && existingToken && existingOnboardingId) {
+    await syncOnboardingDraft({
+      config,
+      onboardingId: existingOnboardingId,
+      draft,
+      lookupFields,
+    });
     return {
       onboardingId: existingOnboardingId,
       onboardingUrl: existingOnboardingUrl,
@@ -473,19 +553,13 @@ async function runOnboardingHandoff({ config, quoteId, dealId, acceptanceData })
     };
   }
 
-  const context = await fetchDealContext(config, realDealId);
-  const draft = buildOnboardingDraft({
-    config,
-    quote,
-    dealContext: context,
-    acceptanceData: acceptanceData || {},
-  });
   const onboardingRow = await getOrCreateOnboardingRecord({
     config,
     quoteId,
     dealId: realDealId,
     quote,
     draft,
+    lookupFields,
   });
 
   // Mantiene Auto-Onboarding sincronizado con el snapshot actual usado para generar el link.
@@ -493,6 +567,7 @@ async function runOnboardingHandoff({ config, quoteId, dealId, acceptanceData })
     config,
     onboardingId: onboardingRow.onboardingId,
     draft,
+    lookupFields,
   });
 
   await updateRecordBestEffort(
