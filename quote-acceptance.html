@@ -577,6 +577,12 @@
         font-size: 14px;
         line-height: 1.42;
       }
+      .verify-modal-target {
+        margin: 0 0 12px;
+        color: #0b5a88;
+        font-size: 13px;
+        font-weight: 700;
+      }
       .fields {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1277,6 +1283,9 @@
             Para proteger tu proceso, enviaremos un codigo de 6 digitos al correo de contacto definido en la cotizacion.
             Ingresa ese codigo y continuaremos automaticamente con la aceptacion.
           </p>
+          <p id="verifyTargetHint" class="verify-modal-target">
+            Te enviaremos el codigo al correo de contacto registrado en esta cotizacion.
+          </p>
           <div id="verifyBox" class="verify-box">
             <div class="verify-head">Verificacion de correo *</div>
             <p class="verify-hint">Codigo OTP al correo de contacto para validar la identidad.</p>
@@ -1336,6 +1345,7 @@
       const verifyModalEl = document.getElementById("verifyModal");
       const verifyModalBackdropEl = document.getElementById("verifyModalBackdrop");
       const closeVerifyModalBtn = document.getElementById("closeVerifyModalBtn");
+      const verifyTargetHintEl = document.getElementById("verifyTargetHint");
       const sendCodeBtn = document.getElementById("sendCodeBtn");
       const verifyCodeBtn = document.getElementById("verifyCodeBtn");
       const termsAcceptedInput = document.getElementById("termsAccepted");
@@ -1371,6 +1381,7 @@
         challengeToken: "",
         verificationToken: "",
         verifiedEmail: "",
+        maskedEmailHint: "",
         sendCodeInFlight: false,
         codeExpiresAtMs: 0,
         countdownTimer: null,
@@ -1396,6 +1407,34 @@
 
       function normalizeEmail(value) {
         return String(value || "").trim().toLowerCase();
+      }
+
+      function maskEmailForHint(value) {
+        const email = normalizeEmail(value);
+        if (!email || !email.includes("@")) return "";
+        const parts = email.split("@");
+        const local = parts[0] || "";
+        const domain = parts[1] || "";
+        const domainParts = domain.split(".");
+        const domainName = domainParts[0] || "";
+        const tld = domainParts.slice(1).join(".") || "";
+
+        const safeLocal =
+          local.length <= 2 ? local.charAt(0) + "*" : local.slice(0, 2) + "*".repeat(Math.max(2, local.length - 2));
+        const safeDomainName =
+          domainName.length <= 1
+            ? domainName + "*"
+            : domainName.charAt(0) + "*".repeat(Math.max(2, domainName.length - 1));
+
+        return safeLocal + "@" + safeDomainName + (tld ? "." + tld : "");
+      }
+
+      function updateVerifyTargetHint(maskedValue) {
+        if (!verifyTargetHintEl) return;
+        const masked = String(maskedValue || "").trim() || maskEmailForHint(fields.contactEmail.value);
+        verifyTargetHintEl.textContent = masked
+          ? "Te enviamos el codigo a: " + masked
+          : "Te enviaremos el codigo al correo de contacto registrado en esta cotizacion.";
       }
 
       function emailLooksValid(email) {
@@ -1428,6 +1467,7 @@
         if (!verifyModalEl) return;
         verifyModalEl.classList.toggle("hidden", !visible);
         if (visible && fields.verifyCode) {
+          updateVerifyTargetHint(verificationState.maskedEmailHint);
           window.setTimeout(() => fields.verifyCode.focus(), 50);
         }
       }
@@ -1896,6 +1936,8 @@
           fields.companyGiro.value = q.companyGiro || "";
           fields.companyComuna.value = q.companyComuna || "";
           fields.companyAddress.value = q.companyAddress || "";
+          verificationState.maskedEmailHint = maskEmailForHint(fields.contactEmail.value);
+          updateVerifyTargetHint(verificationState.maskedEmailHint);
           flowState.acceptedLocked = q.isAcceptedLocked === true;
           flowState.acceptedAt = q.acceptedAt || "";
           flowState.onboardingUrl = q.onboardingUrl || "";
@@ -2064,6 +2106,8 @@
           verificationState.verificationToken = "";
           verificationState.verifiedEmail = "";
           fields.verifyCode.value = "";
+          verificationState.maskedEmailHint = String(data.maskedEmail || "").trim() || maskEmailForHint(email);
+          updateVerifyTargetHint(verificationState.maskedEmailHint);
           sendCodeBtn.classList.add("ok");
           verifyCodeBtn.classList.remove("ok");
           verifyCodeBtn.textContent = "Validar codigo";
@@ -2089,6 +2133,9 @@
               verificationState.verificationToken = "";
               verificationState.verifiedEmail = "";
             }
+            verificationState.maskedEmailHint =
+              String(payload.maskedEmail || "").trim() || verificationState.maskedEmailHint || maskEmailForHint(email);
+            updateVerifyTargetHint(verificationState.maskedEmailHint);
             startCodeValidityCountdown(payload.expiresAt);
           }
         } finally {
