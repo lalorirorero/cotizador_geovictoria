@@ -1098,7 +1098,7 @@
             </div>
           </div>
 
-          <div class="verify-box">
+          <div id="verifyBox" class="verify-box hidden">
             <div class="verify-head">Verificacion de correo *</div>
             <p class="verify-hint">
               Enviaremos un codigo de 6 digitos al correo de contacto para validar la aceptacion.
@@ -1258,6 +1258,7 @@
       const messageEl = document.getElementById("message");
       const verifyMessageEl = document.getElementById("verifyMessage");
       const verifyCountdownEl = document.getElementById("verifyCountdown");
+      const verifyBoxEl = document.getElementById("verifyBox");
       const sendCodeBtn = document.getElementById("sendCodeBtn");
       const verifyCodeBtn = document.getElementById("verifyCodeBtn");
       const termsAcceptedInput = document.getElementById("termsAccepted");
@@ -1313,6 +1314,7 @@
         acceptedAt: "",
         onboardingUrl: "",
         redirectPending: false,
+        pendingConfirmAfterVerification: false,
       };
 
       function normalizeEmail(value) {
@@ -1343,6 +1345,11 @@
         verifyCountdownEl.textContent = text || "";
         verifyCountdownEl.className = "message" + (level ? " " + level : "");
         verifyCountdownEl.style.display = "none";
+      }
+
+      function setVerifyPromptVisible(visible) {
+        if (!verifyBoxEl) return;
+        verifyBoxEl.classList.toggle("hidden", !visible);
       }
 
       function showRedirectOverlay(title, detail) {
@@ -1378,6 +1385,8 @@
 
       function lockAcceptedJourney() {
         flowState.acceptedLocked = true;
+        flowState.pendingConfirmAfterVerification = false;
+        setVerifyPromptVisible(false);
         const acceptedAtLabel = flowState.acceptedAt
           ? new Date(flowState.acceptedAt).toLocaleString("es-CL")
           : "";
@@ -1515,6 +1524,9 @@
         if (stage === 2) {
           if (verified) {
             journeyHintEl.textContent = "Correo validado. Puedes aceptar la cotizacion y continuar al onboarding.";
+          } else if (!verifyBoxEl || verifyBoxEl.classList.contains("hidden")) {
+            journeyHintEl.textContent =
+              "Cuando presiones Aceptar cotizacion y continuar, te pediremos validar el correo de contacto.";
           } else if (remaining > 0) {
             journeyHintEl.textContent = "Codigo enviado. Ingresalo para validar y habilitar la confirmacion.";
           } else if (verificationState.challengeToken) {
@@ -1721,7 +1733,8 @@
         );
       }
 
-      function validateRequired() {
+      function validateRequired(options) {
+        const requireVerification = Boolean(options && options.requireVerification);
         const requiredTextFields = [
           "contactEmail",
           "billingEmail",
@@ -1746,7 +1759,7 @@
         if (!termsAcceptedInput.checked) {
           return { ok: false, field: "termsAccepted" };
         }
-        if (!isEmailVerifiedForCurrentInput()) {
+        if (requireVerification && !isEmailVerifiedForCurrentInput()) {
           return { ok: false, field: "emailVerification" };
         }
         return { ok: true };
@@ -1806,6 +1819,8 @@
           flowState.acceptedLocked = q.isAcceptedLocked === true;
           flowState.acceptedAt = q.acceptedAt || "";
           flowState.onboardingUrl = q.onboardingUrl || "";
+          flowState.pendingConfirmAfterVerification = false;
+          setVerifyPromptVisible(false);
 
           const rows = data.items || [];
           const tbody = document.getElementById("itemsRows");
@@ -2059,6 +2074,12 @@
           verificationState.verifiedEmail = normalizeEmail(data.verifiedEmail || email);
           verifyCodeBtn.classList.add("ok");
           verifyCodeBtn.textContent = "Correo validado";
+          if (flowState.pendingConfirmAfterVerification) {
+            flowState.pendingConfirmAfterVerification = false;
+            setMessage("Correo verificado correctamente. Continuamos con la aceptacion...", "ok");
+            await onConfirm();
+            return;
+          }
           setMessage("Correo verificado correctamente. Ya puedes aceptar la cotizacion.", "ok");
         } catch (error) {
           const payload = (error && error.payload) || {};
@@ -2098,12 +2119,21 @@
           }
           return;
         }
-        const check = validateRequired();
+        const check = validateRequired({ requireVerification: false });
         if (!check.ok) {
-          if (check.field === "emailVerification") {
-            setMessage("Debes verificar el correo de contacto antes de continuar.", "error");
+          setMessage("Completa todos los datos obligatorios y acepta terminos para continuar.", "error");
+          updateJourneyState();
+          return;
+        }
+
+        if (!isEmailVerifiedForCurrentInput()) {
+          flowState.pendingConfirmAfterVerification = true;
+          setVerifyPromptVisible(true);
+          const remaining = getCodeRemainingSeconds();
+          if (remaining > 0) {
+            setMessage("Primero valida el codigo vigente enviado a tu correo de contacto para continuar.", "error");
           } else {
-            setMessage("Completa todos los datos obligatorios y acepta terminos para continuar.", "error");
+            await onSendCode();
           }
           updateJourneyState();
           return;
