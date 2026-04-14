@@ -1839,6 +1839,12 @@
         };
 
         function gatherProposalData() {
+            const prefill = getPrefillFromUrl() || {};
+            const dealId = (prefill.id_zoho || '').toString().trim();
+            const acceptanceCtaUrl = dealId
+                ? ('https://cotizacion.geovictoria.com/api/quote-acceptance/open?dealId=' + encodeURIComponent(dealId))
+                : 'https://cotizacion.geovictoria.com/quote-acceptance.html';
+
             const empresa = document.getElementById('propEmpresa').value.trim() || 'EMPRESA';
             const contacto = document.getElementById('propContacto').value.trim();
             const contactoEmail = document.getElementById('propContactoEmail').value.trim().toLowerCase();
@@ -1973,7 +1979,8 @@
                 serviciosAsoc,
                 totals: { totalServ, totalEquip, totalAcc, totalSvcAs, subtotalNeto, iva, totalConIva },
                 ufValue: currentUFValue,
-                ufDate
+                ufDate,
+                acceptanceCtaUrl
             };
         }
 
@@ -2168,7 +2175,7 @@
                     ufNote +
                     '<div class="qa-cta">' +
                         '<p class="qa-cta-text">Para continuar con tu implementacion, confirma esta propuesta en linea.<br>Te tomara menos de 2 minutos y validaremos tu identidad con un codigo a tu correo de contacto.</p>' +
-                        '<div class="qa-cta-action"><a class="qa-cta-btn" href="https://cotizacion.geovictoria.com/" target="_blank" rel="noopener">Revisar y aceptar cotizacion</a></div>' +
+                        '<div class="qa-cta-action"><a class="qa-cta-btn" href="' + (data.acceptanceCtaUrl || 'https://cotizacion.geovictoria.com/quote-acceptance.html') + '" target="_blank" rel="noopener">Revisar y aceptar cotizacion</a></div>' +
                     '</div>' +
                 '</div>' +
                 '<div class="pn">2</div>' +
