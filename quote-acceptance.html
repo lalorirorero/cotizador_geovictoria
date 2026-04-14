@@ -1045,7 +1045,6 @@
                 </ol>
                 <div class="terms-actions">
                   <button id="openTermsModalBtn" type="button" class="btn secondary">Ver terminos completos</button>
-                  <a id="termsPdfLink" class="pdf-link" target="_blank" rel="noopener noreferrer">Abrir PDF oficial</a>
                 </div>
                 <div class="accept">
                   <input id="termsAccepted" type="checkbox" style="width: 18px; height: 18px; margin-top: 2px" />
@@ -1136,16 +1135,88 @@
         </div>
         <div class="terms-modal-body">
           <ol class="terms">
-            <li>Plazo estimado de implementacion: 2 a 3 semanas desde recepcion de planilla de usuarios validada.</li>
-            <li>24 horas habiles: habilitacion del portal y creacion de empresa.</li>
-            <li>72 horas habiles: contacto de implementacion para induccion/capacitacion online.</li>
-            <li>5 a 7 dias habiles: envio e instalacion de equipos segun region.</li>
-            <li>Alcance: aplica para hasta 300 usuarios, sin modulos adicionales ni desarrollos especiales.</li>
-            <li>Mesa de ayuda disponible por chat, telefono, correo y WhatsApp.</li>
-            <li>Horario de atencion: lunes a viernes, 8:30 a 18:30, dias habiles.</li>
-            <li>Infraestructura y datos en Microsoft Azure, uptime minimo 99,5%.</li>
-            <li>Precios con revision anual por IPC o equivalente UF.</li>
-            <li>La vigencia de la cotizacion es de 30 dias corridos desde su emision.</li>
+            <li>
+              <strong>Introduccion.</strong> Estos terminos regulan el Servicio GeoVictoria prestado por Victoria S.A. y
+              forman parte del acuerdo junto con la propuesta comercial y el adenda de proteccion de datos personales.
+            </li>
+            <li>
+              <strong>Servicios ofrecidos.</strong> Software de control y gestion de asistencia laboral mediante biometria
+              u otros metodos de marcaje (app movil, telefono, web).
+            </li>
+            <li>
+              <strong>Uso del servicio.</strong> Se otorga licencia no exclusiva, intransferible, no sublicenciable y
+              revocable para usar el servicio segun este acuerdo.
+            </li>
+            <li>
+              <strong>Obligaciones del cliente.</strong> El cliente es responsable del uso de sus usuarios y del
+              cumplimiento legal, incluyendo respeto de derechos de terceros y uso adecuado de la plataforma.
+            </li>
+            <li>
+              <strong>Obligaciones de GeoVictoria.</strong> Prestacion con habilidad y cuidado razonables segun estandares
+              de industria, con esfuerzos comerciales para corregir desviaciones.
+            </li>
+            <li>
+              <strong>Cuentas de usuario.</strong> El cliente es responsable de seguridad de contrasenas y accesos.
+              GeoVictoria aplica medidas tecnicas para proteger la informacion.
+            </li>
+            <li>
+              <strong>Servicio al cliente.</strong> Soporte por correo, chat y canales oficiales de GeoVictoria.
+            </li>
+            <li>
+              <strong>Nivel de servicio.</strong> Se realizan esfuerzos razonables de continuidad; puede haber
+              interrupciones por factores externos. Disponibilidad objetivo anual 99,5%.
+            </li>
+            <li>
+              <strong>Tarifas y pago.</strong> Segun propuesta comercial. Facturacion normalmente mensual y calculada por
+              usuario activo. Reajuste anual segun IPC/UF cuando aplique.
+            </li>
+            <li>
+              <strong>Servicios adicionales.</strong> Desarrollos, hardware u otros requerimientos fuera del servicio base
+              se cotizan aparte y pueden tener costo adicional.
+            </li>
+            <li>
+              <strong>Proteccion de datos.</strong> GeoVictoria trata datos personales solo para prestar el servicio.
+              Cliente actua como responsable del tratamiento y GeoVictoria como encargado.
+            </li>
+            <li>
+              <strong>Propiedad intelectual.</strong> Los derechos del software y marcas son de GeoVictoria/licenciantes.
+              La informacion cargada por cliente/usuarios sigue siendo de su propiedad.
+            </li>
+            <li>
+              <strong>Limitacion de responsabilidad.</strong> Se limitan danos indirectos y se establecen topes segun
+              contrato, sin perjuicio de responsabilidades legales aplicables.
+            </li>
+            <li>
+              <strong>Indemnizacion.</strong> El cliente acepta defender e indemnizar ante reclamos derivados de uso
+              indebido, violaciones a terceros o incumplimientos de confidencialidad.
+            </li>
+            <li>
+              <strong>Confidencialidad.</strong> La informacion confidencial no puede divulgarse a terceros sin
+              consentimiento escrito, salvo obligacion legal.
+            </li>
+            <li>
+              <strong>Servicios de terceros.</strong> El servicio puede integrar tecnologias/proveedores externos y el
+              cliente autoriza el intercambio de datos necesario para operar dichas integraciones.
+            </li>
+            <li>
+              <strong>Cambios en el servicio.</strong> GeoVictoria puede hacer mejoras o ajustes sin afectar
+              significativamente caracteristicas y funcionalidad comprometidas.
+            </li>
+            <li>
+              <strong>Plazo y terminacion.</strong> El acuerdo se mantiene mientras se use el servicio y puede terminarse
+              segun causales de incumplimiento o aviso previo.
+            </li>
+            <li>
+              <strong>Fuerza mayor.</strong> Ninguna parte responde por retrasos fuera de su control razonable.
+            </li>
+            <li>
+              <strong>Ley aplicable y cesion.</strong> Se rige por la ley del pais de prestacion; no hay cesion de
+              derechos sin consentimiento escrito.
+            </li>
+            <li>
+              <strong>Acuerdo completo y variacion.</strong> Este texto reemplaza acuerdos previos sobre esta materia.
+              GeoVictoria puede modificar terminos con aviso previo.
+            </li>
           </ol>
         </div>
       </div>
@@ -1725,17 +1796,6 @@
             pdfLink.classList.add("disabled");
             pdfLink.removeAttribute("target");
           }
-          const termsPdfLink = document.getElementById("termsPdfLink");
-          if (termsPdfLink) {
-            termsPdfLink.href = q.pdfUrl || "#";
-            if (q.pdfUrl) {
-              termsPdfLink.classList.remove("disabled");
-            } else {
-              termsPdfLink.classList.add("disabled");
-              termsPdfLink.removeAttribute("target");
-            }
-          }
-
           fields.billingEmail.value = q.billingEmail || "";
           fields.billingPhone.value = q.billingPhone || "";
           fields.contactEmail.value = q.contactEmail || "";
