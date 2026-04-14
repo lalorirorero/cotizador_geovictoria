@@ -2272,12 +2272,43 @@
                 const pages = container.querySelectorAll('.pp-page');
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'letter');
+                const PAGE_PX_WIDTH = 816;
+                const PAGE_PX_HEIGHT = 1056;
+                const PAGE_MM_WIDTH = 215.9;
+                const PAGE_MM_HEIGHT = 279.4;
+
+                const pageLinkMap = new Map();
+                pages.forEach((pageEl, pageIndex) => {
+                    const pageRect = pageEl.getBoundingClientRect();
+                    const linkRects = Array.from(pageEl.querySelectorAll('a.qa-cta-btn[href]')).map((anchor) => {
+                        const rect = anchor.getBoundingClientRect();
+                        return {
+                            href: anchor.href,
+                            x: rect.left - pageRect.left,
+                            y: rect.top - pageRect.top,
+                            w: rect.width,
+                            h: rect.height,
+                        };
+                    });
+                    if (linkRects.length) pageLinkMap.set(pageIndex, linkRects);
+                });
 
                 for (let i = 0; i < pages.length; i++) {
                     const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 816, windowWidth: 816 });
                     const imgData = canvas.toDataURL('image/jpeg', 0.92);
                     if (i > 0) pdf.addPage();
                     pdf.addImage(imgData, 'JPEG', 0, 0, 215.9, 279.4);
+
+                    const links = pageLinkMap.get(i) || [];
+                    links.forEach((link) => {
+                        const x = (link.x * PAGE_MM_WIDTH) / PAGE_PX_WIDTH;
+                        const y = (link.y * PAGE_MM_HEIGHT) / PAGE_PX_HEIGHT;
+                        const w = (link.w * PAGE_MM_WIDTH) / PAGE_PX_WIDTH;
+                        const h = (link.h * PAGE_MM_HEIGHT) / PAGE_PX_HEIGHT;
+                        if (link.href) {
+                            pdf.link(x, y, w, h, { url: link.href });
+                        }
+                    });
                 }
 
                 return {
