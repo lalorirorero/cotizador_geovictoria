@@ -517,6 +517,66 @@
         padding: 14px 18px 18px;
         overflow: auto;
       }
+      .verify-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1260;
+      }
+      .verify-modal.hidden {
+        display: none;
+      }
+      .verify-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+      }
+      .verify-modal-card {
+        position: relative;
+        width: min(640px, calc(100vw - 24px));
+        max-height: calc(100vh - 24px);
+        margin: 12px auto;
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #c7d7e8;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.24);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .verify-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid #d6e1ec;
+      }
+      .verify-modal-head h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #0f2b47;
+      }
+      .verify-modal-close {
+        border: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: #eef4fb;
+        color: #1e3a5f;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .verify-modal-body {
+        padding: 14px 18px 18px;
+        overflow: auto;
+      }
+      .verify-modal-note {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.42;
+      }
       .fields {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1098,25 +1158,6 @@
             </div>
           </div>
 
-          <div id="verifyBox" class="verify-box hidden">
-            <div class="verify-head">Verificacion de correo *</div>
-            <p class="verify-hint">
-              Enviaremos un codigo de 6 digitos al correo de contacto para validar la aceptacion.
-            </p>
-            <div class="verify-grid">
-              <div>
-                <label for="verifyCode">Codigo de verificacion *</label>
-                <input id="verifyCode" type="text" maxlength="6" inputmode="numeric" />
-              </div>
-              <div class="verify-actions">
-                <button id="sendCodeBtn" type="button" class="btn secondary">Enviar codigo</button>
-                <button id="verifyCodeBtn" type="button" class="btn secondary">Validar codigo</button>
-              </div>
-            </div>
-            <div id="verifyMessage" class="message" style="display: none"></div>
-            <div id="verifyCountdown" class="message" style="display: none"></div>
-          </div>
-
           <button id="confirmBtn" class="btn">Aceptar cotizacion y continuar</button>
           <div class="stage-actions">
             <button id="backToInfoBtn" type="button" class="btn ghost">Volver a informacion</button>
@@ -1222,6 +1263,40 @@
       </div>
     </div>
 
+    <div id="verifyModal" class="verify-modal hidden" role="dialog" aria-modal="true" aria-labelledby="verifyModalTitle">
+      <div id="verifyModalBackdrop" class="verify-modal-backdrop"></div>
+      <div class="verify-modal-card">
+        <div class="verify-modal-head">
+          <h3 id="verifyModalTitle">Verifica tu correo para continuar</h3>
+          <button id="closeVerifyModalBtn" type="button" class="verify-modal-close" aria-label="Cerrar verificacion">
+            X
+          </button>
+        </div>
+        <div class="verify-modal-body">
+          <p class="verify-modal-note">
+            Para proteger tu proceso, enviaremos un codigo de 6 digitos al correo de contacto definido en la cotizacion.
+            Ingresa ese codigo y continuaremos automaticamente con la aceptacion.
+          </p>
+          <div id="verifyBox" class="verify-box">
+            <div class="verify-head">Verificacion de correo *</div>
+            <p class="verify-hint">Codigo OTP al correo de contacto para validar la identidad.</p>
+            <div class="verify-grid">
+              <div>
+                <label for="verifyCode">Codigo de verificacion *</label>
+                <input id="verifyCode" type="text" maxlength="6" inputmode="numeric" />
+              </div>
+              <div class="verify-actions">
+                <button id="sendCodeBtn" type="button" class="btn secondary">Enviar codigo</button>
+                <button id="verifyCodeBtn" type="button" class="btn secondary">Validar codigo</button>
+              </div>
+            </div>
+            <div id="verifyMessage" class="message" style="display: none"></div>
+            <div id="verifyCountdown" class="message" style="display: none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <aside class="wa-panel hidden" id="waPanel">
       <button id="waChip" class="wa-chip" type="button" aria-label="Mostrar WhatsApp">
         <span class="wa-chip-icon" aria-hidden="true">
@@ -1258,7 +1333,9 @@
       const messageEl = document.getElementById("message");
       const verifyMessageEl = document.getElementById("verifyMessage");
       const verifyCountdownEl = document.getElementById("verifyCountdown");
-      const verifyBoxEl = document.getElementById("verifyBox");
+      const verifyModalEl = document.getElementById("verifyModal");
+      const verifyModalBackdropEl = document.getElementById("verifyModalBackdrop");
+      const closeVerifyModalBtn = document.getElementById("closeVerifyModalBtn");
       const sendCodeBtn = document.getElementById("sendCodeBtn");
       const verifyCodeBtn = document.getElementById("verifyCodeBtn");
       const termsAcceptedInput = document.getElementById("termsAccepted");
@@ -1348,8 +1425,11 @@
       }
 
       function setVerifyPromptVisible(visible) {
-        if (!verifyBoxEl) return;
-        verifyBoxEl.classList.toggle("hidden", !visible);
+        if (!verifyModalEl) return;
+        verifyModalEl.classList.toggle("hidden", !visible);
+        if (visible && fields.verifyCode) {
+          window.setTimeout(() => fields.verifyCode.focus(), 50);
+        }
       }
 
       function showRedirectOverlay(title, detail) {
@@ -1524,7 +1604,7 @@
         if (stage === 2) {
           if (verified) {
             journeyHintEl.textContent = "Correo validado. Puedes aceptar la cotizacion y continuar al onboarding.";
-          } else if (!verifyBoxEl || verifyBoxEl.classList.contains("hidden")) {
+          } else if (!flowState.pendingConfirmAfterVerification) {
             journeyHintEl.textContent =
               "Cuando presiones Aceptar cotizacion y continuar, te pediremos validar el correo de contacto.";
           } else if (remaining > 0) {
@@ -2076,6 +2156,7 @@
           verifyCodeBtn.textContent = "Correo validado";
           if (flowState.pendingConfirmAfterVerification) {
             flowState.pendingConfirmAfterVerification = false;
+            setVerifyPromptVisible(false);
             setMessage("Correo verificado correctamente. Continuamos con la aceptacion...", "ok");
             await onConfirm();
             return;
@@ -2220,6 +2301,12 @@
         termsModalEl.classList.add("hidden");
       }
 
+      function closeVerifyModal() {
+        setVerifyPromptVisible(false);
+        flowState.pendingConfirmAfterVerification = false;
+        updateJourneyState();
+      }
+
       if (openTermsModalBtn) {
         openTermsModalBtn.addEventListener("click", openTermsModal);
       }
@@ -2229,9 +2316,16 @@
       if (termsModalBackdropEl) {
         termsModalBackdropEl.addEventListener("click", closeTermsModal);
       }
+      if (closeVerifyModalBtn) {
+        closeVerifyModalBtn.addEventListener("click", closeVerifyModal);
+      }
+      if (verifyModalBackdropEl) {
+        verifyModalBackdropEl.addEventListener("click", closeVerifyModal);
+      }
       window.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
           closeTermsModal();
+          closeVerifyModal();
         }
       });
 
