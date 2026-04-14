@@ -100,7 +100,7 @@
       .steps {
         margin-top: 14px;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
       }
       .step {
@@ -244,6 +244,27 @@
       .acc-list {
         display: grid;
         gap: 12px;
+      }
+      #sectionSummary {
+        order: 1;
+      }
+      #sectionAbout {
+        order: 2;
+      }
+      #sectionWhy {
+        order: 3;
+      }
+      #sectionPricing {
+        order: 4;
+      }
+      #sectionCosts {
+        order: 5;
+      }
+      #sectionIncluded {
+        order: 6;
+      }
+      #sectionTerms {
+        order: 7;
       }
       .brand-band-h {
         background: #00aff2;
@@ -423,10 +444,78 @@
         line-height: 1.48;
         font-size: 14px;
       }
+      .terms-summary {
+        color: #334155;
+      }
       .terms-intro {
         margin: 0 0 10px;
         color: var(--muted);
         font-size: 14px;
+      }
+      .terms-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 12px 0;
+      }
+      .terms-actions .btn.secondary {
+        width: auto;
+        min-width: 220px;
+        padding: 0 16px;
+      }
+      .terms-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+      }
+      .terms-modal.hidden {
+        display: none;
+      }
+      .terms-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+      }
+      .terms-modal-card {
+        position: relative;
+        width: min(860px, calc(100vw - 24px));
+        max-height: calc(100vh - 24px);
+        margin: 12px auto;
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #c7d7e8;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.24);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .terms-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid #d6e1ec;
+      }
+      .terms-modal-head h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #0f2b47;
+      }
+      .terms-modal-close {
+        border: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: #eef4fb;
+        color: #1e3a5f;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .terms-modal-body {
+        padding: 14px 18px 18px;
+        overflow: auto;
       }
       .fields {
         display: grid;
@@ -562,13 +651,46 @@
       }
       .wa-chip {
         border: 0;
-        border-radius: 999px;
-        background: #13b35b;
+        border-radius: 18px;
+        background: linear-gradient(90deg, #10b981 0%, #08b57d 100%);
         color: #fff;
-        padding: 11px 16px;
+        padding: 14px 18px;
         font-weight: 700;
+        font-size: 16px;
+        line-height: 1.3;
+        text-align: left;
+        width: min(460px, calc(100vw - 30px));
         box-shadow: 0 14px 26px rgba(15, 23, 42, 0.2);
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .wa-chip-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .wa-chip-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .wa-chip-title {
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.2;
+      }
+      .wa-chip-body {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.25;
       }
       .wa-card {
         width: min(332px, calc(100vw - 30px));
@@ -701,15 +823,11 @@
         </div>
         <div class="steps">
           <div id="stepInfo" class="step current">
-            <div class="step-line"><span class="step-num">1</span><span class="step-title">Informacion comercial</span></div>
-            <div class="step-sub">Revision de montos, vigencia y detalle de cotizacion.</div>
-          </div>
-          <div id="stepTerms" class="step">
-            <div class="step-line"><span class="step-num">2</span><span class="step-title">Terminos y aceptacion</span></div>
-            <div class="step-sub">Condiciones de servicio para Chile y aceptacion explicita.</div>
+            <div class="step-line"><span class="step-num">1</span><span class="step-title">Informacion y terminos</span></div>
+            <div class="step-sub">Revision comercial y aceptacion de terminos y condiciones.</div>
           </div>
           <div id="stepVerify" class="step">
-            <div class="step-line"><span class="step-num">3</span><span class="step-title">Facturacion y verificacion</span></div>
+            <div class="step-line"><span class="step-num">2</span><span class="step-title">Facturacion y verificacion</span></div>
             <div class="step-sub">Datos de facturacion + OTP al correo de contacto.</div>
           </div>
         </div>
@@ -718,12 +836,12 @@
 
       <section class="card stage" id="stageInfoCard">
         <div class="head">
-          <h1 class="title"><span class="icon">1</span>Informacion comercial</h1>
-          <div class="k">Revisa cada seccion antes de continuar</div>
+          <h1 class="title"><span class="icon">1</span>Informacion comercial y terminos</h1>
+          <div class="k">Revisa cada seccion y acepta terminos para continuar</div>
         </div>
         <div class="content">
           <div class="acc-list">
-            <section class="brand-band acc-section">
+            <section id="sectionAbout" class="brand-band acc-section">
               <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
                 <span>Acerca de GeoVictoria</span>
                 <span class="acc-chevron" aria-hidden="true">▾</span>
@@ -744,7 +862,7 @@
               </div>
             </section>
 
-            <section class="brand-band acc-section">
+            <section id="sectionWhy" class="brand-band acc-section">
               <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
                 <span>¡Por que GeoVictoria?</span>
                 <span class="acc-chevron" aria-hidden="true">▾</span>
@@ -779,7 +897,7 @@
               </div>
             </section>
 
-            <section class="brand-band acc-section">
+            <section id="sectionSummary" class="brand-band acc-section">
               <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
                 <span>Resumen de la Propuesta</span>
                 <span class="acc-chevron" aria-hidden="true">▾</span>
@@ -829,7 +947,7 @@
               </div>
             </section>
 
-            <section class="brand-band acc-section">
+            <section id="sectionPricing" class="brand-band acc-section">
               <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
                 <span>Tabla de Precios — Asistencia</span>
                 <span class="acc-chevron" aria-hidden="true">▾</span>
@@ -849,7 +967,7 @@
               </div>
             </section>
 
-            <section class="brand-band acc-section">
+            <section id="sectionCosts" class="brand-band acc-section">
               <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
                 <span>Detalle de Costos</span>
                 <span class="acc-chevron" aria-hidden="true">▾</span>
@@ -876,7 +994,7 @@
               </div>
             </section>
 
-            <section class="brand-band acc-section">
+            <section id="sectionIncluded" class="brand-band acc-section">
               <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
                 <span>Servicios Adicionales sin Costo</span>
                 <span class="acc-chevron" aria-hidden="true">▾</span>
@@ -910,50 +1028,44 @@
                 </table>
               </div>
             </section>
+
+            <section id="sectionTerms" class="brand-band acc-section">
+              <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
+                <span>Terminos y condiciones</span>
+                <span class="acc-chevron" aria-hidden="true">&#9662;</span>
+              </button>
+              <div class="brand-band-b acc-body">
+                <p class="terms-intro">
+                  Revisa estas condiciones y acepta para continuar al paso de facturacion.
+                </p>
+                <ol class="terms terms-summary">
+                  <li>Vigencia comercial: 30 dias corridos desde la emision de la cotizacion.</li>
+                  <li>Implementacion estimada: 2 a 3 semanas desde recepcion de planilla validada.</li>
+                  <li>Atencion comercial y soporte en horario habil de lunes a viernes.</li>
+                </ol>
+                <div class="terms-actions">
+                  <button id="openTermsModalBtn" type="button" class="btn secondary">Ver terminos completos</button>
+                  <a id="termsPdfLink" class="pdf-link" target="_blank" rel="noopener noreferrer">Abrir PDF oficial</a>
+                </div>
+                <div class="accept">
+                  <input id="termsAccepted" type="checkbox" style="width: 18px; height: 18px; margin-top: 2px" />
+                  <label for="termsAccepted" style="margin: 0">
+                    Acepto los terminos y condiciones de la cotizacion y confirmo que los datos de facturacion son correctos.
+                  </label>
+                </div>
+              </div>
+            </section>
           </div>
 
           <div class="stage-actions">
-            <button id="toTermsBtn" type="button" class="btn inline">Continuar a terminos</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="card stage hidden" id="stageTermsCard">
-        <div class="head">
-          <h2 class="title"><span class="icon">2</span>Terminos y condiciones (Chile)</h2>
-        </div>
-        <div class="content">
-          <p class="terms-intro">
-            Este resumen define alcance de implementacion, niveles de servicio y vigencia comercial.
-          </p>
-          <ol class="terms">
-            <li>Plazo estimado de implementacion: 2 a 3 semanas desde recepcion de planilla de usuarios validada.</li>
-            <li>24 horas habiles: habilitacion del portal y creacion de empresa.</li>
-            <li>72 horas habiles: contacto de implementacion para induccion/capacitacion online.</li>
-            <li>5 a 7 dias habiles: envio e instalacion de equipos segun region.</li>
-            <li>Alcance: aplica para hasta 300 usuarios, sin modulos adicionales ni desarrollos especiales.</li>
-            <li>Mesa de ayuda disponible por chat, telefono, correo y WhatsApp.</li>
-            <li>Horario de atencion: lunes a viernes, 8:30 a 18:30, dias habiles.</li>
-            <li>Infraestructura y datos en Microsoft Azure, uptime minimo 99,5%.</li>
-            <li>Precios con revision anual por IPC o equivalente UF.</li>
-            <li>La vigencia de la cotizacion es de 30 dias corridos desde su emision.</li>
-          </ol>
-          <div class="accept">
-            <input id="termsAccepted" type="checkbox" style="width: 18px; height: 18px; margin-top: 2px" />
-            <label for="termsAccepted" style="margin: 0">
-              Acepto los terminos y condiciones de la cotizacion y confirmo que los datos de facturacion son correctos.
-            </label>
-          </div>
-          <div class="stage-actions">
-            <button id="backToInfoBtn" type="button" class="btn ghost">Volver</button>
-            <button id="toVerifyBtn" type="button" class="btn inline">Continuar a verificacion</button>
+            <button id="toVerifyBtn" type="button" class="btn inline">Continuar a facturacion</button>
           </div>
         </div>
       </section>
 
       <section class="card stage hidden" id="stageVerifyCard">
         <div class="head">
-          <h2 class="title"><span class="icon">3</span>Datos para facturacion y confirmacion</h2>
+          <h2 class="title"><span class="icon">2</span>Datos para facturacion y confirmacion</h2>
         </div>
         <div class="content">
           <div class="fields">
@@ -1008,27 +1120,56 @@
 
           <button id="confirmBtn" class="btn">Aceptar cotizacion y continuar</button>
           <div class="stage-actions">
-            <button id="backToTermsBtn" type="button" class="btn ghost">Volver a terminos</button>
+            <button id="backToInfoBtn" type="button" class="btn ghost">Volver a informacion</button>
           </div>
           <div id="message" class="message"></div>
         </div>
       </section>
     </div>
 
-    <aside class="wa-panel hidden" id="waPanel">
-      <button id="waChip" class="wa-chip" type="button" aria-label="Mostrar WhatsApp">
-        Hablar por WhatsApp
-      </button>
-      <div id="waCard" class="wa-card hidden">
-        <div class="wa-head">
-          <span id="waTitle">Tu ejecutivo comercial</span>
-          <button id="waClose" class="wa-close" type="button" aria-label="Cerrar tarjeta">x</button>
+    <div id="termsModal" class="terms-modal hidden" role="dialog" aria-modal="true" aria-labelledby="termsModalTitle">
+      <div id="termsModalBackdrop" class="terms-modal-backdrop"></div>
+      <div class="terms-modal-card">
+        <div class="terms-modal-head">
+          <h3 id="termsModalTitle">Terminos y condiciones completos</h3>
+          <button id="closeTermsModalBtn" type="button" class="terms-modal-close" aria-label="Cerrar terminos">X</button>
         </div>
-        <div class="wa-body">
-          <p id="waBody">Si necesitas apoyo para revisar esta cotizacion, te ayudamos por WhatsApp.</p>
-          <button id="waOpen" class="wa-open" type="button">Abrir WhatsApp</button>
+        <div class="terms-modal-body">
+          <ol class="terms">
+            <li>Plazo estimado de implementacion: 2 a 3 semanas desde recepcion de planilla de usuarios validada.</li>
+            <li>24 horas habiles: habilitacion del portal y creacion de empresa.</li>
+            <li>72 horas habiles: contacto de implementacion para induccion/capacitacion online.</li>
+            <li>5 a 7 dias habiles: envio e instalacion de equipos segun region.</li>
+            <li>Alcance: aplica para hasta 300 usuarios, sin modulos adicionales ni desarrollos especiales.</li>
+            <li>Mesa de ayuda disponible por chat, telefono, correo y WhatsApp.</li>
+            <li>Horario de atencion: lunes a viernes, 8:30 a 18:30, dias habiles.</li>
+            <li>Infraestructura y datos en Microsoft Azure, uptime minimo 99,5%.</li>
+            <li>Precios con revision anual por IPC o equivalente UF.</li>
+            <li>La vigencia de la cotizacion es de 30 dias corridos desde su emision.</li>
+          </ol>
         </div>
       </div>
+    </div>
+
+    <aside class="wa-panel hidden" id="waPanel">
+      <button id="waChip" class="wa-chip" type="button" aria-label="Mostrar WhatsApp">
+        <span class="wa-chip-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M20.52 3.48A11.82 11.82 0 0 0 12.07 0C5.5 0 .16 5.33.16 11.9c0 2.1.55 4.15 1.58 5.95L0 24l6.35-1.66a11.88 11.88 0 0 0 5.71 1.46h.01c6.57 0 11.9-5.34 11.9-11.9a11.8 11.8 0 0 0-3.45-8.42Z"
+              fill="#fff"
+            />
+            <path
+              d="M18.2 15.2c-.26-.13-1.5-.74-1.74-.82-.23-.09-.4-.13-.57.13-.17.26-.65.82-.8.99-.14.17-.28.2-.53.07-.26-.13-1.07-.39-2.04-1.23-.75-.67-1.26-1.49-1.4-1.74-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.45.13-.15.17-.26.26-.43.09-.17.04-.33-.02-.45-.07-.13-.57-1.37-.79-1.88-.2-.49-.41-.42-.57-.42l-.49-.01c-.17 0-.45.06-.69.33-.24.26-.9.88-.9 2.14 0 1.25.92 2.46 1.05 2.63.13.17 1.8 2.74 4.37 3.84.61.27 1.08.43 1.45.55.61.2 1.16.17 1.59.1.49-.07 1.5-.61 1.72-1.2.21-.59.21-1.1.15-1.2-.06-.1-.22-.16-.48-.29Z"
+              fill="#10B981"
+            />
+          </svg>
+        </span>
+        <span class="wa-chip-copy">
+          <span class="wa-chip-title">Tienes duda sobre tu cotización?</span>
+          <span id="waChipBody" class="wa-chip-body">Soy tu ejecutivo(a) comercial. Hablemos por WhatsApp.</span>
+        </span>
+      </button>
     </aside>
     <div id="redirectOverlay" class="redirect-overlay hidden" role="status" aria-live="polite">
       <div class="redirect-card">
@@ -1049,25 +1190,21 @@
       const sendCodeBtn = document.getElementById("sendCodeBtn");
       const verifyCodeBtn = document.getElementById("verifyCodeBtn");
       const termsAcceptedInput = document.getElementById("termsAccepted");
+      const openTermsModalBtn = document.getElementById("openTermsModalBtn");
+      const closeTermsModalBtn = document.getElementById("closeTermsModalBtn");
+      const termsModalEl = document.getElementById("termsModal");
+      const termsModalBackdropEl = document.getElementById("termsModalBackdrop");
       const journeyHintEl = document.getElementById("journeyHint");
       const stepInfoEl = document.getElementById("stepInfo");
-      const stepTermsEl = document.getElementById("stepTerms");
       const stepVerifyEl = document.getElementById("stepVerify");
       const stageInfoCardEl = document.getElementById("stageInfoCard");
-      const stageTermsCardEl = document.getElementById("stageTermsCard");
       const stageVerifyCardEl = document.getElementById("stageVerifyCard");
-      const toTermsBtn = document.getElementById("toTermsBtn");
-      const backToInfoBtn = document.getElementById("backToInfoBtn");
       const toVerifyBtn = document.getElementById("toVerifyBtn");
-      const backToTermsBtn = document.getElementById("backToTermsBtn");
+      const backToInfoBtn = document.getElementById("backToInfoBtn");
 
       const waPanel = document.getElementById("waPanel");
       const waChip = document.getElementById("waChip");
-      const waCard = document.getElementById("waCard");
-      const waClose = document.getElementById("waClose");
-      const waOpen = document.getElementById("waOpen");
-      const waTitle = document.getElementById("waTitle");
-      const waBody = document.getElementById("waBody");
+      const waChipBody = document.getElementById("waChipBody");
       const redirectOverlayEl = document.getElementById("redirectOverlay");
       const redirectTitleEl = document.getElementById("redirectTitle");
       const redirectTextEl = document.getElementById("redirectText");
@@ -1185,10 +1322,8 @@
 
         sendCodeBtn.disabled = true;
         verifyCodeBtn.disabled = true;
-        toTermsBtn.classList.add("hidden");
-        backToInfoBtn.classList.add("hidden");
         toVerifyBtn.classList.add("hidden");
-        backToTermsBtn.classList.add("hidden");
+        backToInfoBtn.classList.add("hidden");
 
         const confirmBtn = document.getElementById("confirmBtn");
         if (confirmBtn) {
@@ -1215,7 +1350,7 @@
           );
         }
 
-        stageState.current = 3;
+        stageState.current = 2;
         renderStage();
       }
 
@@ -1244,23 +1379,21 @@
         const step = Number(stageState.current || 1);
         const isStep1 = step === 1;
         const isStep2 = step === 2;
-        const isStep3 = step === 3;
 
         if (stageInfoCardEl) stageInfoCardEl.classList.toggle("hidden", !isStep1);
-        if (stageTermsCardEl) stageTermsCardEl.classList.toggle("hidden", !isStep2);
-        if (stageVerifyCardEl) stageVerifyCardEl.classList.toggle("hidden", !isStep3);
+        if (stageVerifyCardEl) stageVerifyCardEl.classList.toggle("hidden", !isStep2);
       }
 
       function goToStage(step) {
         const next = Number(step || 1);
         if (!verificationState.sessionLoaded) return;
         if (flowState.acceptedLocked) {
-          stageState.current = 3;
+          stageState.current = 2;
           renderStage();
           updateJourneyState();
           return;
         }
-        if (![1, 2, 3].includes(next)) return;
+        if (![1, 2].includes(next)) return;
         stageState.current = next;
         renderStage();
         updateJourneyState();
@@ -1275,7 +1408,6 @@
 
         if (!verificationState.sessionLoaded) {
           setStepClass(stepInfoEl, "current");
-          setStepClass(stepTermsEl, "");
           setStepClass(stepVerifyEl, "");
           journeyHintEl.textContent = "Cargando cotizacion...";
           return;
@@ -1283,7 +1415,6 @@
 
         if (flowState.acceptedLocked) {
           setStepClass(stepInfoEl, "done");
-          setStepClass(stepTermsEl, "done");
           setStepClass(stepVerifyEl, "done");
           journeyHintEl.textContent = flowState.onboardingUrl
             ? "Tu cotizacion ya fue aceptada. Te llevamos al auto-onboarding para iniciar tu experiencia con GeoVictoria."
@@ -1292,15 +1423,10 @@
         }
 
         setStepClass(stepInfoEl, stage === 1 ? "current" : "done");
-        if (termsAccepted) {
-          setStepClass(stepTermsEl, stage === 2 ? "current" : "done");
-        } else {
-          setStepClass(stepTermsEl, stage >= 2 ? "current" : "");
-        }
         if (verified) {
-          setStepClass(stepVerifyEl, stage === 3 ? "current" : "done");
+          setStepClass(stepVerifyEl, stage === 2 ? "current" : "done");
         } else {
-          setStepClass(stepVerifyEl, stage === 3 ? "current" : "");
+          setStepClass(stepVerifyEl, stage === 2 ? "current" : "");
         }
 
         if (verificationState.quoteExpired) {
@@ -1309,19 +1435,13 @@
         }
 
         if (stage === 1) {
-          journeyHintEl.textContent =
-            "Revisa propuesta, valor comercial y detalle de costos. Cuando estes listo, continua a terminos.";
+          journeyHintEl.textContent = termsAccepted
+            ? "Terminos aceptados. Continua al paso de facturacion y verificacion."
+            : "Revisa propuesta, valor comercial y terminos. Debes aceptar terminos para continuar.";
           return;
         }
 
         if (stage === 2) {
-          journeyHintEl.textContent = termsAccepted
-            ? "Terminos aceptados. Continua al paso de verificacion."
-            : "Debes aceptar los terminos y condiciones para continuar.";
-          return;
-        }
-
-        if (stage === 3) {
           if (verified) {
             journeyHintEl.textContent = "Correo validado. Puedes aceptar la cotizacion y continuar al onboarding.";
           } else if (remaining > 0) {
@@ -1351,17 +1471,6 @@
           cot +
           " en la aceptacion web y necesito ayuda para continuar.";
         return "https://wa.me/" + phoneDigits + "?text=" + encodeURIComponent(text);
-      }
-
-      function toggleWhatsappCard(openValue) {
-        supportState.isOpen = !!openValue;
-        if (supportState.isOpen) {
-          waCard.classList.remove("hidden");
-          waChip.classList.add("hidden");
-        } else {
-          waCard.classList.add("hidden");
-          waChip.classList.remove("hidden");
-        }
       }
 
       function setWhatsappVisibility() {
@@ -1616,6 +1725,16 @@
             pdfLink.classList.add("disabled");
             pdfLink.removeAttribute("target");
           }
+          const termsPdfLink = document.getElementById("termsPdfLink");
+          if (termsPdfLink) {
+            termsPdfLink.href = q.pdfUrl || "#";
+            if (q.pdfUrl) {
+              termsPdfLink.classList.remove("disabled");
+            } else {
+              termsPdfLink.classList.add("disabled");
+              termsPdfLink.removeAttribute("target");
+            }
+          }
 
           fields.billingEmail.value = q.billingEmail || "";
           fields.billingPhone.value = q.billingPhone || "";
@@ -1707,9 +1826,10 @@
             supportState.contactName,
             supportState.quoteLabel
           );
-          waTitle.textContent = "Habla con " + supportState.contactName;
-          waBody.textContent =
-            "Si necesitas apoyo para revisar o aceptar esta cotizacion, escribenos por WhatsApp.";
+          if (waChipBody) {
+            waChipBody.textContent =
+              "Soy " + supportState.contactName + ", tu ejecutivo(a) comercial. Hablemos por WhatsApp.";
+          }
           setWhatsappVisibility();
 
           verificationState.sessionLoaded = true;
@@ -1987,9 +2107,6 @@
         if (event.key === "Enter") onVerifyCode();
       });
 
-      toTermsBtn.addEventListener("click", () => {
-        goToStage(2);
-      });
       backToInfoBtn.addEventListener("click", () => {
         goToStage(1);
       });
@@ -2000,16 +2117,36 @@
           updateJourneyState();
           return;
         }
-        goToStage(3);
-      });
-      backToTermsBtn.addEventListener("click", () => {
         goToStage(2);
       });
 
+      function openTermsModal() {
+        if (!termsModalEl) return;
+        termsModalEl.classList.remove("hidden");
+      }
+
+      function closeTermsModal() {
+        if (!termsModalEl) return;
+        termsModalEl.classList.add("hidden");
+      }
+
+      if (openTermsModalBtn) {
+        openTermsModalBtn.addEventListener("click", openTermsModal);
+      }
+      if (closeTermsModalBtn) {
+        closeTermsModalBtn.addEventListener("click", closeTermsModal);
+      }
+      if (termsModalBackdropEl) {
+        termsModalBackdropEl.addEventListener("click", closeTermsModal);
+      }
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeTermsModal();
+        }
+      });
+
       termsAcceptedInput.addEventListener("change", updateJourneyState);
-      waChip.addEventListener("click", () => toggleWhatsappCard(true));
-      waClose.addEventListener("click", () => toggleWhatsappCard(false));
-      waOpen.addEventListener("click", () => {
+      waChip.addEventListener("click", () => {
         if (!supportState.whatsappLink) return;
         window.open(supportState.whatsappLink, "_blank", "noopener,noreferrer");
       });
@@ -2017,7 +2154,6 @@
       sendCodeBtn.addEventListener("click", onSendCode);
       verifyCodeBtn.addEventListener("click", onVerifyCode);
       document.getElementById("confirmBtn").addEventListener("click", onConfirm);
-      toggleWhatsappCard(false);
       bindAccordions();
       renderStage();
       updateJourneyState();
