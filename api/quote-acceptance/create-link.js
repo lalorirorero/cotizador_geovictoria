@@ -13,7 +13,7 @@ function setCors(req, res) {
   const allowedByRule =
     /^https:\/\/[a-z0-9-]+\.zappsusercontent\.com$/i.test(origin) ||
     /^https:\/\/([a-z0-9-]+\.)?zoho\.[a-z.]+$/i.test(origin) ||
-    origin === "https://cotizador-geovictoria.vercel.app" ||
+    origin === "https://cotizacion.geovictoria.com" ||
     origin === "http://127.0.0.1:5000" ||
     origin === "http://localhost:3000";
 

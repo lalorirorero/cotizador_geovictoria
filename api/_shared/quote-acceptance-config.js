@@ -12,7 +12,7 @@ function getBaseUrl(req) {
   const host = toText(req?.headers?.host);
   const proto = toText(req?.headers?.["x-forwarded-proto"]) || "https";
   if (!host) {
-    return "https://cotizador-geovictoria.vercel.app";
+    return "https://cotizacion.geovictoria.com";
   }
   return `${proto}://${host}`;
 }
@@ -28,7 +28,7 @@ function getAcceptanceConfig(req) {
     quotePdfUrlField: toText(process.env.QUOTE_PDF_URL_FIELD || "PDF_URL"),
     quoteItemsSubformField: toText(process.env.QUOTE_ITEMS_SUBFORM_FIELD || "Detalle_Items_Cotizacion"),
     quoteMarkingMethodsField: toText(
-      process.env.QUOTE_MARKING_METHODS_FIELD || "Metodos_de_Marcaje"
+      process.env.QUOTE_MARKING_METHODS_FIELD || "Metodos_de_Marcaje1"
     ),
     quoteAcceptanceUrlField: toText(process.env.QUOTE_ACCEPTANCE_URL_FIELD || "URL_Aceptacion_Web"),
     quoteAcceptanceAtField: toText(process.env.QUOTE_ACCEPTED_AT_FIELD || "Fecha_Hora_Cotizacion"),
