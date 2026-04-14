@@ -2088,6 +2088,10 @@
 .pp .sb .tr-sub td{background:rgba(100,100,100,0.06);font-weight:700;border-bottom:1px solid rgba(100,100,100,0.2)}
 .pp .sb .tr-iva td{background:#fff}
 .pp .sb .tr-tot{background:#00AFF2}.pp .sb .tr-tot td{color:#fff;border-bottom:none;font-weight:700;font-size:14px}
+.pp .qa-cta{margin-top:12px;background:#EDF6FF;border:1px solid #B8D8F4;border-radius:14px;padding:20px 22px}
+.pp .qa-cta-text{font-size:11.5px;line-height:1.45;color:#315A8A;text-align:center;margin:0 0 14px}
+.pp .qa-cta-action{display:flex;justify-content:center}
+.pp .qa-cta-btn{display:inline-block;background:#00AFF2;color:#fff;text-decoration:none;font-size:12px;font-weight:700;padding:10px 34px;border:1px solid #009EDC;border-radius:18px;box-shadow:0 2px 0 rgba(0,0,0,0.1)}
 .pp table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px}
 .pp th{background:rgba(0,175,242,0.2);color:#00AFF2;font-weight:700;padding:6px 7px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid rgba(0,175,242,0.4)}
 .pp td{padding:5px 7px;text-align:center;border-bottom:1px solid rgba(100,100,100,0.2);font-size:10.5px}
@@ -2162,6 +2166,10 @@
                         '<tr class="tr-tot"><td style="text-align:left">Total con IVA</td><td>' + fu(t.totalConIva) + ' UF</td><td>' + (uf > 0 ? fc(t.totalConIva * uf) + ' CLP' : '-') + '</td></tr>' +
                     '</table></div>' +
                     ufNote +
+                    '<div class="qa-cta">' +
+                        '<p class="qa-cta-text">Para continuar con tu implementacion, confirma esta propuesta en linea.<br>Te tomara menos de 2 minutos y validaremos tu identidad con un codigo a tu correo de contacto.</p>' +
+                        '<div class="qa-cta-action"><a class="qa-cta-btn" href="https://cotizacion.geovictoria.com/" target="_blank" rel="noopener">Revisar y aceptar cotizacion</a></div>' +
+                    '</div>' +
                 '</div>' +
                 '<div class="pn">2</div>' +
             '</div>' +
