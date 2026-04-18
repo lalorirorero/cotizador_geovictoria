@@ -9,3 +9,5 @@ zoho-widget/**/zet-run.err.log
 zoho-widget/**/zet-run.out.log
 zoho-widget/**/*.pem
 zoho-widget/**/*.zip
+
+.env*.local
