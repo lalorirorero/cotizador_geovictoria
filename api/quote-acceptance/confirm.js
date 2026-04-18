@@ -2,6 +2,7 @@ const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
 const { getRecord, updateRecordBestEffort, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { runOnboardingHandoff } = require("../_shared/onboarding-handoff");
+const { runNdvHandoff } = require("../_shared/ndv-handoff");
 const { verifyVerificationToken, normalizeEmail } = require("../_shared/verification-token");
 
 function sendJson(res, status, payload) {
@@ -142,6 +143,97 @@ async function triggerHandoff(config, payload) {
   }
 }
 
+function shouldBlockNdv(config) {
+  return toText(config?.ndvHandoffMode).toLowerCase() === "blocking";
+}
+
+function quoteHasNdvReference(config, quoteRow) {
+  const fromText = toText(config?.quoteNvdIdTextField ? quoteRow?.[config.quoteNvdIdTextField] : "");
+  if (fromText) return true;
+
+  if (!config?.quoteNvdLookupField) return false;
+  const lookupValue = quoteRow?.[config.quoteNvdLookupField];
+  if (lookupValue && typeof lookupValue === "object") {
+    return Boolean(toText(lookupValue?.id || lookupValue?.ID || lookupValue?.name || lookupValue?.display_value));
+  }
+  return Boolean(toText(lookupValue));
+}
+
+async function persistNdvReferences(config, quoteId, ndvId) {
+  const normalizedNdvId = toText(ndvId);
+  if (!normalizedNdvId) return;
+
+  if (config.quoteNvdIdTextField) {
+    try {
+      await updateRecordBestEffort(
+        config.quoteModule,
+        quoteId,
+        { [config.quoteNvdIdTextField]: normalizedNdvId },
+        true
+      );
+    } catch (_error) {
+      // Best effort
+    }
+  }
+
+  if (config.quoteNvdLookupField) {
+    try {
+      await updateRecordBestEffort(
+        config.quoteModule,
+        quoteId,
+        { [config.quoteNvdLookupField]: { id: normalizedNdvId } },
+        true
+      );
+    } catch (_firstError) {
+      try {
+        await updateRecordBestEffort(
+          config.quoteModule,
+          quoteId,
+          { [config.quoteNvdLookupField]: normalizedNdvId },
+          true
+        );
+      } catch (_secondError) {
+        // Best effort
+      }
+    }
+  }
+}
+
+async function triggerNdvIfEnabled(config, payload) {
+  if (!config.ndvHandoffEnabled) {
+    return { status: "skipped", reason: "disabled" };
+  }
+
+  try {
+    const ndvResult = await runNdvHandoff({
+      config,
+      quoteId: payload.quoteId,
+      dealId: payload.dealId,
+      acceptanceData: payload.acceptanceData || {},
+    });
+
+    const ndvId = toText(ndvResult?.ndvId);
+    if (ndvId) {
+      await persistNdvReferences(config, payload.quoteId, ndvId);
+    }
+
+    return {
+      status: "ok",
+      ndvId,
+      reconciled: ndvResult?.reconciled === true,
+    };
+  } catch (error) {
+    const message = toText(error?.message || error) || "Error desconocido en handoff NDV.";
+    if (shouldBlockNdv(config)) {
+      throw new Error(message);
+    }
+    return {
+      status: "error",
+      error: message,
+    };
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { success: false, error: "Metodo no permitido." });
@@ -178,12 +270,41 @@ export default async function handler(req, res) {
     const acceptedAtIso = existingAcceptedAt || toZohoDateTime();
 
     if (alreadyAccepted && currentOnboardingUrl) {
+      let ndv = { status: "skipped", reason: "already_linked" };
+      if (config.ndvHandoffEnabled && !quoteHasNdvReference(config, quote)) {
+        try {
+          ndv = await triggerNdvIfEnabled(config, {
+            quoteId: payload.quoteId,
+            dealId: payload.dealId,
+            acceptanceData: {
+              billingEmail: normalizeEmail(quote?.[config.billingEmailField]),
+              billingPhone: toText(quote?.[config.billingPhoneField]),
+              companyGiro: toText(quote?.[config.companyGiroField]),
+              companyRut: toText(quote?.[config.companyRutField]),
+              companyComuna: toText(quote?.[config.companyComunaField]),
+              companyAddress: toText(quote?.[config.companyAddressField]),
+            },
+          });
+        } catch (ndvError) {
+          sendJson(res, 502, {
+            success: false,
+            alreadyAccepted: true,
+            quoteId: payload.quoteId,
+            acceptedAt: acceptedAtIso,
+            error: "La cotizacion ya fue aceptada, pero fallo la creacion de NDV.",
+            detail: toText(ndvError?.message || ndvError),
+          });
+          return;
+        }
+      }
+
       sendJson(res, 200, {
         success: true,
         alreadyAccepted: true,
         quoteId: payload.quoteId,
         onboardingUrl: currentOnboardingUrl,
         onboardingId: currentOnboardingLookup,
+        ndv,
         acceptedAt: acceptedAtIso,
         message: "La cotizacion ya estaba aceptada.",
       });
@@ -327,6 +448,7 @@ export default async function handler(req, res) {
     }
 
     let handoffResult = null;
+    let ndvResult = { status: "skipped", reason: "not_executed" };
     try {
       handoffResult = await triggerHandoff(config, {
         eventType: "quote.accepted",
@@ -348,6 +470,19 @@ export default async function handler(req, res) {
       if (!onboardingUrl) {
         throw new Error("No se obtuvo onboardingUrl durante handoff.");
       }
+
+      ndvResult = await triggerNdvIfEnabled(config, {
+        quoteId: payload.quoteId,
+        dealId: payload.dealId,
+        acceptanceData: {
+          billingEmail: billingEmailFromForm,
+          billingPhone: toText(acceptanceData.billingPhone),
+          companyGiro: toText(acceptanceData.companyGiro),
+          companyRut: toText(acceptanceData.companyRut),
+          companyComuna: toText(acceptanceData.companyComuna),
+          companyAddress: toText(acceptanceData.companyAddress),
+        },
+      });
     } catch (handoffError) {
       const handoffMessage = toText(handoffError?.message || handoffError).slice(0, 255);
       await updateRecordBestEffort(
@@ -376,6 +511,7 @@ export default async function handler(req, res) {
       acceptedAt: acceptedAtIso,
       onboardingUrl: toText(handoffResult?.onboardingUrl),
       onboardingId: toText(handoffResult?.onboardingId),
+      ndv: ndvResult,
       message: "Cotizacion aceptada correctamente.",
     });
   } catch (error) {

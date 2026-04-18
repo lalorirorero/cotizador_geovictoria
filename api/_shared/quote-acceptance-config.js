@@ -113,7 +113,8 @@ function getAcceptanceConfig(req) {
       process.env.QUOTE_SUPPORT_CONTACT_EMAIL || "egomez@geovictoria.com"
     ),
     handoffWebhookUrl: toText(process.env.QUOTE_HANDOFF_WEBHOOK_URL),
-    ndvHandoffEnabled: String(process.env.NDV_HANDOFF_ENABLED || "").trim().toLowerCase() === "true",
+    ndvHandoffEnabled:
+      toText(process.env.NDV_HANDOFF_ENABLED || "true").toLowerCase() === "true",
     ndvHandoffMode: toText(process.env.NDV_HANDOFF_MODE || "blocking"),
     ndvCreatorFormStatusPending: toText(
       process.env.NDV_CREATOR_FORM_STATUS_PENDING || "CREATED"
