@@ -3,6 +3,7 @@ const {
   createRecord,
   updateRecordBestEffort,
   searchRecords,
+  getUserById,
   toText,
 } = require("./zoho-crm");
 const { getCreatorConfig, creatorApiFetch } = require("./zoho-creator-auth");
@@ -39,6 +40,29 @@ async function readJsonSafe(response) {
   } catch (_error) {
     return { raw: text };
   }
+}
+
+function isCreatorBusinessError(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  if (payload.error && typeof payload.error === "object" && Object.keys(payload.error).length > 0) {
+    return true;
+  }
+  const code = Number.parseInt(toText(payload.code), 10);
+  if (Number.isFinite(code) && code !== 3000) {
+    return true;
+  }
+  return false;
+}
+
+function creatorErrorMessage(payload, fallback) {
+  if (!payload || typeof payload !== "object") return fallback;
+  if (payload.error && typeof payload.error === "object") {
+    const entries = Object.entries(payload.error)
+      .map(([k, v]) => `${k}: ${toText(v)}`)
+      .filter(Boolean);
+    if (entries.length > 0) return entries.join(" | ");
+  }
+  return toText(payload.message || payload.code || payload.raw || fallback);
 }
 
 function buildCreatorPath(config) {
@@ -111,6 +135,7 @@ function buildNdvRecord({
   deal,
   account,
   contact,
+  ownerUser,
   billingContactId,
   acceptanceData,
 }) {
@@ -123,6 +148,13 @@ function buildNdvRecord({
     quote?.[config.contactEmailField] || contact?.Email || acceptanceData?.contactEmail
   );
   const contactPhone = toText(quote?.[config.contactPhoneField] || contact?.Phone || contact?.Mobile);
+  const sellerEmail = normalizeEmail(
+    quote?.Correo_Vendedor ||
+      quote?.Email_Ejecutivo ||
+      deal?.Correo_Vendedor ||
+      ownerUser?.email ||
+      ownerUser?.Email
+  );
 
   return {
     Formulario: "Nota de Venta",
@@ -138,6 +170,7 @@ function buildNdvRecord({
     CONTACT_ID: toNumberOrNull(contactId) || undefined,
     Email: contactEmail || undefined,
     Tel_fono: contactPhone || undefined,
+    Correo_Vendedor: sellerEmail || undefined,
     BILLING_CONTACT_ID: toNumberOrNull(billingContactId) || undefined,
     CRM_Deal: dealName || undefined,
     Deals_Asociados: dealName || undefined,
@@ -193,6 +226,8 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
       toText(quote?.CONTACT_ID)
   );
   const contact = contactId ? await getRecord("Contacts", contactId) : null;
+  const ownerId = toText(pickFromLookup(deal?.Owner));
+  const ownerUser = ownerId ? await getUserById(ownerId).catch(() => null) : null;
 
   const billingContactId = await ensureBillingContactId({
     accountId,
@@ -218,9 +253,17 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     deal,
     account,
     contact,
+    ownerUser,
     billingContactId,
     acceptanceData: acceptanceData || {},
   });
+
+  if (!toText(ndvRecord.CRM_Account)) {
+    throw new Error("No se pudo resolver Cuenta CRM (CRM_Account) para crear NDV.");
+  }
+  if (!toText(ndvRecord.Correo_Vendedor)) {
+    throw new Error("No se pudo resolver Correo_Vendedor desde Owner del Deal.");
+  }
 
   const createPath = buildCreatorPath(creatorConfig);
   const createResp = await creatorApiFetch(createPath, {
@@ -229,10 +272,11 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     body: JSON.stringify({ data: ndvRecord }),
   });
   const createPayload = await readJsonSafe(createResp);
-  if (!createResp.ok) {
+  if (!createResp.ok || isCreatorBusinessError(createPayload)) {
     throw new Error(
-      `Creator create NDV failed (${createResp.status}): ${toText(
-        createPayload?.message || createPayload?.code || createPayload?.raw
+      `Creator create NDV failed (${createResp.status}): ${creatorErrorMessage(
+        createPayload,
+        "respuesta invalida"
       )}`
     );
   }
@@ -265,7 +309,7 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     body: JSON.stringify({ data: reconcileMap }),
   });
   const updatePayload = await readJsonSafe(updateResp);
-  const reconciled = updateResp.ok;
+  const reconciled = updateResp.ok && !isCreatorBusinessError(updatePayload);
 
   return {
     ndvCreated: true,
@@ -286,4 +330,3 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
 module.exports = {
   runNdvHandoff,
 };
-

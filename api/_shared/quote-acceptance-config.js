@@ -114,7 +114,7 @@ function getAcceptanceConfig(req) {
     ),
     handoffWebhookUrl: toText(process.env.QUOTE_HANDOFF_WEBHOOK_URL),
     ndvHandoffEnabled: String(process.env.NDV_HANDOFF_ENABLED || "").trim().toLowerCase() === "true",
-    ndvHandoffMode: toText(process.env.NDV_HANDOFF_MODE || "non_blocking"),
+    ndvHandoffMode: toText(process.env.NDV_HANDOFF_MODE || "blocking"),
     ndvCreatorFormStatusPending: toText(
       process.env.NDV_CREATOR_FORM_STATUS_PENDING || "CREATED"
     ),

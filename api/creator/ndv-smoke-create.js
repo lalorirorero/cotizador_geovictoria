@@ -20,6 +20,15 @@ function toNonEmptyString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
+function isCreatorBusinessError(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  if (payload.error && typeof payload.error === "object" && Object.keys(payload.error).length > 0) {
+    return true;
+  }
+  const code = Number.parseInt(String(payload.code || ""), 10);
+  return Number.isFinite(code) && code !== 3000;
+}
+
 function isSmokeEnabled() {
   return String(process.env.CREATOR_SMOKE_ENABLED || "").trim().toLowerCase() === "true";
 }
@@ -103,7 +112,7 @@ export default async function handler(req, res) {
     });
     const payload = await readResponseAsJsonSafe(response);
 
-    if (!response.ok) {
+    if (!response.ok || isCreatorBusinessError(payload)) {
       sendJson(res, 502, {
         success: false,
         error: "Creator rechazó la creación NDV.",
