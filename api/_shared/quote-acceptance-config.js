@@ -113,6 +113,20 @@ function getAcceptanceConfig(req) {
       process.env.QUOTE_SUPPORT_CONTACT_EMAIL || "egomez@geovictoria.com"
     ),
     handoffWebhookUrl: toText(process.env.QUOTE_HANDOFF_WEBHOOK_URL),
+    ndvHandoffEnabled: String(process.env.NDV_HANDOFF_ENABLED || "").trim().toLowerCase() === "true",
+    ndvHandoffMode: toText(process.env.NDV_HANDOFF_MODE || "non_blocking"),
+    ndvCreatorFormStatusPending: toText(
+      process.env.NDV_CREATOR_FORM_STATUS_PENDING || "CREATED"
+    ),
+    ndvCreatorStatusPending: toText(process.env.NDV_CREATOR_STATUS_PENDING || "PENDIENTE"),
+    ndvCreatorEstadoCotAccepted: toText(
+      process.env.NDV_CREATOR_ESTADO_COT_ACCEPTED || "Aceptada"
+    ),
+    quoteBillingContactLookupField: toText(
+      process.env.QUOTE_BILLING_CONTACT_LOOKUP_FIELD || ""
+    ),
+    quoteNvdLookupField: toText(process.env.QUOTE_NDV_LOOKUP_FIELD || ""),
+    quoteNvdIdTextField: toText(process.env.QUOTE_NDV_ID_FIELD || ""),
   };
 }
 
