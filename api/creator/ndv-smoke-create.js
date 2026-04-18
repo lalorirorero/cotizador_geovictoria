@@ -54,35 +54,36 @@ function buildDefaultRecord(input) {
     Contact_Name: toNonEmptyString(input?.Contact_Name),
     Email: toNonEmptyString(input?.Email),
     Tel_fono: toNonEmptyString(input?.Tel_fono),
-    Servicios_Recurrentes: Array.isArray(input?.Servicios_Recurrentes) && input.Servicios_Recurrentes.length > 0
-      ? input.Servicios_Recurrentes
-      : ["Control de Asistencia"],
+    Servicios_Recurrentes:
+      Array.isArray(input?.Servicios_Recurrentes) && input.Servicios_Recurrentes.length > 0
+        ? input.Servicios_Recurrentes
+        : ["Control de Asistencia"],
   };
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    sendJson(res, 405, { success: false, error: "Método no permitido." });
+    sendJson(res, 405, { success: false, error: "Metodo no permitido." });
     return;
   }
 
   if (!isSmokeEnabled()) {
     sendJson(res, 403, {
       success: false,
-      error: "CREATOR_SMOKE_ENABLED no está habilitado.",
-      hint: "Define CREATOR_SMOKE_ENABLED=true en Vercel para habilitar este endpoint de prueba.",
+      error: "CREATOR_SMOKE_ENABLED no esta habilitado.",
+      hint: 'Define CREATOR_SMOKE_ENABLED=true en Vercel para habilitar este endpoint de prueba.',
     });
     return;
   }
 
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
     const confirmed = body.confirmed === true;
     if (!confirmed) {
       sendJson(res, 400, {
         success: false,
-        error: "Falta confirmación explícita.",
-        hint: "Envía { \"confirmed\": true } para ejecutar creación de NDV de prueba.",
+        error: "Falta confirmacion explicita.",
+        hint: 'Envia { "confirmed": true } para ejecutar creacion de NDV de prueba.',
       });
       return;
     }
@@ -100,7 +101,9 @@ export default async function handler(req, res) {
     const incomingRecord = body.record && typeof body.record === "object" ? body.record : {};
     const record = buildDefaultRecord(incomingRecord);
 
-    const path = `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/form/${encodeURIComponent(config.formLinkName)}`;
+    const path = `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(
+      config.appLinkName
+    )}/form/${encodeURIComponent(config.formLinkName)}`;
     const response = await creatorApiFetch(path, {
       method: "POST",
       headers: {
@@ -115,7 +118,7 @@ export default async function handler(req, res) {
     if (!response.ok || isCreatorBusinessError(payload)) {
       sendJson(res, 502, {
         success: false,
-        error: "Creator rechazó la creación NDV.",
+        error: "Creator rechazo la creacion NDV.",
         creatorStatus: response.status,
         creatorPayload: payload,
         attemptedPath: path,

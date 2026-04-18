@@ -109,10 +109,20 @@ function canonicalizeSistema(value) {
 }
 
 function normalizeSistemas(raw) {
-  const list = Array.isArray(raw) ? raw : [];
+  const list = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string"
+      ? raw
+          .split(/[;,|]/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : raw && typeof raw === "object"
+        ? [raw]
+        : [];
   return uniqueStrings(
     list.map((item) => {
-      return canonicalizeSistema(item);
+      const candidate = typeof item === "object" ? item?.display_value ?? item?.value ?? item?.name ?? item : item;
+      return canonicalizeSistema(candidate);
     })
   );
 }
@@ -344,14 +354,22 @@ function buildOnboardingDraft({
 
   const ejecutivoNombre = pickNonEmpty(owner?.full_name, owner?.name, deal?.Owner?.name);
   const ejecutivoTelefono = pickNonEmpty(owner?.phone, owner?.mobile);
-  const sistemasDesdeCotizacion = normalizeSistemas(quote?.[config.quoteMarkingMethodsField]);
+  const sistemasDesdeCotizacion = normalizeSistemas(
+    quote?.[config.quoteMarkingMethodsField] ??
+      quote?.Metodos_de_Marcaje1 ??
+      quote?.Metodos_de_Marcaje
+  );
   const sistemasInferidosItems = inferSistemasFromQuoteItems(quote?.[config.quoteItemsSubformField]);
   const sistemasDesdeDeal = normalizeSistemas(deal?.M_todo_de_Marcaje);
-  const sistemas = uniqueStrings([
+  let sistemas = uniqueStrings([
     ...sistemasDesdeCotizacion,
     ...sistemasInferidosItems,
     ...sistemasDesdeDeal,
   ]);
+  if (sistemas.length === 0) {
+    // Respaldo para evitar handoff sin métodos cuando no llegan valores desde CRM.
+    sistemas = ["GeoVictoria CALL"];
+  }
   const modulosAdicionales = normalizeModulos(deal?.Modulos_adicionales);
 
   return {
