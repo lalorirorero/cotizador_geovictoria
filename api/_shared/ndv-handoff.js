@@ -55,10 +55,33 @@ function isCreatorBusinessError(payload) {
 }
 
 function creatorErrorMessage(payload, fallback) {
+  const normalizeErrorValue = (value) => {
+    if (value == null) return "";
+    if (typeof value === "string") return toText(value);
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => normalizeErrorValue(item))
+        .filter(Boolean)
+        .join(" / ");
+    }
+    if (typeof value === "object") {
+      const parts = Object.entries(value)
+        .map(([k, v]) => `${toText(k)}=${normalizeErrorValue(v)}`)
+        .filter(Boolean);
+      if (parts.length > 0) return parts.join(", ");
+      try {
+        return JSON.stringify(value);
+      } catch (_error) {
+        return String(value);
+      }
+    }
+    return toText(value);
+  };
+
   if (!payload || typeof payload !== "object") return fallback;
   if (payload.error && typeof payload.error === "object") {
     const entries = Object.entries(payload.error)
-      .map(([k, v]) => `${k}: ${toText(v)}`)
+      .map(([k, v]) => `${k}: ${normalizeErrorValue(v)}`)
       .filter(Boolean);
     if (entries.length > 0) return entries.join(" | ");
   }
