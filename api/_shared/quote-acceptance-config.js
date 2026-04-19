@@ -120,9 +120,7 @@ function getAcceptanceConfig(req) {
       process.env.NDV_CREATOR_FORM_STATUS_PENDING || "CREATED"
     ),
     ndvCreatorStatusPending: toText(process.env.NDV_CREATOR_STATUS_PENDING || "PENDIENTE"),
-    ndvCreatorEstadoCotAccepted: toText(
-      process.env.NDV_CREATOR_ESTADO_COT_ACCEPTED || "Aceptada"
-    ),
+    ndvCreatorEstadoCotAccepted: toText(process.env.NDV_CREATOR_ESTADO_COT_ACCEPTED || ""),
     quoteBillingContactLookupField: toText(
       process.env.QUOTE_BILLING_CONTACT_LOOKUP_FIELD || ""
     ),

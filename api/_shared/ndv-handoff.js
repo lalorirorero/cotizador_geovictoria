@@ -160,7 +160,9 @@ function buildNdvRecord({
     Formulario: "Nota de Venta",
     STATUS: config.ndvCreatorStatusPending || "PENDIENTE",
     FORM_STATUS: config.ndvCreatorFormStatusPending || "CREATED",
-    ESTADO_COT: config.ndvCreatorEstadoCotAccepted || "Aceptada",
+    ...(toText(config.ndvCreatorEstadoCotAccepted)
+      ? { ESTADO_COT: toText(config.ndvCreatorEstadoCotAccepted) }
+      : {}),
     Nombre_del_documento: `${accountName || "Cuenta"} / ${new Date().toISOString().slice(0, 10)}`,
     CRM_Account: accountId || undefined,
     ID_CRM_ACCOUNT: toNumberOrNull(accountId) || undefined,
@@ -171,7 +173,6 @@ function buildNdvRecord({
     Email: contactEmail || undefined,
     Tel_fono: contactPhone || undefined,
     Correo_Vendedor: sellerEmail || undefined,
-    BILLING_CONTACT_ID: toNumberOrNull(billingContactId) || undefined,
     CRM_Deal: dealName || undefined,
     Deals_Asociados: dealName || undefined,
     CRM_REFERENCE_ID: toNumberOrNull(quote?.id) || undefined,
@@ -296,7 +297,6 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     CRM_Account: ndvRecord.CRM_Account,
     ID_CRM_ACCOUNT: ndvRecord.ID_CRM_ACCOUNT,
     CONTACT_ID: ndvRecord.CONTACT_ID,
-    BILLING_CONTACT_ID: ndvRecord.BILLING_CONTACT_ID,
     CRM_Deal: ndvRecord.CRM_Deal,
     Deals_Asociados: ndvRecord.Deals_Asociados,
     CRM_REFERENCE_ID: ndvRecord.CRM_REFERENCE_ID,
@@ -320,7 +320,7 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     usedIds: {
       accountId: toText(ndvRecord.CRM_Account),
       contactId: toText(ndvRecord.CONTACT_ID),
-      billingContactId: toText(ndvRecord.BILLING_CONTACT_ID),
+      billingContactId: toText(billingContactId),
       dealName: toText(ndvRecord.CRM_Deal),
       quoteId: toText(quoteId),
     },
