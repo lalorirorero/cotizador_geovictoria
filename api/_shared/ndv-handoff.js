@@ -28,6 +28,133 @@ function normalizeItemName(value) {
     .toLowerCase();
 }
 
+// NDV dictionary mapping (cotizadora -> Creator) lives in this module.
+
+const CREATOR_SERVICIOS_RECURRENTES_ALLOWED = new Set([
+  "Control de Asistencia",
+  "Control de Acceso",
+  "Servicio de Comedor",
+  "Dashboard BI",
+  "Vacaciones",
+  "Gesti\u00f3n Documental",
+  "Integraciones Victoria Connect",
+  "Reporte a Medida",
+  "Calendario Inteligente",
+  "SSO",
+  "Alertas",
+  "Bolsa de Horas de Desarrollo",
+]);
+
+const CREATOR_SERVICIO_RECURRENTE_CONFIG_ALLOWED = new Set([
+  ...Array.from(CREATOR_SERVICIOS_RECURRENTES_ALLOWED),
+  "Arriendo de Equipos",
+  "Arriendo de Equipos Asistencia",
+  "Arriendo de Chip de Datos",
+]);
+
+const CREATOR_SERVICIOS_NO_RECURRENTES_ALLOWED = new Set([
+  "Venta de Equipos Asistencia",
+  "Venta de Equipos Comedor",
+  "Venta de Kit de Acceso",
+  "Repuestos",
+  "Presupuesto Estimativo de Desarrollo",
+  "Desarrollo",
+  "Visitas y Servicios T\u00e9cnicos",
+  "Enrolamiento en Terreno",
+]);
+
+const CREATOR_SERVICIO_NO_RECURRENTE_CONFIG_ALLOWED = new Set([
+  ...Array.from(CREATOR_SERVICIOS_NO_RECURRENTES_ALLOWED),
+  "Visita T\u00e9cnica",
+  "Compatibilidad y Homologaci\u00f3n",
+  "Capacitaciones",
+  "Recursos Adicionales",
+  "Consultor\u00eda TI",
+]);
+
+function addAllowed(targetSet, label, allowedSet) {
+  const text = toText(label);
+  if (text && allowedSet.has(text)) targetSet.add(text);
+}
+
+function inferServiciosCreator(quote, config) {
+  const rows = Array.isArray(quote?.[config.quoteItemsSubformField]) ? quote[config.quoteItemsSubformField] : [];
+  const recurrentes = new Set();
+  const recurrentesConfigurados = new Set();
+  const noRecurrentes = new Set();
+  const noRecurrentesConfigurados = new Set();
+
+  const addRecurrente = (label) => {
+    addAllowed(recurrentes, label, CREATOR_SERVICIOS_RECURRENTES_ALLOWED);
+    addAllowed(recurrentesConfigurados, label, CREATOR_SERVICIO_RECURRENTE_CONFIG_ALLOWED);
+  };
+  const addRecurrenteConfigurado = (label) =>
+    addAllowed(recurrentesConfigurados, label, CREATOR_SERVICIO_RECURRENTE_CONFIG_ALLOWED);
+  const addNoRecurrente = (label) => {
+    addAllowed(noRecurrentes, label, CREATOR_SERVICIOS_NO_RECURRENTES_ALLOWED);
+    addAllowed(noRecurrentesConfigurados, label, CREATOR_SERVICIO_NO_RECURRENTE_CONFIG_ALLOWED);
+  };
+  const addNoRecurrenteConfigurado = (label) =>
+    addAllowed(noRecurrentesConfigurados, label, CREATOR_SERVICIO_NO_RECURRENTE_CONFIG_ALLOWED);
+
+  for (const row of rows) {
+    const qty = Number(row?.Cantidad || 0);
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+
+    const name = normalizeItemName(row?.Nombre_Item);
+    const modalidad = normalizeItemName(row?.Modalidad);
+    if (!name) continue;
+
+    if (name.includes("asistencia")) addRecurrente("Control de Asistencia");
+    else if (name.includes("alert")) addRecurrente("Alertas");
+    else if (name.includes("banco de horas")) addRecurrente("Bolsa de Horas de Desarrollo");
+    else if (name.includes("documental")) addRecurrente("Gesti\u00f3n Documental");
+    else if (name.includes("vacaciones") || name.includes("permiso")) addRecurrente("Vacaciones");
+    else if (name.includes("calendario") || name.includes("planificador")) addRecurrente("Calendario Inteligente");
+    else if (name.includes("connect")) addRecurrente("Integraciones Victoria Connect");
+    else if (name.includes("dashboard")) addRecurrente("Dashboard BI");
+    else if (name.includes("sso")) addRecurrente("SSO");
+    else if (name.includes("casino") || name.includes("comedor")) addRecurrente("Servicio de Comedor");
+    else if (name.includes("reporte a medida")) addRecurrente("Reporte a Medida");
+
+    if (modalidad.includes("arriendo")) {
+      addRecurrenteConfigurado("Arriendo de Equipos");
+      addRecurrenteConfigurado("Arriendo de Equipos Asistencia");
+    } else if (modalidad.includes("venta")) {
+      addNoRecurrente("Venta de Equipos Asistencia");
+    }
+
+    if (
+      name.includes("enrol") ||
+      name.includes("instal") ||
+      name.includes("visita") ||
+      name.includes("tecnic")
+    ) {
+      addNoRecurrente("Visitas y Servicios T\u00e9cnicos");
+      if (name.includes("enrol")) addNoRecurrente("Enrolamiento en Terreno");
+    }
+
+    if (name.includes("capacit")) addNoRecurrenteConfigurado("Capacitaciones");
+    if (name.includes("consultor")) addNoRecurrenteConfigurado("Consultor\u00eda TI");
+    if (name.includes("homolog")) addNoRecurrenteConfigurado("Compatibilidad y Homologaci\u00f3n");
+    if (name.includes("desarrollo")) {
+      addNoRecurrente("Desarrollo");
+      addNoRecurrente("Presupuesto Estimativo de Desarrollo");
+    }
+  }
+
+  if (recurrentes.size === 0) {
+    addRecurrente("Control de Asistencia");
+  }
+
+  return {
+    serviciosRecurrentes: Array.from(recurrentes),
+    servicioRecurrenteConfigurado: Array.from(recurrentesConfigurados),
+    serviciosNoRecurrentes: Array.from(noRecurrentes),
+    servicioNoRecurrenteConfigurado: Array.from(noRecurrentesConfigurados),
+  };
+}
+
 function inferServiciosRecurrentes(quote, config) {
   const rows = Array.isArray(quote?.[config.quoteItemsSubformField]) ? quote[config.quoteItemsSubformField] : [];
   const selected = new Set();
@@ -245,8 +372,8 @@ function buildNdvRecord({
       ownerUser?.email ||
       ownerUser?.Email
   );
-  const serviciosRecurrentes = inferServiciosRecurrentes(quote, config);
-  const firstServicio = toText(serviciosRecurrentes[0]) || "Control de Asistencia";
+  const servicios = inferServiciosCreator(quote, config);
+  const firstServicio = toText(servicios.serviciosRecurrentes[0]) || "Control de Asistencia";
   const dealsAsociados =
     toText(quote?.Deals_Asociados) ||
     toText(deal?.Deal_Name) ||
@@ -277,8 +404,14 @@ function buildNdvRecord({
       toText(acceptanceData?.companyRut || quote?.RUT_Cliente || quote?.RUT || quote?.Identificador_Tributario_Empresa) ||
       undefined,
     Linea_de_Negocio: toText(quote?.Linea_de_Negocio) || "Telemarketing",
-    Servicios_Recurrentes: serviciosRecurrentes,
-    Servicio_Recurrente_Configurado: serviciosRecurrentes,
+    Servicios_Recurrentes: servicios.serviciosRecurrentes,
+    Servicio_Recurrente_Configurado: servicios.servicioRecurrenteConfigurado,
+    ...(servicios.serviciosNoRecurrentes.length > 0
+      ? { Servicios_No_Recurrentes: servicios.serviciosNoRecurrentes }
+      : {}),
+    ...(servicios.servicioNoRecurrenteConfigurado.length > 0
+      ? { Servicio_No_Recurrente_Configurado: servicios.servicioNoRecurrenteConfigurado }
+      : {}),
     Fecha_de_creaci_n: formatCreatorDate(),
     Email_de_Facturacion:
       normalizeEmail(acceptanceData?.billingEmail || quote?.Email_Facturacion || quote?.Email_de_Facturacion) ||
@@ -424,6 +557,114 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
   };
 }
 
+function proposalDataToQuoteRows(proposalData) {
+  const toRows = (items) =>
+    safeArray(items).map((item) => ({
+      Nombre_Item: toText(item?.nombre),
+      Cantidad: Number(item?.cantidad || 0),
+      Modalidad: toText(item?.tipo || "Por usuario"),
+    }));
+
+  return [
+    ...toRows(proposalData?.servicios),
+    ...toRows(proposalData?.equipos),
+    ...toRows(proposalData?.accesorios),
+    ...toRows(proposalData?.serviciosAsoc),
+  ].filter((row) => row.Nombre_Item && Number(row.Cantidad) > 0);
+}
+
+async function runNdvHandoffFromDraft({
+  config,
+  dealId,
+  proposalData,
+  contactEmail,
+  contactPhone,
+}) {
+  const creatorConfig = getCreatorConfig();
+  if (creatorConfig.missing.length > 0) {
+    throw new Error(`Faltan variables de Zoho Creator: ${creatorConfig.missing.join(", ")}`);
+  }
+
+  const resolvedDealId = toText(dealId);
+  if (!resolvedDealId) {
+    throw new Error("Falta dealId para crear NDV desde cotizadora.");
+  }
+
+  const deal = await getRecord("Deals", resolvedDealId);
+  const accountId = toText(pickFromLookup(deal?.Account_Name));
+  if (!accountId) {
+    throw new Error("No se pudo resolver Account desde el Deal.");
+  }
+  const account = await getRecord("Accounts", accountId);
+
+  const contactId = toText(pickFromLookup(deal?.Contact_Name));
+  const contact = contactId ? await getRecord("Contacts", contactId) : null;
+  const ownerId = toText(pickFromLookup(deal?.Owner));
+  const ownerUser = ownerId ? await getUserById(ownerId).catch(() => null) : null;
+
+  const rows = proposalDataToQuoteRows(proposalData);
+  if (!rows.length) {
+    throw new Error("No hay items validos en la cotizacion para crear NDV.");
+  }
+
+  const pseudoQuote = {
+    [config.quoteItemsSubformField]: rows,
+    Contact_Name: toText(contact?.Full_Name || proposalData?.contacto || ""),
+    [config.contactEmailField]: normalizeEmail(contactEmail || contact?.Email || ""),
+    [config.contactPhoneField]: toText(contactPhone || contact?.Phone || contact?.Mobile || ""),
+    Moneda: "UF",
+    Pa_s_Facturaci_n: "Chile",
+    RUT_Cliente: toText(account?.RUT || account?.Rut || ""),
+    Linea_de_Negocio: "Telemarketing",
+  };
+
+  const ndvRecord = buildNdvRecord({
+    config,
+    quote: pseudoQuote,
+    deal,
+    account,
+    contact,
+    ownerUser,
+    billingContactId: "",
+    acceptanceData: {},
+  });
+
+  const createPath = buildCreatorPath(creatorConfig);
+  const createResp = await creatorApiFetch(createPath, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: ndvRecord }),
+  });
+  const createPayload = await readJsonSafe(createResp);
+  if (!createResp.ok || isCreatorBusinessError(createPayload)) {
+    throw new Error(
+      `Creator create NDV failed (${createResp.status}): ${creatorErrorMessage(
+        createPayload,
+        "respuesta invalida"
+      )}`
+    );
+  }
+
+  const ndvCreatorId = resolveCreatedCreatorId(createPayload);
+  if (!ndvCreatorId) {
+    return {
+      ndvCreated: true,
+      ndvId: "",
+      reconciled: false,
+      createPayload,
+      message: "NDV creada sin ID devuelto por Creator.",
+    };
+  }
+
+  return {
+    ndvCreated: true,
+    ndvId: toText(ndvCreatorId),
+    reconciled: true,
+    createPayload,
+  };
+}
+
 module.exports = {
   runNdvHandoff,
+  runNdvHandoffFromDraft,
 };
