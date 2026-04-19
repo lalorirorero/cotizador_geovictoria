@@ -228,6 +228,11 @@ function buildNdvRecord({
       ownerUser?.Email
   );
   const serviciosRecurrentes = inferServiciosRecurrentes(quote, config);
+  const firstServicio = toText(serviciosRecurrentes[0]) || "Control de Asistencia";
+  const dealsAsociados =
+    toText(quote?.Deals_Asociados) ||
+    toText(deal?.Deal_Name) ||
+    (toText(accountName) ? `${toText(accountName)} (${firstServicio})` : "");
 
   return {
     Formulario: "Nota de Venta",
@@ -241,11 +246,14 @@ function buildNdvRecord({
     ID_CRM_ACCOUNT: toNumberOrNull(accountId) || undefined,
     CRM_ACCOUNT_NAME: accountName || undefined,
     Contact_Name: contactName || undefined,
+    Contacto_CRM: contactName || undefined,
+    CONTACT_ID: toNumberOrNull(contactId) || undefined,
+    BILLING_CONTACT_ID: toNumberOrNull(billingContactId) || undefined,
     Email: contactEmail || undefined,
     Tel_fono: contactPhone || undefined,
     Correo_Vendedor: sellerEmail || undefined,
     CRM_Deal: dealName || undefined,
-    Deals_Asociados: dealName || undefined,
+    Deals_Asociados: dealsAsociados || undefined,
     CRM_REFERENCE_ID: toNumberOrNull(quote?.id) || undefined,
     Moneda: toText(quote?.Moneda) || "UF",
     Pa_s_Facturaci_n: toText(quote?.Pa_s_Facturaci_n) || "Chile",
