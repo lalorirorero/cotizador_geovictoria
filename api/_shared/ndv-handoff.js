@@ -31,10 +31,24 @@ function normalizeItemName(value) {
 function inferServiciosRecurrentes(quote, config) {
   const rows = Array.isArray(quote?.[config.quoteItemsSubformField]) ? quote[config.quoteItemsSubformField] : [];
   const selected = new Set();
+  const allowed = new Set([
+    "Control de Asistencia",
+    "Control de Acceso",
+    "Servicio de Comedor",
+    "Dashboard BI",
+    "Vacaciones",
+    "Gestión Documental",
+    "Integraciones Victoria Connect",
+    "Reporte a Medida",
+    "Calendario Inteligente",
+    "SSO",
+    "Alertas",
+    "Bolsa de Horas de Desarrollo",
+  ]);
 
   const pushLabel = (label) => {
     const text = toText(label);
-    if (text) selected.add(text);
+    if (text && allowed.has(text)) selected.add(text);
   };
 
   for (const row of rows) {
@@ -46,11 +60,15 @@ function inferServiciosRecurrentes(quote, config) {
 
     if (name.includes("asistencia")) pushLabel("Control de Asistencia");
     else if (name.includes("alert")) pushLabel("Alertas");
-    else if (name.includes("banco de horas")) pushLabel("Banco de Horas");
-    else if (name.includes("documental")) pushLabel("Gestor Documental");
-    else if (name.includes("vacaciones") || name.includes("permiso")) pushLabel("Permisos y Vacaciones");
-    else if (name.includes("calendario") || name.includes("planificador")) pushLabel("Planificador Inteligente");
-    else if (name.includes("connect")) pushLabel("Victoria Connect");
+    else if (name.includes("banco de horas")) pushLabel("Bolsa de Horas de Desarrollo");
+    else if (name.includes("documental")) pushLabel("Gestión Documental");
+    else if (name.includes("vacaciones") || name.includes("permiso")) pushLabel("Vacaciones");
+    else if (name.includes("calendario") || name.includes("planificador")) pushLabel("Calendario Inteligente");
+    else if (name.includes("connect")) pushLabel("Integraciones Victoria Connect");
+    else if (name.includes("dashboard")) pushLabel("Dashboard BI");
+    else if (name.includes("sso")) pushLabel("SSO");
+    else if (name.includes("casino") || name.includes("comedor")) pushLabel("Servicio de Comedor");
+    else if (name.includes("reporte a medida")) pushLabel("Reporte a Medida");
   }
 
   if (selected.size === 0) {
@@ -248,7 +266,6 @@ function buildNdvRecord({
     Contact_Name: contactName || undefined,
     Contacto_CRM: contactName || undefined,
     CONTACT_ID: toNumberOrNull(contactId) || undefined,
-    BILLING_CONTACT_ID: toNumberOrNull(billingContactId) || undefined,
     Email: contactEmail || undefined,
     Tel_fono: contactPhone || undefined,
     Correo_Vendedor: sellerEmail || undefined,
