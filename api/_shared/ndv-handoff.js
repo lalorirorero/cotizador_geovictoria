@@ -264,7 +264,6 @@ function buildNdvRecord({
     ID_CRM_ACCOUNT: toNumberOrNull(accountId) || undefined,
     CRM_ACCOUNT_NAME: accountName || undefined,
     Contact_Name: contactName || undefined,
-    Contacto_CRM: contactName || undefined,
     CONTACT_ID: toNumberOrNull(contactId) || undefined,
     Email: contactEmail || undefined,
     Tel_fono: contactPhone || undefined,
