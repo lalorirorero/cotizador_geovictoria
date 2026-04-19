@@ -61,6 +61,15 @@ function inferServiciosRecurrentes(quote, config) {
   return Array.from(selected);
 }
 
+function formatCreatorDate(value) {
+  const date = value instanceof Date ? value : new Date(value || Date.now());
+  if (Number.isNaN(date.getTime())) return "";
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(date.getFullYear());
+  return `${dd}-${mm}-${yyyy}`;
+}
+
 function resolveCreatedCreatorId(payload) {
   if (!payload || typeof payload !== "object") return "";
   const direct = toText(payload?.data?.ID || payload?.data?.id || payload?.ID || payload?.id);
@@ -218,6 +227,7 @@ function buildNdvRecord({
       ownerUser?.email ||
       ownerUser?.Email
   );
+  const serviciosRecurrentes = inferServiciosRecurrentes(quote, config);
 
   return {
     Formulario: "Nota de Venta",
@@ -243,7 +253,9 @@ function buildNdvRecord({
       toText(acceptanceData?.companyRut || quote?.RUT_Cliente || quote?.RUT || quote?.Identificador_Tributario_Empresa) ||
       undefined,
     Linea_de_Negocio: toText(quote?.Linea_de_Negocio) || "Telemarketing",
-    Servicios_Recurrentes: inferServiciosRecurrentes(quote, config),
+    Servicios_Recurrentes: serviciosRecurrentes,
+    Servicio_Recurrente_Configurado: serviciosRecurrentes,
+    Fecha_de_creaci_n: formatCreatorDate(),
     Email_de_Facturacion:
       normalizeEmail(acceptanceData?.billingEmail || quote?.Email_Facturacion || quote?.Email_de_Facturacion) ||
       undefined,
