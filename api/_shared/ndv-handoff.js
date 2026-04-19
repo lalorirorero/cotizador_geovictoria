@@ -167,9 +167,7 @@ function buildNdvRecord({
     CRM_Account: accountId || undefined,
     ID_CRM_ACCOUNT: toNumberOrNull(accountId) || undefined,
     CRM_ACCOUNT_NAME: accountName || undefined,
-    Contacto_CRM: contactName || undefined,
     Contact_Name: contactName || undefined,
-    CONTACT_ID: toNumberOrNull(contactId) || undefined,
     Email: contactEmail || undefined,
     Tel_fono: contactPhone || undefined,
     Correo_Vendedor: sellerEmail || undefined,
@@ -296,7 +294,6 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
   const reconcileMap = {
     CRM_Account: ndvRecord.CRM_Account,
     ID_CRM_ACCOUNT: ndvRecord.ID_CRM_ACCOUNT,
-    CONTACT_ID: ndvRecord.CONTACT_ID,
     CRM_Deal: ndvRecord.CRM_Deal,
     Deals_Asociados: ndvRecord.Deals_Asociados,
     CRM_REFERENCE_ID: ndvRecord.CRM_REFERENCE_ID,
@@ -319,7 +316,7 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     updatePayload,
     usedIds: {
       accountId: toText(ndvRecord.CRM_Account),
-      contactId: toText(ndvRecord.CONTACT_ID),
+      contactId: toText(contactId),
       billingContactId: toText(billingContactId),
       dealName: toText(ndvRecord.CRM_Deal),
       quoteId: toText(quoteId),
