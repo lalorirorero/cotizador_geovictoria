@@ -21,6 +21,46 @@ function normalizeEmail(value) {
   return toText(value).toLowerCase();
 }
 
+function normalizeItemName(value) {
+  return toText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function inferServiciosRecurrentes(quote, config) {
+  const rows = Array.isArray(quote?.[config.quoteItemsSubformField]) ? quote[config.quoteItemsSubformField] : [];
+  const selected = new Set();
+
+  const pushLabel = (label) => {
+    const text = toText(label);
+    if (text) selected.add(text);
+  };
+
+  for (const row of rows) {
+    const qty = Number(row?.Cantidad || 0);
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+
+    const name = normalizeItemName(row?.Nombre_Item);
+    if (!name) continue;
+
+    if (name.includes("asistencia")) pushLabel("Control de Asistencia");
+    else if (name.includes("alert")) pushLabel("Alertas");
+    else if (name.includes("banco de horas")) pushLabel("Banco de Horas");
+    else if (name.includes("documental")) pushLabel("Gestor Documental");
+    else if (name.includes("vacaciones") || name.includes("permiso")) pushLabel("Permisos y Vacaciones");
+    else if (name.includes("calendario") || name.includes("planificador")) pushLabel("Planificador Inteligente");
+    else if (name.includes("connect")) pushLabel("Victoria Connect");
+  }
+
+  if (selected.size === 0) {
+    // Fallback para cumplir validación mínima de Creator.
+    pushLabel("Control de Asistencia");
+  }
+
+  return Array.from(selected);
+}
+
 function resolveCreatedCreatorId(payload) {
   if (!payload || typeof payload !== "object") return "";
   const direct = toText(payload?.data?.ID || payload?.data?.id || payload?.ID || payload?.id);
@@ -203,6 +243,7 @@ function buildNdvRecord({
       toText(acceptanceData?.companyRut || quote?.RUT_Cliente || quote?.RUT || quote?.Identificador_Tributario_Empresa) ||
       undefined,
     Linea_de_Negocio: toText(quote?.Linea_de_Negocio) || "Telemarketing",
+    Servicios_Recurrentes: inferServiciosRecurrentes(quote, config),
     Email_de_Facturacion:
       normalizeEmail(acceptanceData?.billingEmail || quote?.Email_Facturacion || quote?.Email_de_Facturacion) ||
       undefined,
