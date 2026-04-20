@@ -739,10 +739,12 @@ function buildNdvRecord({
       undefined,
     Linea_de_Negocio: toText(quote?.Linea_de_Negocio) || "Telemarketing",
     Servicio_Recurrente: toText(quote?.Servicio_Recurrente) || firstServicio,
-    Hito_de_Facturaci_n: toText(quote?.Hito_de_Facturaci_n) || "Adelantado",
-    Modalidad_de_Pago: toText(quote?.Modalidad_de_Pago) || "30 días",
-    Periodicidad_de_Servicio: toText(quote?.Periodicidad_de_Servicio) || "Mensual",
-    Tipo_de_Facturaci_n: toText(quote?.Tipo_de_Facturaci_n) || "Por tramos",
+    // Estos picklists se resuelven en Creator por scripts internos y catálogos dinámicos.
+    // Si enviamos un valor no compatible, Creator rechaza el alta con INVALID_DATA.
+    Hito_de_Facturaci_n: toText(quote?.Hito_de_Facturaci_n) || undefined,
+    Modalidad_de_Pago: toText(quote?.Modalidad_de_Pago) || undefined,
+    Periodicidad_de_Servicio: toText(quote?.Periodicidad_de_Servicio) || undefined,
+    Tipo_de_Facturaci_n: toText(quote?.Tipo_de_Facturaci_n) || undefined,
     N_Empleados_Compometidos: committedEmployees || undefined,
     Plantilla_Tabla_de_Cobro: "No hay Plantillas",
     Tabla_de_Cobro: chargeTable,
@@ -977,10 +979,10 @@ async function runNdvHandoffFromDraft({
     ),
     Linea_de_Negocio: "Telemarketing",
     Servicio_Recurrente: "Control de Asistencia",
-    Hito_de_Facturaci_n: "Adelantado",
-    Modalidad_de_Pago: "30 días",
-    Periodicidad_de_Servicio: "Mensual",
-    Tipo_de_Facturaci_n: "Por tramos",
+    Hito_de_Facturaci_n: "",
+    Modalidad_de_Pago: "",
+    Periodicidad_de_Servicio: "",
+    Tipo_de_Facturaci_n: "",
     N_Empleados_Compometidos: toPositiveInt(
       deal?.N_Empleados_que_marcan ||
         deal?.N_Empleados_Compometidos ||
