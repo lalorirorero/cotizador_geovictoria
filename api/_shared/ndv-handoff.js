@@ -614,7 +614,20 @@ async function runNdvHandoffFromDraft({
     [config.contactPhoneField]: toText(contactPhone || contact?.Phone || contact?.Mobile || ""),
     Moneda: "UF",
     Pa_s_Facturaci_n: "Chile",
-    RUT_Cliente: toText(account?.RUT || account?.Rut || ""),
+    RUT_Cliente: toText(
+      proposalData?.rutEmpresa ||
+        deal?.RUT_Empresa ||
+        deal?.RUT_Cliente ||
+        deal?.RUT ||
+        deal?.Rut ||
+        deal?.Identificador_Tributario_Empresa ||
+        account?.RUT_Empresa ||
+        account?.RUT_Cliente ||
+        account?.RUT ||
+        account?.Rut ||
+        account?.Identificador_Tributario_Empresa ||
+        ""
+    ),
     Linea_de_Negocio: "Telemarketing",
   };
 
