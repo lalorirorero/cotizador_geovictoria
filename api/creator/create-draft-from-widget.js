@@ -45,6 +45,17 @@ function parseBody(req) {
   return {};
 }
 
+function errorToText(error) {
+  if (!error) return "";
+  const message = toText(error?.message || error);
+  if (message && message !== "[object Object]") return message;
+  try {
+    return JSON.stringify(error);
+  } catch (_jsonError) {
+    return String(error);
+  }
+}
+
 async function persistNdvReferences(config, quoteId, ndvId) {
   const normalizedNdvId = toText(ndvId);
   if (!normalizedNdvId || !quoteId) return;
@@ -128,7 +139,7 @@ export default async function handler(req, res) {
     sendJson(res, 502, {
       success: false,
       error: "Fallo la creacion de NDV en Creator.",
-      detail: toText(error?.message || error) || "Error desconocido",
+      detail: errorToText(error) || "Error desconocido",
     });
   }
 }
