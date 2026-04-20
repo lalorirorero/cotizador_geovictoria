@@ -68,23 +68,6 @@ async function persistNdvReferences(config, quoteId, ndvId) {
       true
     );
   }
-
-  if (!config.quoteNvdLookupField) return;
-  try {
-    await updateRecordBestEffort(
-      config.quoteModule,
-      quoteId,
-      { [config.quoteNvdLookupField]: { id: normalizedNdvId } },
-      true
-    );
-  } catch (_firstError) {
-    await updateRecordBestEffort(
-      config.quoteModule,
-      quoteId,
-      { [config.quoteNvdLookupField]: normalizedNdvId },
-      true
-    );
-  }
 }
 
 export default async function handler(req, res) {

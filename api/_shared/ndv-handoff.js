@@ -290,6 +290,58 @@ function buildCreatorUpdatePath(config, recordId) {
   return `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/report/${encodeURIComponent(config.reportLinkName)}/${encodeURIComponent(toText(recordId))}`;
 }
 
+function candidateFormLinkNames(config) {
+  const seen = new Set();
+  const push = (value) => {
+    const text = toText(value);
+    if (!text || seen.has(text)) return;
+    seen.add(text);
+  };
+  push(config?.formLinkName);
+  push("Formulario");
+  push("Nota_de_Venta");
+  return Array.from(seen);
+}
+
+async function createNdvWithFormFallback({ creatorConfig, ndvRecord }) {
+  let lastResponse = null;
+  let lastPayload = {};
+  const attemptedForms = [];
+
+  for (const formLinkName of candidateFormLinkNames(creatorConfig)) {
+    attemptedForms.push(formLinkName);
+    const scopedConfig = { ...creatorConfig, formLinkName };
+    const createPath = buildCreatorPath(scopedConfig);
+    const createResp = await creatorApiFetch(createPath, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: ndvRecord }),
+    });
+    const createPayload = await readJsonSafe(createResp);
+
+    lastResponse = createResp;
+    lastPayload = createPayload;
+
+    if (createResp.ok && !isCreatorBusinessError(createPayload)) {
+      return {
+        ok: true,
+        response: createResp,
+        payload: createPayload,
+        usedFormLinkName: formLinkName,
+        attemptedForms,
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    response: lastResponse,
+    payload: lastPayload,
+    usedFormLinkName: "",
+    attemptedForms,
+  };
+}
+
 async function ensureBillingContactId({
   accountId,
   billingEmail,
@@ -497,16 +549,12 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     throw new Error("No se pudo resolver Correo_Vendedor desde Owner del Deal.");
   }
 
-  const createPath = buildCreatorPath(creatorConfig);
-  const createResp = await creatorApiFetch(createPath, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: ndvRecord }),
-  });
-  const createPayload = await readJsonSafe(createResp);
-  if (!createResp.ok || isCreatorBusinessError(createPayload)) {
+  const createAttempt = await createNdvWithFormFallback({ creatorConfig, ndvRecord });
+  const createResp = createAttempt.response;
+  const createPayload = createAttempt.payload;
+  if (!createAttempt.ok) {
     throw new Error(
-      `Creator create NDV failed (${createResp.status}): ${creatorErrorMessage(
+      `Creator create NDV failed (${createResp?.status || 0}) [forms=${createAttempt.attemptedForms.join(", ")}]: ${creatorErrorMessage(
         createPayload,
         "respuesta invalida"
       )}`
@@ -642,16 +690,12 @@ async function runNdvHandoffFromDraft({
     acceptanceData: {},
   });
 
-  const createPath = buildCreatorPath(creatorConfig);
-  const createResp = await creatorApiFetch(createPath, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: ndvRecord }),
-  });
-  const createPayload = await readJsonSafe(createResp);
-  if (!createResp.ok || isCreatorBusinessError(createPayload)) {
+  const createAttempt = await createNdvWithFormFallback({ creatorConfig, ndvRecord });
+  const createResp = createAttempt.response;
+  const createPayload = createAttempt.payload;
+  if (!createAttempt.ok) {
     throw new Error(
-      `Creator create NDV failed (${createResp.status}): ${creatorErrorMessage(
+      `Creator create NDV failed (${createResp?.status || 0}) [forms=${createAttempt.attemptedForms.join(", ")}]: ${creatorErrorMessage(
         createPayload,
         "respuesta invalida"
       )}`
