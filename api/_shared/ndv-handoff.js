@@ -551,25 +551,27 @@ function buildCreatorUpdatePath(config, recordId) {
   return `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/report/${encodeURIComponent(config.reportLinkName)}/${encodeURIComponent(toText(recordId))}`;
 }
 
-function candidateFormLinkNames(config) {
+function candidateFormLinkNames(config, preferredForms) {
   const seen = new Set();
   const push = (value) => {
     const text = toText(value);
     if (!text || seen.has(text)) return;
     seen.add(text);
   };
+  safeArray(preferredForms).forEach((value) => push(value));
   push("Formulario");
   push(config?.formLinkName);
+  push("Servicio_Recurrente");
   push("Nota_de_Venta");
   return Array.from(seen);
 }
 
-async function createNdvWithFormFallback({ creatorConfig, ndvRecord }) {
+async function createNdvWithFormFallback({ creatorConfig, ndvRecord, preferredForms }) {
   let lastResponse = null;
   let lastPayload = {};
   const attemptedForms = [];
 
-  for (const formLinkName of candidateFormLinkNames(creatorConfig)) {
+  for (const formLinkName of candidateFormLinkNames(creatorConfig, preferredForms)) {
     attemptedForms.push(formLinkName);
     const scopedConfig = { ...creatorConfig, formLinkName };
     const createPath = buildCreatorPath(scopedConfig);
@@ -982,7 +984,11 @@ async function runNdvHandoffFromDraft({
 
   prevalidateNdvRecord(ndvRecord);
 
-  const createAttempt = await createNdvWithFormFallback({ creatorConfig, ndvRecord });
+  const createAttempt = await createNdvWithFormFallback({
+    creatorConfig,
+    ndvRecord,
+    preferredForms: ["Servicio_Recurrente", "Formulario", "Nota_de_Venta"],
+  });
   const createResp = createAttempt.response;
   const createPayload = createAttempt.payload;
   if (!createAttempt.ok) {
