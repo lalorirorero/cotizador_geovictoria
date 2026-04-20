@@ -115,13 +115,13 @@ export default async function handler(req, res) {
       ndvId,
       reconciled: result?.reconciled === true,
       message: ndvId
-        ? "NDV creada correctamente en Creator."
-        : "NDV creada, pero Creator no devolvio ID.",
+        ? "Cotizacion creada correctamente en Creator."
+        : "Cotizacion creada, pero Creator no devolvio ID.",
     });
   } catch (error) {
     sendJson(res, 502, {
       success: false,
-      error: "Fallo la creacion de NDV en Creator.",
+      error: "Fallo la creacion de cotizacion en Creator.",
       detail: errorToText(error) || "Error desconocido",
     });
   }

@@ -13,6 +13,17 @@ function toNumberOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function toSafeCreatorNumber(value) {
+  const text = toText(value);
+  if (!text) return undefined;
+  if (!/^\d+$/.test(text)) return undefined;
+  const n = Number.parseInt(text, 10);
+  if (!Number.isFinite(n)) return undefined;
+  // Evita precision loss en IDs largos de Zoho (19 digitos).
+  if (!Number.isSafeInteger(n)) return undefined;
+  return n;
+}
+
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -407,7 +418,17 @@ function buildNdvRecord({
   ownerUser,
   billingContactId,
   acceptanceData,
+  overrides,
 }) {
+  const creatorOverrides = overrides && typeof overrides === "object" ? overrides : {};
+  const creatorFormulario = toText(creatorOverrides.formulario) || "Nota de Venta";
+  const creatorStatus =
+    toText(creatorOverrides.status) || config.ndvCreatorStatusPending || "PENDIENTE";
+  const creatorFormStatus =
+    toText(creatorOverrides.formStatus) || config.ndvCreatorFormStatusPending || "CREATED";
+  const creatorEstadoCot =
+    toText(creatorOverrides.estadoCot) || toText(config.ndvCreatorEstadoCotAccepted);
+
   const accountId = toText(account?.id || quote?.CRM_Account?.id || deal?.Account_Name?.id);
   const contactId = toText(contact?.id || quote?.CONTACT_ID || quote?.[config.quoteContactLookupField]?.id);
   const dealName = toText(deal?.Deal_Name || quote?.CRM_Deal);
@@ -432,24 +453,22 @@ function buildNdvRecord({
     (toText(accountName) ? `${toText(accountName)} (${firstServicio})` : "");
 
   return {
-    Formulario: "Nota de Venta",
-    STATUS: config.ndvCreatorStatusPending || "PENDIENTE",
-    FORM_STATUS: config.ndvCreatorFormStatusPending || "CREATED",
-    ...(toText(config.ndvCreatorEstadoCotAccepted)
-      ? { ESTADO_COT: toText(config.ndvCreatorEstadoCotAccepted) }
-      : {}),
+    Formulario: creatorFormulario,
+    STATUS: creatorStatus,
+    FORM_STATUS: creatorFormStatus,
+    ...(creatorEstadoCot ? { ESTADO_COT: creatorEstadoCot } : {}),
     Nombre_del_documento: `${accountName || "Cuenta"} / ${new Date().toISOString().slice(0, 10)}`,
     CRM_Account: accountId || undefined,
-    ID_CRM_ACCOUNT: toNumberOrNull(accountId) || undefined,
+    ID_CRM_ACCOUNT: toSafeCreatorNumber(accountId),
     CRM_ACCOUNT_NAME: accountName || undefined,
     Contact_Name: contactName || undefined,
-    CONTACT_ID: toNumberOrNull(contactId) || undefined,
+    CONTACT_ID: toSafeCreatorNumber(contactId),
     Email: contactEmail || undefined,
     Tel_fono: contactPhone || undefined,
     Correo_Vendedor: sellerEmail || undefined,
     CRM_Deal: dealName || undefined,
     Deals_Asociados: dealsAsociados || undefined,
-    CRM_REFERENCE_ID: toNumberOrNull(quote?.id) || undefined,
+    CRM_REFERENCE_ID: toSafeCreatorNumber(quote?.id),
     Moneda: toText(quote?.Moneda) || "UF",
     Pa_s_Facturaci_n: toText(quote?.Pa_s_Facturaci_n) || "Chile",
     Identificador_Tributario_Empresa:
@@ -688,6 +707,13 @@ async function runNdvHandoffFromDraft({
     ownerUser,
     billingContactId: "",
     acceptanceData: {},
+    overrides: {
+      // Desde el botón de cotizadora en CRM debe nacer como Cotización.
+      formulario: "Cotización",
+      status: "BORRADOR",
+      formStatus: "CREATED",
+      estadoCot: "Vigente",
+    },
   });
 
   const createAttempt = await createNdvWithFormFallback({ creatorConfig, ndvRecord });
