@@ -122,6 +122,7 @@ export default async function handler(req, res) {
     sendJson(res, 200, {
       success: true,
       ndvId,
+      creatorForm: toText(result?.usedFormLinkName),
       reconciled: result?.reconciled === true,
       message: ndvId
         ? "Cotizacion creada correctamente en Creator."

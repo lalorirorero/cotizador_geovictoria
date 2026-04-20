@@ -566,7 +566,12 @@ function candidateFormLinkNames(config, preferredForms) {
   return Array.from(seen);
 }
 
-async function createNdvWithFormFallback({ creatorConfig, ndvRecord, preferredForms }) {
+async function createNdvWithFormFallback({
+  creatorConfig,
+  ndvRecord,
+  preferredForms,
+  stopOnFirstFailure = false,
+}) {
   let lastResponse = null;
   let lastPayload = {};
   const attemptedForms = [];
@@ -593,6 +598,10 @@ async function createNdvWithFormFallback({ creatorConfig, ndvRecord, preferredFo
         usedFormLinkName: formLinkName,
         attemptedForms,
       };
+    }
+
+    if (stopOnFirstFailure) {
+      break;
     }
   }
 
@@ -729,6 +738,11 @@ function buildNdvRecord({
       toText(acceptanceData?.companyRut || quote?.RUT_Cliente || quote?.RUT || quote?.Identificador_Tributario_Empresa) ||
       undefined,
     Linea_de_Negocio: toText(quote?.Linea_de_Negocio) || "Telemarketing",
+    Servicio_Recurrente: toText(quote?.Servicio_Recurrente) || firstServicio,
+    Hito_de_Facturaci_n: toText(quote?.Hito_de_Facturaci_n) || "Adelantado",
+    Modalidad_de_Pago: toText(quote?.Modalidad_de_Pago) || "30 días",
+    Periodicidad_de_Servicio: toText(quote?.Periodicidad_de_Servicio) || "Mensual",
+    Tipo_de_Facturaci_n: toText(quote?.Tipo_de_Facturaci_n) || "Por tramos",
     N_Empleados_Compometidos: committedEmployees || undefined,
     Plantilla_Tabla_de_Cobro: "No hay Plantillas",
     Tabla_de_Cobro: chargeTable,
@@ -962,6 +976,16 @@ async function runNdvHandoffFromDraft({
         ""
     ),
     Linea_de_Negocio: "Telemarketing",
+    Servicio_Recurrente: "Control de Asistencia",
+    Hito_de_Facturaci_n: "Adelantado",
+    Modalidad_de_Pago: "30 días",
+    Periodicidad_de_Servicio: "Mensual",
+    Tipo_de_Facturaci_n: "Por tramos",
+    N_Empleados_Compometidos: toPositiveInt(
+      deal?.N_Empleados_que_marcan ||
+        deal?.N_Empleados_Compometidos ||
+        deal?.N_Empleados_Comprometidos
+    ),
   };
 
   const ndvRecord = buildNdvRecord({
@@ -987,7 +1011,8 @@ async function runNdvHandoffFromDraft({
   const createAttempt = await createNdvWithFormFallback({
     creatorConfig,
     ndvRecord,
-    preferredForms: ["Servicio_Recurrente", "Formulario", "Nota_de_Venta"],
+    preferredForms: ["Servicio_Recurrente"],
+    stopOnFirstFailure: true,
   });
   const createResp = createAttempt.response;
   const createPayload = createAttempt.payload;
@@ -1016,6 +1041,7 @@ async function runNdvHandoffFromDraft({
     ndvId: toText(ndvCreatorId),
     reconciled: true,
     schemaVersion: NDV_CANONICAL_SCHEMA_VERSION,
+    usedFormLinkName: createAttempt.usedFormLinkName,
     createPayload,
   };
 }
