@@ -13,6 +13,17 @@ function toNumberOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function toPositiveInt(value) {
+  const n = Number.parseInt(toText(value), 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function toPositiveNumber(value) {
+  const raw = toText(value).replace(/\./g, "").replace(",", ".");
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 function toSafeCreatorNumber(value) {
   const text = toText(value);
   if (!text) return undefined;
@@ -44,7 +55,6 @@ const NDV_CANONICAL_SCHEMA_VERSION = "2026-04-20.1";
 // Diccionario único de validación previa (sin depender de Creator para detectar faltantes básicos).
 const NDV_CANONICAL_REQUIRED_FIELDS = [
   { key: "CRM_Account", label: "Cuenta asociada (CRM_Account)" },
-  { key: "CRM_Deal", label: "Deal asociado (CRM_Deal)" },
   { key: "Correo_Vendedor", label: "Correo del ejecutivo comercial (Correo_Vendedor)" },
   { key: "Identificador_Tributario_Empresa", label: "RUT empresa (Identificador_Tributario_Empresa)" },
   { key: "Contact_Name", label: "Nombre de contacto" },
@@ -107,6 +117,39 @@ function prevalidateNdvRecord(ndvRecord) {
     throw new NdvBusinessError(
       `Faltan datos obligatorios para crear la cotización: ${missing.map((m) => m.label).join(", ")}.`,
       `schema_version=${NDV_CANONICAL_SCHEMA_VERSION}; missing=${missing.map((m) => m.key).join(",")}`,
+      "NDV_PREVALIDATION_FAILED"
+    );
+  }
+
+  const employees = toPositiveInt(ndvRecord?.N_Empleados_Compometidos);
+  if (employees <= 0) {
+    throw new NdvBusinessError(
+      "Falta el N° de empleados comprometidos para crear la cotización.",
+      `schema_version=${NDV_CANONICAL_SCHEMA_VERSION}; missing=N_Empleados_Compometidos`,
+      "NDV_PREVALIDATION_FAILED"
+    );
+  }
+
+  const table = safeArray(ndvRecord?.Tabla_de_Cobro);
+  if (table.length === 0) {
+    throw new NdvBusinessError(
+      "Falta completar la tabla de cobro para crear la cotización.",
+      `schema_version=${NDV_CANONICAL_SCHEMA_VERSION}; missing=Tabla_de_Cobro`,
+      "NDV_PREVALIDATION_FAILED"
+    );
+  }
+
+  const invalidRow = table.find((row) => {
+    const modalidad = toText(row?.Modalidad);
+    const desde = toPositiveInt(row?.Desde);
+    const hasta = toPositiveInt(row?.Hasta);
+    const valor = toPositiveNumber(row?.Valor);
+    return !modalidad || desde <= 0 || hasta <= 0 || valor <= 0;
+  });
+  if (invalidRow) {
+    throw new NdvBusinessError(
+      "La tabla de cobro tiene datos incompletos o inválidos.",
+      `schema_version=${NDV_CANONICAL_SCHEMA_VERSION}; invalid_row=${JSON.stringify(invalidRow)}`,
       "NDV_PREVALIDATION_FAILED"
     );
   }
@@ -351,6 +394,79 @@ function inferServiciosRecurrentes(quote, config) {
   return Array.from(selected);
 }
 
+function inferCommittedEmployees(quote) {
+  const fromFields = [
+    quote?.N_Empleados_Compometidos,
+    quote?.N_Empleados_Comprometidos,
+    quote?.Cantidad_de_Usuarios,
+    quote?.N_Empleados_que_marcan,
+    quote?.Total_Trabajadores,
+  ]
+    .map((value) => toPositiveInt(value))
+    .find((value) => value > 0);
+  if (fromFields) return fromFields;
+
+  const rows = safeArray(quote?.Detalle_Items_Cotizacion).length
+    ? safeArray(quote?.Detalle_Items_Cotizacion)
+    : safeArray(quote?.items);
+  const asistenciaRow = rows.find((row) => normalizeItemName(row?.Nombre_Item).includes("asistencia"));
+  const asistenciaQty = toPositiveInt(asistenciaRow?.Cantidad);
+  if (asistenciaQty > 0) return asistenciaQty;
+
+  const maxQty = rows.reduce((acc, row) => Math.max(acc, toPositiveInt(row?.Cantidad)), 0);
+  return maxQty > 0 ? maxQty : 0;
+}
+
+function inferChargeTable(quote, committedEmployees) {
+  const existingTable = safeArray(quote?.Tabla_de_Cobro)
+    .map((row) => ({
+      Modalidad: toText(row?.Modalidad) || "Rango Fijo",
+      Desde: toPositiveInt(row?.Desde) || 1,
+      Hasta: toPositiveInt(row?.Hasta) || committedEmployees || 1,
+      Valor: toPositiveNumber(row?.Valor),
+      Valor_Usuario_Adicional: toPositiveNumber(row?.Valor_Usuario_Adicional),
+    }))
+    .filter((row) => row.Valor > 0);
+  if (existingTable.length > 0) return existingTable;
+
+  const rows = safeArray(quote?.Detalle_Items_Cotizacion).length
+    ? safeArray(quote?.Detalle_Items_Cotizacion)
+    : safeArray(quote?.items);
+  const prioritizedRows = [
+    ...rows.filter((row) => normalizeItemName(row?.Nombre_Item).includes("asistencia")),
+    ...rows.filter((row) => !normalizeItemName(row?.Nombre_Item).includes("asistencia")),
+  ];
+  const baseRow = prioritizedRows.find((row) => toPositiveInt(row?.Cantidad) > 0) || {};
+  const qty = Math.max(toPositiveInt(baseRow?.Cantidad), committedEmployees || 1);
+
+  const rowSubtotalClp = toPositiveNumber(baseRow?.Subtotal_CLP);
+  const rowPriceClp = toPositiveNumber(baseRow?.Precio_Unitario_CLP);
+  const rowSubtotalUf = toPositiveNumber(baseRow?.Subtotal_UF);
+  const rowPriceUf = toPositiveNumber(baseRow?.Precio_Unitario_UF);
+
+  const value =
+    rowSubtotalClp ||
+    (rowPriceClp > 0 ? rowPriceClp * qty : 0) ||
+    rowSubtotalUf ||
+    (rowPriceUf > 0 ? rowPriceUf * qty : 0) ||
+    1;
+  const additional =
+    rowPriceClp ||
+    rowPriceUf ||
+    (value > 0 && qty > 0 ? Number((value / qty).toFixed(5)) : value) ||
+    1;
+
+  return [
+    {
+      Modalidad: "Rango Fijo",
+      Desde: 1,
+      Hasta: Math.max(committedEmployees || qty, 1),
+      Valor: Number(value.toFixed(5)),
+      Valor_Usuario_Adicional: Number(additional.toFixed(5)),
+    },
+  ];
+}
+
 function formatCreatorDate(value) {
   const date = value instanceof Date ? value : new Date(value || Date.now());
   if (Number.isNaN(date.getTime())) return "";
@@ -442,8 +558,8 @@ function candidateFormLinkNames(config) {
     if (!text || seen.has(text)) return;
     seen.add(text);
   };
-  push(config?.formLinkName);
   push("Formulario");
+  push(config?.formLinkName);
   push("Nota_de_Venta");
   return Array.from(seen);
 }
@@ -580,6 +696,8 @@ function buildNdvRecord({
       ownerUser?.Email
   );
   const servicios = inferServiciosCreator(quote, config);
+  const committedEmployees = inferCommittedEmployees(quote);
+  const chargeTable = inferChargeTable(quote, committedEmployees);
   const firstServicio = toText(servicios.serviciosRecurrentes[0]) || "Control de Asistencia";
   const dealsAsociados =
     toText(quote?.Deals_Asociados) ||
@@ -609,6 +727,9 @@ function buildNdvRecord({
       toText(acceptanceData?.companyRut || quote?.RUT_Cliente || quote?.RUT || quote?.Identificador_Tributario_Empresa) ||
       undefined,
     Linea_de_Negocio: toText(quote?.Linea_de_Negocio) || "Telemarketing",
+    N_Empleados_Compometidos: committedEmployees || undefined,
+    Plantilla_Tabla_de_Cobro: "No hay Plantillas",
+    Tabla_de_Cobro: chargeTable,
     Servicios_Recurrentes: servicios.serviciosRecurrentes,
     Servicio_Recurrente_Configurado: servicios.servicioRecurrenteConfigurado,
     ...(servicios.serviciosNoRecurrentes.length > 0
