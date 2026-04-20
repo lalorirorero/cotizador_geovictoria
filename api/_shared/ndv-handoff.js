@@ -689,6 +689,7 @@ function buildNdvRecord({
     toText(creatorOverrides.formStatus) || config.ndvCreatorFormStatusPending || "CREATED";
   const creatorEstadoCot =
     toText(creatorOverrides.estadoCot) || toText(config.ndvCreatorEstadoCotAccepted);
+  const includeCrmDeal = creatorOverrides.includeCrmDeal !== false;
 
   const accountId = toText(account?.id || quote?.CRM_Account?.id || deal?.Account_Name?.id);
   const contactId = toText(contact?.id || quote?.CONTACT_ID || quote?.[config.quoteContactLookupField]?.id);
@@ -729,7 +730,7 @@ function buildNdvRecord({
     Email: contactEmail || undefined,
     Tel_fono: contactPhone || undefined,
     Correo_Vendedor: sellerEmail || undefined,
-    CRM_Deal: dealName || undefined,
+    CRM_Deal: includeCrmDeal ? dealName || undefined : undefined,
     Deals_Asociados: dealsAsociados || undefined,
     CRM_REFERENCE_ID: toSafeCreatorNumber(quote?.id),
     Moneda: toText(quote?.Moneda) || "UF",
@@ -1005,6 +1006,7 @@ async function runNdvHandoffFromDraft({
       status: "BORRADOR",
       formStatus: "CREATED",
       estadoCot: "Vigente",
+      includeCrmDeal: false,
     },
   });
 
