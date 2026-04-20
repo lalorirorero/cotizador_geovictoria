@@ -39,6 +39,128 @@ function normalizeItemName(value) {
     .toLowerCase();
 }
 
+const NDV_CANONICAL_SCHEMA_VERSION = "2026-04-20.1";
+
+// Diccionario único de validación previa (sin depender de Creator para detectar faltantes básicos).
+const NDV_CANONICAL_REQUIRED_FIELDS = [
+  { key: "CRM_Account", label: "Cuenta asociada (CRM_Account)" },
+  { key: "CRM_Deal", label: "Deal asociado (CRM_Deal)" },
+  { key: "Correo_Vendedor", label: "Correo del ejecutivo comercial (Correo_Vendedor)" },
+  { key: "Identificador_Tributario_Empresa", label: "RUT empresa (Identificador_Tributario_Empresa)" },
+  { key: "Contact_Name", label: "Nombre de contacto" },
+  { key: "Email", label: "Correo de contacto" },
+];
+
+const NDV_CANONICAL_ITEM_DICTIONARY = [
+  { match: ["asistencia"], recurrente: ["Control de Asistencia"] },
+  { match: ["alert"], recurrente: ["Alertas"] },
+  { match: ["banco de horas"], recurrente: ["Bolsa de Horas de Desarrollo"] },
+  { match: ["documental"], recurrente: ["Gestión Documental"] },
+  { match: ["vacaciones", "permiso"], recurrente: ["Vacaciones"] },
+  { match: ["calendario", "planificador"], recurrente: ["Calendario Inteligente"] },
+  { match: ["connect"], recurrente: ["Integraciones Victoria Connect"] },
+  { match: ["dashboard"], recurrente: ["Dashboard BI"] },
+  { match: ["sso"], recurrente: ["SSO"] },
+  { match: ["casino", "comedor"], recurrente: ["Servicio de Comedor"] },
+  { match: ["reporte a medida"], recurrente: ["Reporte a Medida"] },
+  { match: ["enrol"], noRecurrente: ["Enrolamiento en Terreno", "Visitas y Servicios Técnicos"] },
+  { match: ["instal", "visita", "tecnic"], noRecurrente: ["Visitas y Servicios Técnicos"] },
+  { match: ["capacit"], noRecurrenteConfigurado: ["Capacitaciones"] },
+  { match: ["consultor"], noRecurrenteConfigurado: ["Consultoría TI"] },
+  { match: ["homolog"], noRecurrenteConfigurado: ["Compatibilidad y Homologación"] },
+  { match: ["desarrollo"], noRecurrente: ["Desarrollo", "Presupuesto Estimativo de Desarrollo"] },
+];
+
+class NdvBusinessError extends Error {
+  constructor(userMessage, detail, code = "NDV_BUSINESS_ERROR") {
+    super(userMessage);
+    this.name = "NdvBusinessError";
+    this.userMessage = toText(userMessage) || "No se pudo crear la cotización.";
+    this.detail = toText(detail);
+    this.code = code;
+  }
+}
+
+function normalizeCreatorBusinessError(detailText) {
+  const detail = toText(detailText);
+  const normalized = detail.toLowerCase();
+  if (!detail) return "Creator respondió un error sin detalle.";
+
+  if (normalized.includes("identificador_tributario_empresa")) {
+    return "Falta el RUT empresa para crear la cotización en Creator.";
+  }
+  if (normalized.includes("tabla de cobro") || normalized.includes("tabla_de_cobro")) {
+    return "Falta completar la tabla de cobro en Creator.";
+  }
+  if (normalized.includes("invalid data")) {
+    return "Creator rechazó la cotización por datos inválidos. Revisa los campos obligatorios.";
+  }
+  if (normalized.includes("required")) {
+    return "Faltan campos obligatorios para crear la cotización en Creator.";
+  }
+  return detail;
+}
+
+function prevalidateNdvRecord(ndvRecord) {
+  const missing = NDV_CANONICAL_REQUIRED_FIELDS.filter((field) => !toText(ndvRecord?.[field.key]));
+  if (missing.length > 0) {
+    throw new NdvBusinessError(
+      `Faltan datos obligatorios para crear la cotización: ${missing.map((m) => m.label).join(", ")}.`,
+      `schema_version=${NDV_CANONICAL_SCHEMA_VERSION}; missing=${missing.map((m) => m.key).join(",")}`,
+      "NDV_PREVALIDATION_FAILED"
+    );
+  }
+}
+
+function prevalidateDraftInput({ proposalData, deal, account }) {
+  const rows = proposalDataToQuoteRows(proposalData);
+  if (!rows.length) {
+    throw new NdvBusinessError(
+      "Agrega al menos un ítem con cantidad mayor a 0 antes de crear la cotización.",
+      "No hay items válidos en proposalData.",
+      "NDV_PREVALIDATION_FAILED"
+    );
+  }
+
+  const companyRut = toText(
+    proposalData?.rutEmpresa ||
+      deal?.RUT_Empresa ||
+      deal?.RUT_Cliente ||
+      deal?.RUT ||
+      deal?.Rut ||
+      deal?.Identificador_Tributario_Empresa ||
+      account?.RUT_Empresa ||
+      account?.RUT_Cliente ||
+      account?.RUT ||
+      account?.Rut ||
+      account?.Identificador_Tributario_Empresa ||
+      ""
+  );
+  if (!companyRut) {
+    throw new NdvBusinessError(
+      "Debes completar el RUT empresa antes de crear la cotización.",
+      "No se resolvió RUT empresa desde deal/account/proposalData.",
+      "NDV_PREVALIDATION_FAILED"
+    );
+  }
+}
+
+function resolveCreatorMappingFromDictionary(normalizedItemName) {
+  const result = {
+    recurrente: new Set(),
+    noRecurrente: new Set(),
+    noRecurrenteConfigurado: new Set(),
+  };
+  for (const rule of NDV_CANONICAL_ITEM_DICTIONARY) {
+    const keywords = Array.isArray(rule.match) ? rule.match : [];
+    if (!keywords.some((keyword) => normalizedItemName.includes(keyword))) continue;
+    safeArray(rule.recurrente).forEach((label) => result.recurrente.add(label));
+    safeArray(rule.noRecurrente).forEach((label) => result.noRecurrente.add(label));
+    safeArray(rule.noRecurrenteConfigurado).forEach((label) => result.noRecurrenteConfigurado.add(label));
+  }
+  return result;
+}
+
 // NDV dictionary mapping (cotizadora -> Creator) lives in this module.
 
 const CREATOR_SERVICIOS_RECURRENTES_ALLOWED = new Set([
@@ -115,6 +237,13 @@ function inferServiciosCreator(quote, config) {
     const name = normalizeItemName(row?.Nombre_Item);
     const modalidad = normalizeItemName(row?.Modalidad);
     if (!name) continue;
+
+    const mapped = resolveCreatorMappingFromDictionary(name);
+    if (mapped.recurrente.size > 0 || mapped.noRecurrente.size > 0 || mapped.noRecurrenteConfigurado.size > 0) {
+      mapped.recurrente.forEach((label) => addRecurrente(label));
+      mapped.noRecurrente.forEach((label) => addNoRecurrente(label));
+      mapped.noRecurrenteConfigurado.forEach((label) => addNoRecurrenteConfigurado(label));
+    }
 
     if (name.includes("asistencia")) addRecurrente("Control de Asistencia");
     else if (name.includes("alert")) addRecurrente("Alertas");
@@ -195,6 +324,11 @@ function inferServiciosRecurrentes(quote, config) {
 
     const name = normalizeItemName(row?.Nombre_Item);
     if (!name) continue;
+
+    const mapped = resolveCreatorMappingFromDictionary(name);
+    if (mapped.recurrente.size > 0) {
+      mapped.recurrente.forEach((label) => pushLabel(label));
+    }
 
     if (name.includes("asistencia")) pushLabel("Control de Asistencia");
     else if (name.includes("alert")) pushLabel("Alertas");
@@ -561,6 +695,8 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     acceptanceData: acceptanceData || {},
   });
 
+  prevalidateNdvRecord(ndvRecord);
+
   if (!toText(ndvRecord.CRM_Account)) {
     throw new Error("No se pudo resolver Cuenta CRM (CRM_Account) para crear NDV.");
   }
@@ -572,11 +708,11 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
   const createResp = createAttempt.response;
   const createPayload = createAttempt.payload;
   if (!createAttempt.ok) {
-    throw new Error(
-      `Creator create NDV failed (${createResp?.status || 0}) [forms=${createAttempt.attemptedForms.join(", ")}]: ${creatorErrorMessage(
-        createPayload,
-        "respuesta invalida"
-      )}`
+    const creatorDetail = creatorErrorMessage(createPayload, "respuesta invalida");
+    throw new NdvBusinessError(
+      normalizeCreatorBusinessError(creatorDetail),
+      `Creator create NDV failed (${createResp?.status || 0}) [forms=${createAttempt.attemptedForms.join(", ")}]: ${creatorDetail}`,
+      "NDV_CREATOR_CREATE_FAILED"
     );
   }
 
@@ -612,6 +748,7 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     ndvCreated: true,
     ndvId: toText(ndvCreatorId),
     reconciled,
+    schemaVersion: NDV_CANONICAL_SCHEMA_VERSION,
     createPayload,
     updatePayload,
     usedIds: {
@@ -669,9 +806,15 @@ async function runNdvHandoffFromDraft({
   const ownerId = toText(pickFromLookup(deal?.Owner));
   const ownerUser = ownerId ? await getUserById(ownerId).catch(() => null) : null;
 
+  prevalidateDraftInput({ proposalData, deal, account });
+
   const rows = proposalDataToQuoteRows(proposalData);
   if (!rows.length) {
-    throw new Error("No hay items validos en la cotizacion para crear NDV.");
+    throw new NdvBusinessError(
+      "Agrega al menos un ítem con cantidad mayor a 0 antes de crear la cotización.",
+      "No hay items válidos en la cotización para crear NDV.",
+      "NDV_PREVALIDATION_FAILED"
+    );
   }
 
   const pseudoQuote = {
@@ -716,15 +859,17 @@ async function runNdvHandoffFromDraft({
     },
   });
 
+  prevalidateNdvRecord(ndvRecord);
+
   const createAttempt = await createNdvWithFormFallback({ creatorConfig, ndvRecord });
   const createResp = createAttempt.response;
   const createPayload = createAttempt.payload;
   if (!createAttempt.ok) {
-    throw new Error(
-      `Creator create NDV failed (${createResp?.status || 0}) [forms=${createAttempt.attemptedForms.join(", ")}]: ${creatorErrorMessage(
-        createPayload,
-        "respuesta invalida"
-      )}`
+    const creatorDetail = creatorErrorMessage(createPayload, "respuesta invalida");
+    throw new NdvBusinessError(
+      normalizeCreatorBusinessError(creatorDetail),
+      `Creator create NDV failed (${createResp?.status || 0}) [forms=${createAttempt.attemptedForms.join(", ")}]: ${creatorDetail}`,
+      "NDV_CREATOR_CREATE_FAILED"
     );
   }
 
@@ -743,11 +888,17 @@ async function runNdvHandoffFromDraft({
     ndvCreated: true,
     ndvId: toText(ndvCreatorId),
     reconciled: true,
+    schemaVersion: NDV_CANONICAL_SCHEMA_VERSION,
     createPayload,
   };
 }
 
 module.exports = {
+  NDV_CANONICAL_SCHEMA_VERSION,
+  NDV_CANONICAL_REQUIRED_FIELDS,
+  NDV_CANONICAL_ITEM_DICTIONARY,
+  NdvBusinessError,
+  normalizeCreatorBusinessError,
   runNdvHandoff,
   runNdvHandoffFromDraft,
 };

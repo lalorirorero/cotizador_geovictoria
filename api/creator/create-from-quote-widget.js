@@ -1,6 +1,6 @@
 const { toText, updateRecordBestEffort } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
-const { runNdvHandoffFromDraft } = require("../_shared/ndv-handoff");
+const { runNdvHandoffFromDraft, NdvBusinessError, normalizeCreatorBusinessError } = require("../_shared/ndv-handoff");
 
 function setCors(req, res) {
   const origin = req.headers.origin || "";
@@ -54,6 +54,15 @@ function errorToText(error) {
   } catch (_jsonError) {
     return String(error);
   }
+}
+
+function normalizeEndpointError(error) {
+  if (!error) return "No se pudo crear la cotización.";
+  if (error instanceof NdvBusinessError) {
+    return toText(error.userMessage || error.message) || "No se pudo crear la cotización.";
+  }
+  const raw = errorToText(error);
+  return normalizeCreatorBusinessError(raw) || raw || "No se pudo crear la cotización.";
 }
 
 async function persistNdvReferences(config, quoteId, ndvId) {
@@ -136,10 +145,11 @@ export default async function handler(req, res) {
         : "NDV creada, pero Creator no devolvio ID.",
     });
   } catch (error) {
+    const normalized = normalizeEndpointError(error);
     sendJson(res, 502, {
       success: false,
-      error: "Fallo la creacion de NDV en Creator.",
-      detail: errorToText(error) || "Error desconocido",
+      error: normalized,
+      detail: errorToText(error) || normalized || "Error desconocido",
     });
   }
 }
