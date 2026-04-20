@@ -484,6 +484,13 @@ function buildNdvRecord({
       ? { Servicio_No_Recurrente_Configurado: servicios.servicioNoRecurrenteConfigurado }
       : {}),
     Fecha_de_creaci_n: formatCreatorDate(),
+    PDF_STRING:
+      toText(
+        acceptanceData?.pdfUrl ||
+          quote?.PDF_STRING ||
+          quote?.PDF_URL ||
+          quote?.pdfUrl
+      ) || undefined,
     Email_de_Facturacion:
       normalizeEmail(acceptanceData?.billingEmail || quote?.Email_Facturacion || quote?.Email_de_Facturacion) ||
       undefined,
@@ -696,6 +703,7 @@ async function runNdvHandoffFromDraft({
         ""
     ),
     Linea_de_Negocio: "Telemarketing",
+    PDF_STRING: toText(proposalData?.pdfUrl || ""),
   };
 
   const ndvRecord = buildNdvRecord({
