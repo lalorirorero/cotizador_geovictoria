@@ -720,6 +720,7 @@ function buildNdvRecord({
   const creatorEstadoCot =
     toText(creatorOverrides.estadoCot) || toText(config.ndvCreatorEstadoCotAccepted);
   const includeCrmDeal = creatorOverrides.includeCrmDeal !== false;
+  const forcedBillingMilestone = toText(creatorOverrides.hitoFacturacion);
 
   const accountId = toText(account?.id || quote?.CRM_Account?.id || deal?.Account_Name?.id);
   const contactId = toText(contact?.id || quote?.CONTACT_ID || quote?.[config.quoteContactLookupField]?.id);
@@ -772,6 +773,7 @@ function buildNdvRecord({
       undefined,
     Linea_de_Negocio: resolvedBusinessLine,
     Servicio_Recurrente: firstServicio,
+    Hito_de_Facturaci_n: forcedBillingMilestone || resolvedBillingMilestone || "Adelantado",
     // Estos picklists se resuelven en Creator por scripts internos y catálogos dinámicos.
     // Si enviamos un valor no compatible, Creator rechaza el alta con INVALID_DATA.
     Modalidad_de_Pago: toText(quote?.Modalidad_de_Pago) || undefined,
@@ -1038,6 +1040,7 @@ async function runNdvHandoffFromDraft({
       formStatus: "CREATED",
       estadoCot: "Vigente",
       includeCrmDeal: false,
+      hitoFacturacion: "Adelantado",
     },
   });
 
