@@ -96,6 +96,9 @@ function normalizeCreatorBusinessError(detailText) {
   const normalized = detail.toLowerCase();
   if (!detail) return "Creator respondió un error sin detalle.";
 
+  if (normalized.includes("cantidad_de_usuarios_pdf")) {
+    return "Falta la cantidad de usuarios comprometidos para crear la cotización en Creator.";
+  }
   if (normalized.includes("identificador_tributario_empresa")) {
     return "Falta el RUT empresa para crear la cotización en Creator.";
   }
@@ -780,6 +783,8 @@ function buildNdvRecord({
     Periodicidad_de_Servicio: toText(quote?.Periodicidad_de_Servicio) || undefined,
     Tipo_de_Facturaci_n: toText(quote?.Tipo_de_Facturaci_n) || undefined,
     N_Empleados_Compometidos: committedEmployees || undefined,
+    Cantidad_de_Usuarios_PDF: committedEmployees || undefined,
+    Cantidad_de_Usuarios: committedEmployees || undefined,
     Plantilla_Tabla_de_Cobro: "No hay Plantillas",
     Tabla_de_Cobro: chargeTable,
     Servicios_Recurrentes: servicios.serviciosRecurrentes,
