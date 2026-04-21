@@ -1052,13 +1052,31 @@ async function runNdvHandoffFromDraft({
     preferredForms: ["Servicio_Recurrente"],
     stopOnFirstFailure: true,
   });
-  const createResp = createAttempt.response;
-  const createPayload = createAttempt.payload;
-  if (!createAttempt.ok) {
+  let finalAttempt = createAttempt;
+  if (!finalAttempt.ok) {
+    const creatorDetail = creatorErrorMessage(finalAttempt.payload, "respuesta invalida");
+    const shouldRetryWithoutBillingMilestone =
+      creatorDetail.includes("Hito_de_Facturaci_n") &&
+      creatorDetail.toLowerCase().includes("invalid column value");
+    if (shouldRetryWithoutBillingMilestone) {
+      const retryRecord = { ...ndvRecord };
+      delete retryRecord.Hito_de_Facturaci_n;
+      finalAttempt = await createNdvWithFormFallback({
+        creatorConfig,
+        ndvRecord: retryRecord,
+        preferredForms: ["Servicio_Recurrente"],
+        stopOnFirstFailure: true,
+      });
+    }
+  }
+
+  const createResp = finalAttempt.response;
+  const createPayload = finalAttempt.payload;
+  if (!finalAttempt.ok) {
     const creatorDetail = creatorErrorMessage(createPayload, "respuesta invalida");
     throw new NdvBusinessError(
       normalizeCreatorBusinessError(creatorDetail),
-      `Creator create NDV failed (${createResp?.status || 0}) [forms=${createAttempt.attemptedForms.join(", ")}]: ${creatorDetail}`,
+      `Creator create NDV failed (${createResp?.status || 0}) [forms=${finalAttempt.attemptedForms.join(", ")}]: ${creatorDetail}`,
       "NDV_CREATOR_CREATE_FAILED"
     );
   }
