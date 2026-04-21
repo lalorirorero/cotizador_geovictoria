@@ -24,7 +24,7 @@ function getCreatorConfig() {
   const ownerName = toNonEmptyString(process.env.ZOHO_CREATOR_OWNER_NAME);
   const appLinkName = toNonEmptyString(process.env.ZOHO_CREATOR_APP_LINK_NAME);
   const reportLinkName = toNonEmptyString(process.env.ZOHO_CREATOR_REPORT_LINK_NAME) || "ALL_DATA";
-  const formLinkName = toNonEmptyString(process.env.ZOHO_CREATOR_FORM_LINK_NAME) || "Formulario";
+  const formLinkName = toNonEmptyString(process.env.ZOHO_CREATOR_FORM_LINK_NAME) || "Nota_de_Venta";
 
   const missing = [];
   if (!clientId) missing.push("ZOHO_CREATOR_CLIENT_ID");

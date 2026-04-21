@@ -592,11 +592,15 @@ function candidateFormLinkNames(config, preferredForms) {
     seen.add(text);
   };
   safeArray(preferredForms).forEach((value) => push(value));
-  push("Formulario");
   push(config?.formLinkName);
-  push("Servicio_Recurrente");
   push("Nota_de_Venta");
+  push("Servicio_Recurrente");
+  push("Formulario");
   return Array.from(seen);
+}
+
+function getPreferredCreatorForms(config) {
+  return candidateFormLinkNames(config, [config?.formLinkName]);
 }
 
 async function createNdvWithFormFallback({
@@ -1062,7 +1066,7 @@ async function runNdvHandoffFromDraft({
     ndvRecord,
     // Crear por Formulario alinea con el flujo nativo de Creator (COT),
     // evita depender de scripts de Servicio_Recurrente sin ID_Formulario previo.
-    preferredForms: ["Formulario"],
+    preferredForms: getPreferredCreatorForms(creatorConfig),
     stopOnFirstFailure: true,
   });
   let finalAttempt = createAttempt;
@@ -1082,7 +1086,7 @@ async function runNdvHandoffFromDraft({
           finalAttempt = await createNdvWithFormFallback({
             creatorConfig,
             ndvRecord: retryWithAdelantado,
-            preferredForms: ["Formulario"],
+            preferredForms: getPreferredCreatorForms(creatorConfig),
             stopOnFirstFailure: true,
           });
 
@@ -1101,7 +1105,7 @@ async function runNdvHandoffFromDraft({
           finalAttempt = await createNdvWithFormFallback({
             creatorConfig,
             ndvRecord: retryWithoutBillingMilestone,
-            preferredForms: ["Formulario"],
+            preferredForms: getPreferredCreatorForms(creatorConfig),
             stopOnFirstFailure: true,
           });
         }
@@ -1131,7 +1135,7 @@ async function runNdvHandoffFromDraft({
           finalAttempt = await createNdvWithFormFallback({
             creatorConfig,
             ndvRecord: minimalDraftRecord,
-            preferredForms: ["Formulario"],
+            preferredForms: getPreferredCreatorForms(creatorConfig),
             stopOnFirstFailure: true,
           });
 
@@ -1140,7 +1144,7 @@ async function runNdvHandoffFromDraft({
             finalAttempt = await createNdvWithFormFallback({
               creatorConfig,
               ndvRecord: { ...minimalDraftRecord, Hito_de_Facturaci_n: "Adelantado" },
-              preferredForms: ["Formulario"],
+              preferredForms: getPreferredCreatorForms(creatorConfig),
               stopOnFirstFailure: true,
             });
           }
