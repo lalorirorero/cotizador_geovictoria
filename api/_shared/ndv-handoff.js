@@ -1051,12 +1051,18 @@ async function runNdvHandoffFromDraft({
     },
   });
 
+  // Evita mismatch de tipo en scripts On Success de Creator:
+  // ese parámetro se consume como BIGINT en nextUrl.CreateNextStep.
+  ndvRecord.IdDuplicatedMasterForm = 0;
+
   prevalidateNdvRecord(ndvRecord);
 
   const createAttempt = await createNdvWithFormFallback({
     creatorConfig,
     ndvRecord,
-    preferredForms: ["Servicio_Recurrente"],
+    // Crear por Formulario alinea con el flujo nativo de Creator (COT),
+    // evita depender de scripts de Servicio_Recurrente sin ID_Formulario previo.
+    preferredForms: ["Formulario"],
     stopOnFirstFailure: true,
   });
   let finalAttempt = createAttempt;
@@ -1073,12 +1079,12 @@ async function runNdvHandoffFromDraft({
       // 1) Reintento con valor alternativo permitido por catálogos en algunos tenants.
       const retryWithAdelantado = { ...ndvRecord, Hito_de_Facturaci_n: "Adelantado" };
       attemptedDraftStrategies.push("hito=Adelantado");
-      finalAttempt = await createNdvWithFormFallback({
-        creatorConfig,
-        ndvRecord: retryWithAdelantado,
-        preferredForms: ["Servicio_Recurrente"],
-        stopOnFirstFailure: true,
-      });
+          finalAttempt = await createNdvWithFormFallback({
+            creatorConfig,
+            ndvRecord: retryWithAdelantado,
+            preferredForms: ["Formulario"],
+            stopOnFirstFailure: true,
+          });
 
       // 2) Si sigue fallando por hito, se omite el campo para que lo resuelva Creator.
       if (!finalAttempt.ok) {
@@ -1095,7 +1101,7 @@ async function runNdvHandoffFromDraft({
           finalAttempt = await createNdvWithFormFallback({
             creatorConfig,
             ndvRecord: retryWithoutBillingMilestone,
-            preferredForms: ["Servicio_Recurrente"],
+            preferredForms: ["Formulario"],
             stopOnFirstFailure: true,
           });
         }
@@ -1125,7 +1131,7 @@ async function runNdvHandoffFromDraft({
           finalAttempt = await createNdvWithFormFallback({
             creatorConfig,
             ndvRecord: minimalDraftRecord,
-            preferredForms: ["Servicio_Recurrente"],
+            preferredForms: ["Formulario"],
             stopOnFirstFailure: true,
           });
 
@@ -1134,7 +1140,7 @@ async function runNdvHandoffFromDraft({
             finalAttempt = await createNdvWithFormFallback({
               creatorConfig,
               ndvRecord: { ...minimalDraftRecord, Hito_de_Facturaci_n: "Adelantado" },
-              preferredForms: ["Servicio_Recurrente"],
+              preferredForms: ["Formulario"],
               stopOnFirstFailure: true,
             });
           }
