@@ -600,7 +600,7 @@ function candidateFormLinkNames(config, preferredForms) {
 }
 
 function getPreferredCreatorForms(config) {
-  return candidateFormLinkNames(config, [config?.formLinkName]);
+  return candidateFormLinkNames(config, ["Servicio_Recurrente", config?.formLinkName, "Nota_de_Venta"]);
 }
 
 async function createNdvWithFormFallback({
@@ -789,7 +789,7 @@ function buildNdvRecord({
     N_Empleados_Compometidos: committedEmployees || undefined,
     Cantidad_de_Usuarios_PDF: committedEmployees || undefined,
     Cantidad_de_Usuarios: committedEmployees || undefined,
-    Plantilla_Tabla_de_Cobro: "No hay Plantillas",
+    Plantilla_Tabla_de_Cobro: "Sin Plantilla",
     Tabla_de_Cobro: chargeTable,
     Servicios_Recurrentes: servicios.serviciosRecurrentes,
     Servicio_Recurrente_Configurado: servicios.servicioRecurrenteConfigurado,
@@ -1046,7 +1046,7 @@ async function runNdvHandoffFromDraft({
       // Desde el botón de cotizadora en CRM debe nacer como Cotización.
       formulario: "Cotización",
       status: "BORRADOR",
-      formStatus: "CREATED",
+      formStatus: "BEING EDITED",
       estadoCot: "Vigente",
       includeCrmDeal: false,
       // En Creator este picklist nace con "Cargando..." y luego se completa por scripts UI.
@@ -1067,7 +1067,7 @@ async function runNdvHandoffFromDraft({
     // Crear por Formulario alinea con el flujo nativo de Creator (COT),
     // evita depender de scripts de Servicio_Recurrente sin ID_Formulario previo.
     preferredForms: getPreferredCreatorForms(creatorConfig),
-    stopOnFirstFailure: true,
+    stopOnFirstFailure: false,
   });
   let finalAttempt = createAttempt;
   const attemptedDraftStrategies = ["base"];
@@ -1081,13 +1081,13 @@ async function runNdvHandoffFromDraft({
 
     if (billingMilestoneError) {
       // 1) Reintento con valor alternativo permitido por catálogos en algunos tenants.
-      const retryWithAdelantado = { ...ndvRecord, Hito_de_Facturaci_n: "Adelantado" };
-      attemptedDraftStrategies.push("hito=Adelantado");
+      const retryWithCargando = { ...ndvRecord, Hito_de_Facturaci_n: "Cargando..." };
+      attemptedDraftStrategies.push("hito=Cargando...");
           finalAttempt = await createNdvWithFormFallback({
             creatorConfig,
-            ndvRecord: retryWithAdelantado,
+            ndvRecord: retryWithCargando,
             preferredForms: getPreferredCreatorForms(creatorConfig),
-            stopOnFirstFailure: true,
+            stopOnFirstFailure: false,
           });
 
       // 2) Si sigue fallando por hito, se omite el campo para que lo resuelva Creator.
@@ -1106,7 +1106,7 @@ async function runNdvHandoffFromDraft({
             creatorConfig,
             ndvRecord: retryWithoutBillingMilestone,
             preferredForms: getPreferredCreatorForms(creatorConfig),
-            stopOnFirstFailure: true,
+            stopOnFirstFailure: false,
           });
         }
       }
@@ -1136,16 +1136,18 @@ async function runNdvHandoffFromDraft({
             creatorConfig,
             ndvRecord: minimalDraftRecord,
             preferredForms: getPreferredCreatorForms(creatorConfig),
-            stopOnFirstFailure: true,
+            stopOnFirstFailure: false,
           });
 
           if (!finalAttempt.ok) {
-            attemptedDraftStrategies.push("minimal+hito=Adelantado");
+            attemptedDraftStrategies.push("minimal+hito=omit");
+            const retryMinimalWithoutBillingMilestone = { ...minimalDraftRecord };
+            delete retryMinimalWithoutBillingMilestone.Hito_de_Facturaci_n;
             finalAttempt = await createNdvWithFormFallback({
               creatorConfig,
-              ndvRecord: { ...minimalDraftRecord, Hito_de_Facturaci_n: "Adelantado" },
+              ndvRecord: retryMinimalWithoutBillingMilestone,
               preferredForms: getPreferredCreatorForms(creatorConfig),
-              stopOnFirstFailure: true,
+              stopOnFirstFailure: false,
             });
           }
         }
