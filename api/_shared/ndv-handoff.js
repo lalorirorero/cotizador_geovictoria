@@ -1040,7 +1040,7 @@ async function runNdvHandoffFromDraft({
       formStatus: "CREATED",
       estadoCot: "Vigente",
       includeCrmDeal: false,
-      hitoFacturacion: "Adelantado",
+      hitoFacturacion: "Otro",
     },
   });
 
