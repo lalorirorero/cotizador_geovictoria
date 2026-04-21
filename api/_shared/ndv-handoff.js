@@ -1040,7 +1040,9 @@ async function runNdvHandoffFromDraft({
       formStatus: "CREATED",
       estadoCot: "Vigente",
       includeCrmDeal: false,
-      hitoFacturacion: "Otro",
+      // En Creator este picklist nace con "Cargando..." y luego se completa por scripts UI.
+      // Para insercion por API, iniciar con ese valor evita INVALID_DATA en varios tenants.
+      hitoFacturacion: "Cargando...",
     },
   });
 
@@ -1053,20 +1055,86 @@ async function runNdvHandoffFromDraft({
     stopOnFirstFailure: true,
   });
   let finalAttempt = createAttempt;
+  const attemptedDraftStrategies = ["base"];
   if (!finalAttempt.ok) {
     const creatorDetail = creatorErrorMessage(finalAttempt.payload, "respuesta invalida");
-    const shouldRetryWithoutBillingMilestone =
-      creatorDetail.includes("Hito_de_Facturaci_n") &&
-      creatorDetail.toLowerCase().includes("invalid column value");
-    if (shouldRetryWithoutBillingMilestone) {
-      const retryRecord = { ...ndvRecord };
-      delete retryRecord.Hito_de_Facturaci_n;
+    const normalizedCreatorDetail = toText(creatorDetail).toLowerCase();
+    const billingMilestoneError =
+      normalizedCreatorDetail.includes("hito_de_facturaci_n") ||
+      normalizedCreatorDetail.includes("hito de facturacion") ||
+      normalizedCreatorDetail.includes("hito de facturación");
+
+    if (billingMilestoneError) {
+      // 1) Reintento con valor alternativo permitido por catálogos en algunos tenants.
+      const retryWithAdelantado = { ...ndvRecord, Hito_de_Facturaci_n: "Adelantado" };
+      attemptedDraftStrategies.push("hito=Adelantado");
       finalAttempt = await createNdvWithFormFallback({
         creatorConfig,
-        ndvRecord: retryRecord,
+        ndvRecord: retryWithAdelantado,
         preferredForms: ["Servicio_Recurrente"],
         stopOnFirstFailure: true,
       });
+
+      // 2) Si sigue fallando por hito, se omite el campo para que lo resuelva Creator.
+      if (!finalAttempt.ok) {
+        const secondDetail = creatorErrorMessage(finalAttempt.payload, "respuesta invalida");
+        const normalizedSecondDetail = toText(secondDetail).toLowerCase();
+        const stillBillingMilestoneError =
+          normalizedSecondDetail.includes("hito_de_facturaci_n") ||
+          normalizedSecondDetail.includes("hito de facturacion") ||
+          normalizedSecondDetail.includes("hito de facturación");
+        if (stillBillingMilestoneError) {
+          const retryWithoutBillingMilestone = { ...ndvRecord };
+          delete retryWithoutBillingMilestone.Hito_de_Facturaci_n;
+          attemptedDraftStrategies.push("omit_hito");
+          finalAttempt = await createNdvWithFormFallback({
+            creatorConfig,
+            ndvRecord: retryWithoutBillingMilestone,
+            preferredForms: ["Servicio_Recurrente"],
+            stopOnFirstFailure: true,
+          });
+        }
+      }
+
+      if (!finalAttempt.ok) {
+        const thirdDetail = creatorErrorMessage(finalAttempt.payload, "respuesta invalida");
+        const normalizedThirdDetail = toText(thirdDetail).toLowerCase();
+        const stillBillingMilestoneError =
+          normalizedThirdDetail.includes("hito_de_facturaci_n") ||
+          normalizedThirdDetail.includes("hito de facturacion") ||
+          normalizedThirdDetail.includes("hito de facturaciÃ³n");
+        if (stillBillingMilestoneError) {
+          const minimalDraftRecord = { ...ndvRecord };
+          delete minimalDraftRecord.Linea_de_Negocio;
+          delete minimalDraftRecord.Servicio_Recurrente;
+          delete minimalDraftRecord.Servicios_Recurrentes;
+          delete minimalDraftRecord.Servicio_Recurrente_Configurado;
+          delete minimalDraftRecord.Servicios_No_Recurrentes;
+          delete minimalDraftRecord.Servicio_No_Recurrente_Configurado;
+          delete minimalDraftRecord.Modalidad_de_Pago;
+          delete minimalDraftRecord.Periodicidad_de_Servicio;
+          delete minimalDraftRecord.Tipo_de_Facturaci_n;
+          minimalDraftRecord.Hito_de_Facturaci_n = "Cargando...";
+
+          attemptedDraftStrategies.push("minimal+hito=Cargando...");
+          finalAttempt = await createNdvWithFormFallback({
+            creatorConfig,
+            ndvRecord: minimalDraftRecord,
+            preferredForms: ["Servicio_Recurrente"],
+            stopOnFirstFailure: true,
+          });
+
+          if (!finalAttempt.ok) {
+            attemptedDraftStrategies.push("minimal+hito=Adelantado");
+            finalAttempt = await createNdvWithFormFallback({
+              creatorConfig,
+              ndvRecord: { ...minimalDraftRecord, Hito_de_Facturaci_n: "Adelantado" },
+              preferredForms: ["Servicio_Recurrente"],
+              stopOnFirstFailure: true,
+            });
+          }
+        }
+      }
     }
   }
 
@@ -1076,7 +1144,7 @@ async function runNdvHandoffFromDraft({
     const creatorDetail = creatorErrorMessage(createPayload, "respuesta invalida");
     throw new NdvBusinessError(
       normalizeCreatorBusinessError(creatorDetail),
-      `Creator create NDV failed (${createResp?.status || 0}) [forms=${finalAttempt.attemptedForms.join(", ")}]: ${creatorDetail}`,
+      `Creator create NDV failed (${createResp?.status || 0}) [forms=${finalAttempt.attemptedForms.join(", ")}] [strategies=${attemptedDraftStrategies.join(" -> ")}]: ${creatorDetail}`,
       "NDV_CREATOR_CREATE_FAILED"
     );
   }
