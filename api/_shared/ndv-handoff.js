@@ -360,16 +360,12 @@ function inferServiciosCreator(quote, config) {
     addRecurrente("Control de Asistencia");
   }
 
-  const ndvRecord = {
+  return {
     serviciosRecurrentes: Array.from(recurrentes),
     servicioRecurrenteConfigurado: Array.from(recurrentesConfigurados),
     serviciosNoRecurrentes: Array.from(noRecurrentes),
     servicioNoRecurrenteConfigurado: Array.from(noRecurrentesConfigurados),
   };
-  if (!omitBillingMilestone && toText(resolvedBillingMilestone)) {
-    ndvRecord.Hito_de_Facturaci_n = toText(resolvedBillingMilestone);
-  }
-  return ndvRecord;
 }
 
 function inferServiciosRecurrentes(quote, config) {
@@ -724,7 +720,6 @@ function buildNdvRecord({
   const creatorEstadoCot =
     toText(creatorOverrides.estadoCot) || toText(config.ndvCreatorEstadoCotAccepted);
   const includeCrmDeal = creatorOverrides.includeCrmDeal !== false;
-  const omitBillingMilestone = creatorOverrides.omitBillingMilestone === true;
 
   const accountId = toText(account?.id || quote?.CRM_Account?.id || deal?.Account_Name?.id);
   const contactId = toText(contact?.id || quote?.CONTACT_ID || quote?.[config.quoteContactLookupField]?.id);
@@ -1043,7 +1038,6 @@ async function runNdvHandoffFromDraft({
       formStatus: "CREATED",
       estadoCot: "Vigente",
       includeCrmDeal: false,
-      omitBillingMilestone: true,
     },
   });
 
@@ -1085,10 +1079,6 @@ async function runNdvHandoffFromDraft({
     usedFormLinkName: createAttempt.usedFormLinkName,
     createPayload,
   };
-  if (!omitBillingMilestone && toText(resolvedBillingMilestone)) {
-    ndvRecord.Hito_de_Facturaci_n = toText(resolvedBillingMilestone);
-  }
-  return ndvRecord;
 }
 
 module.exports = {
