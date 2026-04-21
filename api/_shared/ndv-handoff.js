@@ -248,6 +248,36 @@ const CREATOR_SERVICIO_NO_RECURRENTE_CONFIG_ALLOWED = new Set([
   "Consultor\u00eda TI",
 ]);
 
+// Regla alineada con Creator (BusinessLine = Telemarketing para este MVP):
+// para ciertos servicios el hito permitido es "Adelantado"; en el resto, "Otro".
+const CREATOR_TELEMARKETING_ADELANTADO_SERVICES = new Set([
+  "Control de Asistencia",
+  "Control de Acceso",
+  "Servicio de Comedor",
+  "Dashboard BI",
+  "Vacaciones",
+  "Gesti\u00f3n Documental",
+  "Calendario Inteligente",
+  "SSO",
+  "Marcaje WhatsApp",
+  "App Supervisor",
+  "Proyectos y Tareas",
+  "Alertas",
+  "Plan Starter",
+  "Plan Pro",
+  "Arriendo de Equipos Asistencia",
+  "Arriendo de Chip de Datos",
+  "Venta de Equipos Asistencia",
+  "Venta de Kit de Acceso",
+  "Venta de Equipos Comedor",
+]);
+
+function inferBillingMilestoneForTelemarketing(servicioRecurrente) {
+  const service = toText(servicioRecurrente);
+  if (!service) return "Otro";
+  return CREATOR_TELEMARKETING_ADELANTADO_SERVICES.has(service) ? "Adelantado" : "Otro";
+}
+
 function addAllowed(targetSet, label, allowedSet) {
   const text = toText(label);
   if (text && allowedSet.has(text)) targetSet.add(text);
@@ -711,6 +741,8 @@ function buildNdvRecord({
   const committedEmployees = inferCommittedEmployees(quote);
   const chargeTable = inferChargeTable(quote, committedEmployees);
   const firstServicio = toText(servicios.serviciosRecurrentes[0]) || "Control de Asistencia";
+  const resolvedBusinessLine = "Telemarketing";
+  const resolvedBillingMilestone = inferBillingMilestoneForTelemarketing(firstServicio);
   const dealsAsociados =
     toText(quote?.Deals_Asociados) ||
     toText(deal?.Deal_Name) ||
@@ -738,11 +770,11 @@ function buildNdvRecord({
     Identificador_Tributario_Empresa:
       toText(acceptanceData?.companyRut || quote?.RUT_Cliente || quote?.RUT || quote?.Identificador_Tributario_Empresa) ||
       undefined,
-    Linea_de_Negocio: toText(quote?.Linea_de_Negocio) || "Telemarketing",
-    Servicio_Recurrente: toText(quote?.Servicio_Recurrente) || firstServicio,
+    Linea_de_Negocio: resolvedBusinessLine,
+    Servicio_Recurrente: firstServicio,
     // Estos picklists se resuelven en Creator por scripts internos y catálogos dinámicos.
     // Si enviamos un valor no compatible, Creator rechaza el alta con INVALID_DATA.
-    Hito_de_Facturaci_n: toText(quote?.Hito_de_Facturaci_n) || "Adelantado",
+    Hito_de_Facturaci_n: resolvedBillingMilestone,
     Modalidad_de_Pago: toText(quote?.Modalidad_de_Pago) || undefined,
     Periodicidad_de_Servicio: toText(quote?.Periodicidad_de_Servicio) || undefined,
     Tipo_de_Facturaci_n: toText(quote?.Tipo_de_Facturaci_n) || undefined,
