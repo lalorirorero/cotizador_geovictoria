@@ -742,7 +742,7 @@ function buildNdvRecord({
     Servicio_Recurrente: toText(quote?.Servicio_Recurrente) || firstServicio,
     // Estos picklists se resuelven en Creator por scripts internos y catálogos dinámicos.
     // Si enviamos un valor no compatible, Creator rechaza el alta con INVALID_DATA.
-    Hito_de_Facturaci_n: toText(quote?.Hito_de_Facturaci_n) || undefined,
+    Hito_de_Facturaci_n: toText(quote?.Hito_de_Facturaci_n) || "Adelantado",
     Modalidad_de_Pago: toText(quote?.Modalidad_de_Pago) || undefined,
     Periodicidad_de_Servicio: toText(quote?.Periodicidad_de_Servicio) || undefined,
     Tipo_de_Facturaci_n: toText(quote?.Tipo_de_Facturaci_n) || undefined,
