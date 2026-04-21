@@ -360,12 +360,16 @@ function inferServiciosCreator(quote, config) {
     addRecurrente("Control de Asistencia");
   }
 
-  return {
+  const ndvRecord = {
     serviciosRecurrentes: Array.from(recurrentes),
     servicioRecurrenteConfigurado: Array.from(recurrentesConfigurados),
     serviciosNoRecurrentes: Array.from(noRecurrentes),
     servicioNoRecurrenteConfigurado: Array.from(noRecurrentesConfigurados),
   };
+  if (!omitBillingMilestone && toText(resolvedBillingMilestone)) {
+    ndvRecord.Hito_de_Facturaci_n = toText(resolvedBillingMilestone);
+  }
+  return ndvRecord;
 }
 
 function inferServiciosRecurrentes(quote, config) {
@@ -720,6 +724,7 @@ function buildNdvRecord({
   const creatorEstadoCot =
     toText(creatorOverrides.estadoCot) || toText(config.ndvCreatorEstadoCotAccepted);
   const includeCrmDeal = creatorOverrides.includeCrmDeal !== false;
+  const omitBillingMilestone = creatorOverrides.omitBillingMilestone === true;
 
   const accountId = toText(account?.id || quote?.CRM_Account?.id || deal?.Account_Name?.id);
   const contactId = toText(contact?.id || quote?.CONTACT_ID || quote?.[config.quoteContactLookupField]?.id);
@@ -774,7 +779,6 @@ function buildNdvRecord({
     Servicio_Recurrente: firstServicio,
     // Estos picklists se resuelven en Creator por scripts internos y catálogos dinámicos.
     // Si enviamos un valor no compatible, Creator rechaza el alta con INVALID_DATA.
-    Hito_de_Facturaci_n: resolvedBillingMilestone,
     Modalidad_de_Pago: toText(quote?.Modalidad_de_Pago) || undefined,
     Periodicidad_de_Servicio: toText(quote?.Periodicidad_de_Servicio) || undefined,
     Tipo_de_Facturaci_n: toText(quote?.Tipo_de_Facturaci_n) || undefined,
@@ -1039,6 +1043,7 @@ async function runNdvHandoffFromDraft({
       formStatus: "CREATED",
       estadoCot: "Vigente",
       includeCrmDeal: false,
+      omitBillingMilestone: true,
     },
   });
 
@@ -1080,6 +1085,10 @@ async function runNdvHandoffFromDraft({
     usedFormLinkName: createAttempt.usedFormLinkName,
     createPayload,
   };
+  if (!omitBillingMilestone && toText(resolvedBillingMilestone)) {
+    ndvRecord.Hito_de_Facturaci_n = toText(resolvedBillingMilestone);
+  }
+  return ndvRecord;
 }
 
 module.exports = {
