@@ -520,6 +520,20 @@ function resolveCreatedCreatorId(payload) {
   return "";
 }
 
+function resolveCreatorRecordFromPayload(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  if (payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
+    return payload.data;
+  }
+  for (const row of safeArray(payload.data)) {
+    if (row && typeof row === "object") {
+      if (row.data && typeof row.data === "object") return row.data;
+      return row;
+    }
+  }
+  return null;
+}
+
 async function readJsonSafe(response) {
   const text = await response.text();
   if (!text) return {};
@@ -1175,6 +1189,55 @@ async function runNdvHandoffFromDraft({
       createPayload,
       message: "NDV creada sin ID devuelto por Creator.",
     };
+  }
+
+  // Refuerza campos críticos post-alta para evitar cotizaciones incompletas en Creator.
+  const draftRepairMap = {
+    N_Empleados_Compometidos: ndvRecord.N_Empleados_Compometidos,
+    Cantidad_de_Usuarios_PDF: ndvRecord.Cantidad_de_Usuarios_PDF,
+    Cantidad_de_Usuarios: ndvRecord.Cantidad_de_Usuarios,
+    Plantilla_Tabla_de_Cobro: ndvRecord.Plantilla_Tabla_de_Cobro,
+    Tabla_de_Cobro: ndvRecord.Tabla_de_Cobro,
+  };
+  const draftUpdatePath = buildCreatorUpdatePath(creatorConfig, ndvCreatorId);
+  const draftUpdateResp = await creatorApiFetch(draftUpdatePath, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: draftRepairMap }),
+  });
+  const draftUpdatePayload = await readJsonSafe(draftUpdateResp);
+  if (!draftUpdateResp.ok || isCreatorBusinessError(draftUpdatePayload)) {
+    const creatorDetail = creatorErrorMessage(draftUpdatePayload, "respuesta invalida");
+    throw new NdvBusinessError(
+      normalizeCreatorBusinessError(creatorDetail),
+      `Creator patch draft failed (${draftUpdateResp?.status || 0}) [id=${toText(ndvCreatorId)}]: ${creatorDetail}`,
+      "NDV_CREATOR_PATCH_FAILED"
+    );
+  }
+
+  let verifiedRecord = resolveCreatorRecordFromPayload(draftUpdatePayload);
+  if (!verifiedRecord) {
+    const draftFetchResp = await creatorApiFetch(draftUpdatePath, { method: "GET" });
+    const draftFetchPayload = await readJsonSafe(draftFetchResp);
+    if (draftFetchResp.ok && !isCreatorBusinessError(draftFetchPayload)) {
+      verifiedRecord = resolveCreatorRecordFromPayload(draftFetchPayload);
+    }
+  }
+
+  if (verifiedRecord) {
+    const employeesAfterCreate = toPositiveInt(
+      verifiedRecord?.N_Empleados_Compometidos ||
+        verifiedRecord?.Cantidad_de_Usuarios_PDF ||
+        verifiedRecord?.Cantidad_de_Usuarios
+    );
+    const tableAfterCreate = safeArray(verifiedRecord?.Tabla_de_Cobro);
+    if (employeesAfterCreate <= 0 || tableAfterCreate.length === 0) {
+      throw new NdvBusinessError(
+        "Creator creó la cotización sin empleados comprometidos o sin tabla de cobro.",
+        `id=${toText(ndvCreatorId)}; employees=${employeesAfterCreate}; tabla_len=${tableAfterCreate.length}`,
+        "NDV_CREATOR_INCOMPLETE_RECORD"
+      );
+    }
   }
 
   return {
