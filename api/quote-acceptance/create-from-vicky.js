@@ -9,8 +9,47 @@ const { buildProposalHtml } = require("../_shared/proposal-html-builder");
 
 const VICKY_OWNER_EMAIL = toText(process.env.VICKY_OWNER_EMAIL) || "egomez@geovictoria.com";
 const VICKY_DEAL_STAGE = toText(process.env.VICKY_DEAL_STAGE_INICIAL) || "Propuesta Enviada";
-const VICKY_LEAD_SOURCE = toText(process.env.VICKY_LEAD_SOURCE) || "Vicky WhatsApp";
+const VICKY_LEAD_SOURCE = toText(process.env.VICKY_LEAD_SOURCE) || "SEO";
 const VICKY_EJECUTIVO_NAME = toText(process.env.VICKY_EJECUTIVO_NAME) || "Eddyluz Mujica";
+const VICKY_TERRITORIO = toText(process.env.VICKY_TERRITORIO) || "Chile";
+const VICKY_MONEDA = toText(process.env.VICKY_MONEDA) || "UF";
+const VICKY_TOMBOLA = toText(process.env.VICKY_TOMBOLA) || "Mantener propietario";
+const VICKY_PRODUCTO_DEFAULT = toText(process.env.VICKY_PRODUCTO_DEFAULT) || "Control de Asistencia";
+const VICKY_SECTOR_FALLBACK = toText(process.env.VICKY_SECTOR_FALLBACK) || "19. Servicios";
+const VICKY_EXPANSION_REGIONAL = toText(process.env.VICKY_EXPANSION_REGIONAL) || "No";
+
+// Espejo de la picklist de Zoho (Industry en Accounts, Sector en Deals).
+// Vicky elige uno de estos via el LLM; este endpoint solo valida pertenencia.
+const SECTORES_VALIDOS = new Set([
+  "1. Agrícola",
+  "2. Condominio",
+  "3. Construcción",
+  "4. Inmobilaria",
+  "5. Consultoria",
+  "6. Banca y Finanzas",
+  "7. Educación",
+  "8. Municipio",
+  "9. Gobierno",
+  "10. Mineria",
+  "11. Naviera",
+  "12. Outsourcing Seguridad",
+  "12. Outsourcing General",
+  "13. Outsourcing Retail",
+  "14. Planta Productiva",
+  "15. Logistica",
+  "16. Retail Enterprise",
+  "17. Retail SMB",
+  "18. Salud",
+  "19. Servicios",
+  "20. Transporte",
+  "21. Turismo, Hotelería y Gastronomía",
+]);
+
+function validarSector(valorRecibido) {
+  const v = toText(valorRecibido);
+  if (v && SECTORES_VALIDOS.has(v)) return v;
+  return VICKY_SECTOR_FALLBACK;
+}
 
 // ── CORS ──
 function setCors(req, res) {
@@ -47,9 +86,9 @@ function parseBody(req) {
 
 function splitFullName(fullName) {
   const clean = (fullName || "").trim();
-  if (!clean) return { firstName: "", lastName: "Cliente" };
+  if (!clean) return { firstName: "Cliente", lastName: "Vicky" };
   const parts = clean.split(/\s+/);
-  if (parts.length === 1) return { firstName: "", lastName: parts[0] };
+  if (parts.length === 1) return { firstName: parts[0], lastName: parts[0] };
   return {
     firstName: parts.slice(0, -1).join(" "),
     lastName: parts.slice(-1).join(" "),
@@ -145,6 +184,7 @@ module.exports = async function handler(req, res) {
     }
 
     const config = getAcceptanceConfig(req);
+    const sectorParaZoho = validarSector(cliente.sectorEmpresa);
 
     // 1) Account
     stage = "create_account";
@@ -152,6 +192,11 @@ module.exports = async function handler(req, res) {
       Account_Name: cliente.empresa,
       Phone: cliente.contactoTelefono || undefined,
       Description: `Cuenta creada por Vicky (WhatsApp). RUT: ${cliente.rutEmpresa}`,
+      // Layout-required defaults
+      Industry: sectorParaZoho,
+      Territorio: VICKY_TERRITORIO,
+      N_Empleados_dependientes: cliente.userCount,
+      Tiene_potencial_de_expansi_n_Regional: VICKY_EXPANSION_REGIONAL,
     }, true);
     const accountId = toText(accountResult?.id);
     if (!accountId) throw new Error("No se obtuvo accountId");
@@ -160,12 +205,14 @@ module.exports = async function handler(req, res) {
     stage = "create_contact";
     const { firstName, lastName } = splitFullName(cliente.contacto);
     const contactResult = await createRecord("Contacts", {
-      First_Name: firstName || undefined,
+      First_Name: firstName,
       Last_Name: lastName,
       Email: cliente.contactoEmail,
       Phone: cliente.contactoTelefono || undefined,
       Account_Name: { id: accountId },
       Lead_Source: VICKY_LEAD_SOURCE,
+      // Layout-required defaults
+      Territorio: VICKY_TERRITORIO,
     }, true);
     const contactId = toText(contactResult?.id);
     if (!contactId) throw new Error("No se obtuvo contactId");
@@ -177,9 +224,17 @@ module.exports = async function handler(req, res) {
       Account_Name: { id: accountId },
       Contact_Name: { id: contactId },
       Stage: VICKY_DEAL_STAGE,
+      Pipeline: "Standard (Standard)",
       Lead_Source: VICKY_LEAD_SOURCE,
       Amount: cotizacion.totalCLP || undefined,
-      Description: `Deal creado por Vicky para cotización WhatsApp.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP`,
+      Description: `Deal creado por Vicky para cotización WhatsApp.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP\nSector: ${sectorParaZoho}`,
+      // Layout-required defaults
+      Territorio: VICKY_TERRITORIO,
+      Tombola: VICKY_TOMBOLA,
+      Monda_del_trato: VICKY_MONEDA,
+      Sector: sectorParaZoho,
+      N_Empleados_que_marcan: cliente.userCount,
+      Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
     }, true);
     const dealId = toText(dealResult?.id);
     if (!dealId) throw new Error("No se obtuvo dealId");
@@ -190,6 +245,7 @@ module.exports = async function handler(req, res) {
       Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
       [config.quoteDealLookupField]: { id: dealId },
       [config.quoteContactLookupField]: { id: contactId },
+      Cuenta_Asociada: { id: accountId },
       [config.quoteDateField]: new Date().toISOString().slice(0, 10),
       [config.quoteStatusField]: "Borrador",
       [config.contactEmailField]: cliente.contactoEmail,
@@ -267,6 +323,7 @@ module.exports = async function handler(req, res) {
       quoteId, dealId, accountId, contactId,
       acceptanceUrl,
       pdfUrl,
+      sectorAplicado: sectorParaZoho,
       expiresAt: new Date(expMs).toISOString(),
     });
 
