@@ -153,7 +153,7 @@ module.exports = async function handler(req, res) {
       Phone: cliente.contactoTelefono || undefined,
       Description: `Cuenta creada por Vicky (WhatsApp). RUT: ${cliente.rutEmpresa}`,
     }, true);
-    const accountId = toText(accountResult?.details?.id);
+    const accountId = toText(accountResult?.id);
     if (!accountId) throw new Error("No se obtuvo accountId");
 
     // 2) Contact
@@ -167,7 +167,7 @@ module.exports = async function handler(req, res) {
       Account_Name: { id: accountId },
       Lead_Source: VICKY_LEAD_SOURCE,
     }, true);
-    const contactId = toText(contactResult?.details?.id);
+    const contactId = toText(contactResult?.id);
     if (!contactId) throw new Error("No se obtuvo contactId");
 
     // 3) Deal
@@ -181,7 +181,7 @@ module.exports = async function handler(req, res) {
       Amount: cotizacion.totalCLP || undefined,
       Description: `Deal creado por Vicky para cotización WhatsApp.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP`,
     }, true);
-    const dealId = toText(dealResult?.details?.id);
+    const dealId = toText(dealResult?.id);
     if (!dealId) throw new Error("No se obtuvo dealId");
 
     // 4) Quote (Cotización)
@@ -197,7 +197,7 @@ module.exports = async function handler(req, res) {
       [config.companyRutField]: cliente.rutEmpresa,
     };
     const quoteResult = await createRecord(config.quoteModule, quoteFields, true);
-    const quoteId = toText(quoteResult?.details?.id);
+    const quoteId = toText(quoteResult?.id);
     if (!quoteId) throw new Error("No se obtuvo quoteId");
 
     // 5) acceptanceUrl
