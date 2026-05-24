@@ -8,6 +8,8 @@ const { uploadPdfToSupabase } = require("../_shared/supabase-pdf-upload");
 const { buildProposalHtml } = require("../_shared/proposal-html-builder");
 
 const VICKY_OWNER_EMAIL = toText(process.env.VICKY_OWNER_EMAIL) || "egomez@geovictoria.com";
+const VICKY_FROM_EMAIL = toText(process.env.VICKY_FROM_EMAIL) || "vicky@geovictoria.com";
+const VICKY_REPLY_TO_EMAIL = toText(process.env.VICKY_REPLY_TO_EMAIL) || "egomez@geovictoria.com";
 const VICKY_DEAL_STAGE = toText(process.env.VICKY_DEAL_STAGE_INICIAL) || "4. Propuesta Enviada / En Negociación";
 const VICKY_LEAD_SOURCE = toText(process.env.VICKY_LEAD_SOURCE) || "SEO";
 const VICKY_EJECUTIVO_NAME = toText(process.env.VICKY_EJECUTIVO_NAME) || "Eddyluz Mujica";
@@ -97,18 +99,20 @@ function splitFullName(fullName) {
 
 // ── Helper: enviar email via Zoho CRM send_mail (asociado al Quote) ──
 async function sendQuoteEmailViaZoho({
-  quoteModule, quoteId, fromEmail, toEmail, toName, subject, htmlBody,
+  quoteModule, quoteId, fromEmail, replyToEmail, toEmail, toName, subject, htmlBody,
 }) {
   const path = `/crm/v3/${encodeURIComponent(quoteModule)}/${encodeURIComponent(quoteId)}/actions/send_mail`;
-  const body = {
-    data: [{
-      from: { email: fromEmail },
-      to: [{ user_name: toName || toEmail, email: toEmail }],
-      subject,
-      content: htmlBody,
-      mail_format: "html",
-    }],
+  const dataPayload = {
+    from: { email: fromEmail },
+    to: [{ user_name: toName || toEmail, email: toEmail }],
+    subject,
+    content: htmlBody,
+    mail_format: "html",
   };
+  if (replyToEmail && replyToEmail !== fromEmail) {
+    dataPayload.reply_to = { email: replyToEmail };
+  }
+  const body = { data: [dataPayload] };
   const response = await zohoApiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -302,7 +306,8 @@ module.exports = async function handler(req, res) {
       await sendQuoteEmailViaZoho({
         quoteModule: config.quoteModule,
         quoteId,
-        fromEmail: VICKY_OWNER_EMAIL,
+        fromEmail: VICKY_FROM_EMAIL,
+        replyToEmail: VICKY_REPLY_TO_EMAIL,
         toEmail: cliente.contactoEmail,
         toName: cliente.contacto,
         subject: `Tu cotización GeoVictoria — ${cliente.empresa}`,
