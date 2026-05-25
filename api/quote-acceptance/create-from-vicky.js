@@ -20,31 +20,13 @@ const VICKY_PRODUCTO_DEFAULT = toText(process.env.VICKY_PRODUCTO_DEFAULT) || "Co
 const VICKY_SECTOR_FALLBACK = toText(process.env.VICKY_SECTOR_FALLBACK) || "19. Servicios";
 const VICKY_EXPANSION_REGIONAL = toText(process.env.VICKY_EXPANSION_REGIONAL) || "No";
 
-// Espejo de la picklist de Zoho (Industry en Accounts, Sector en Deals).
-// Vicky elige uno de estos via el LLM; este endpoint solo valida pertenencia.
 const SECTORES_VALIDOS = new Set([
-  "1. Agrícola",
-  "2. Condominio",
-  "3. Construcción",
-  "4. Inmobilaria",
-  "5. Consultoria",
-  "6. Banca y Finanzas",
-  "7. Educación",
-  "8. Municipio",
-  "9. Gobierno",
-  "10. Mineria",
-  "11. Naviera",
-  "12. Outsourcing Seguridad",
-  "12. Outsourcing General",
-  "13. Outsourcing Retail",
-  "14. Planta Productiva",
-  "15. Logistica",
-  "16. Retail Enterprise",
-  "17. Retail SMB",
-  "18. Salud",
-  "19. Servicios",
-  "20. Transporte",
-  "21. Turismo, Hotelería y Gastronomía",
+  "1. Agrícola", "2. Condominio", "3. Construcción", "4. Inmobilaria",
+  "5. Consultoria", "6. Banca y Finanzas", "7. Educación", "8. Municipio",
+  "9. Gobierno", "10. Mineria", "11. Naviera", "12. Outsourcing Seguridad",
+  "12. Outsourcing General", "13. Outsourcing Retail", "14. Planta Productiva",
+  "15. Logistica", "16. Retail Enterprise", "17. Retail SMB", "18. Salud",
+  "19. Servicios", "20. Transporte", "21. Turismo, Hotelería y Gastronomía",
 ]);
 
 function validarSector(valorRecibido) {
@@ -97,7 +79,37 @@ function splitFullName(fullName) {
   };
 }
 
-// ── Helper: enviar email via Zoho CRM send_mail (asociado al Quote) ──
+// ── Helper: convertir Lead → Account+Contact+Deal ──
+async function convertLead(leadId, dealData) {
+  const path = `/crm/v3/Leads/${encodeURIComponent(leadId)}/actions/convert`;
+  const body = {
+    data: [{
+      overwrite: true,
+      notify_lead_owner: true,
+      notify_new_entity_owner: true,
+      Deals: dealData,
+    }],
+  };
+  const response = await zohoApiFetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Zoho convert Lead failed (${response.status}): ${text.slice(0, 300)}`);
+  }
+  const parsed = JSON.parse(text);
+  const result = parsed?.data?.[0];
+  if (!result) throw new Error("Respuesta de convert Lead sin data");
+  return {
+    accountId: toText(result.Accounts),
+    contactId: toText(result.Contacts),
+    dealId: toText(result.Deals),
+  };
+}
+
+// ── Helper: enviar email via Zoho CRM send_mail ──
 async function sendQuoteEmailViaZoho({
   quoteModule, quoteId, fromEmail, replyToEmail, toEmail, toName, subject, htmlBody,
 }) {
@@ -130,7 +142,7 @@ function buildEmailHtml({ contacto, empresa, acceptanceUrl, pdfUrl, ejecutivo })
 <html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#2d3748;">
   <h2 style="color:#0d47a1;">Hola ${contacto},</h2>
   <p>Te dejamos lista tu cotización personalizada para <strong>${empresa}</strong>.</p>
-  <p>Podés revisarla y aceptarla desde cualquier dispositivo haciendo clic en el botón:</p>
+  <p>Puedes revisarla y aceptarla desde cualquier dispositivo haciendo clic en el botón:</p>
   <p style="text-align:center;margin:30px 0;">
     <a href="${acceptanceUrl}"
        style="display:inline-block;background:#1a73e8;color:#fff;padding:14px 28px;
@@ -139,15 +151,40 @@ function buildEmailHtml({ contacto, empresa, acceptanceUrl, pdfUrl, ejecutivo })
     </a>
   </p>
   <p style="font-size:13px;color:#718096;">
-    También podés descargar el PDF directamente:<br>
+    También puedes descargar el PDF directamente:<br>
     <a href="${pdfUrl}" style="color:#1a73e8;">${pdfUrl}</a>
   </p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0;">
   <p style="font-size:13px;color:#718096;">
-    Tu ejecutivo asignado es <strong>${ejecutivo}</strong>. Cualquier consulta, respondé a este correo.
+    Tu ejecutivo asignado es <strong>${ejecutivo}</strong>. Cualquier consulta, responde a este correo.
   </p>
   <p style="font-size:13px;color:#a0aec0;">GeoVictoria — geovictoria.com</p>
 </body></html>`;
+}
+
+// ── Constructores de payloads de update (datos nuevos ganan) ──
+function buildAccountUpdatePayload(cliente, sectorParaZoho) {
+  return {
+    // NO sobrescribimos Account_Name (puede tener variaciones legítimas)
+    Phone: cliente.contactoTelefono || undefined,
+    Industry: sectorParaZoho,
+    Territorio: VICKY_TERRITORIO,
+    N_Empleados_dependientes: cliente.userCount,
+    Tiene_potencial_de_expansi_n_Regional: VICKY_EXPANSION_REGIONAL,
+    RUT_Empresa: cliente.rutEmpresa,
+  };
+}
+
+function buildContactUpdatePayload(cliente) {
+  const { firstName, lastName } = splitFullName(cliente.contacto);
+  return {
+    First_Name: firstName,
+    Last_Name: lastName,
+    Email: cliente.contactoEmail,
+    Phone: cliente.contactoTelefono || undefined,
+    Lead_Source: VICKY_LEAD_SOURCE,
+    Territorio: VICKY_TERRITORIO,
+  };
 }
 
 // ── Handler principal ──
@@ -160,7 +197,7 @@ module.exports = async function handler(req, res) {
     return sendJson(res, 405, { ok: false, error: "Método no permitido" });
   }
 
-  // Auth shared secret
+  // Auth
   const expectedSecret = toText(process.env.VICKY_COTIZADORA_SECRET);
   const providedSecret = toText(req.headers["x-vicky-secret"]);
   if (expectedSecret && expectedSecret !== providedSecret) {
@@ -172,6 +209,7 @@ module.exports = async function handler(req, res) {
     const body = parseBody(req);
     const cliente = body.cliente || {};
     const cotizacion = body.cotizacion || {};
+    const existing = body.existing || {};
 
     // Validaciones
     if (!cliente.empresa || !cliente.contacto || !cliente.contactoEmail || !cliente.rutEmpresa) {
@@ -187,63 +225,127 @@ module.exports = async function handler(req, res) {
       return sendJson(res, 400, { ok: false, error: "cotizacion.totalUF requerido" });
     }
 
+    // Validación lógica: leadId no compatible con accountId/contactId
+    if (existing.leadId && (existing.accountId || existing.contactId)) {
+      return sendJson(res, 400, {
+        ok: false,
+        error: "existing.leadId no puede venir junto con existing.accountId o existing.contactId",
+      });
+    }
+
     const config = getAcceptanceConfig(req);
     const sectorParaZoho = validarSector(cliente.sectorEmpresa);
 
-    // 1) Account
-    stage = "create_account";
-    const accountResult = await createRecord("Accounts", {
-      Account_Name: cliente.empresa,
-      Phone: cliente.contactoTelefono || undefined,
-      Description: `Cuenta creada por Vicky (WhatsApp). RUT: ${cliente.rutEmpresa}`,
-      // Layout-required defaults
-      Industry: sectorParaZoho,
-      Territorio: VICKY_TERRITORIO,
-      N_Empleados_dependientes: cliente.userCount,
-      Tiene_potencial_de_expansi_n_Regional: VICKY_EXPANSION_REGIONAL,
-    }, true);
-    const accountId = toText(accountResult?.id);
-    if (!accountId) throw new Error("No se obtuvo accountId");
+    let accountId, contactId, dealId;
+    const reuse = { accountReused: false, contactReused: false, leadConverted: false };
 
-    // 2) Contact
-    stage = "create_contact";
-    const { firstName, lastName } = splitFullName(cliente.contacto);
-    const contactResult = await createRecord("Contacts", {
-      First_Name: firstName,
-      Last_Name: lastName,
-      Email: cliente.contactoEmail,
-      Phone: cliente.contactoTelefono || undefined,
-      Account_Name: { id: accountId },
-      Lead_Source: VICKY_LEAD_SOURCE,
-      // Layout-required defaults
-      Territorio: VICKY_TERRITORIO,
-    }, true);
-    const contactId = toText(contactResult?.id);
-    if (!contactId) throw new Error("No se obtuvo contactId");
+    // ── CAMINO A: Convertir Lead existente ──
+    if (existing.leadId) {
+      stage = "convert_lead";
+      const dealDataForConvert = {
+        Deal_Name: `${cliente.empresa} - Cotización Vicky`,
+        Stage: VICKY_DEAL_STAGE,
+        Pipeline: "Standard (Standard)",
+        Closing_Date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        Amount: cotizacion.totalCLP || undefined,
+      };
+      const convertResult = await convertLead(existing.leadId, dealDataForConvert);
+      accountId = convertResult.accountId;
+      contactId = convertResult.contactId;
+      dealId = convertResult.dealId;
+      reuse.leadConverted = true;
 
-    // 3) Deal
-    stage = "create_deal";
-    const dealResult = await createRecord("Deals", {
-      Deal_Name: `${cliente.empresa} - Cotización Vicky`,
-      Account_Name: { id: accountId },
-      Contact_Name: { id: contactId },
-      Stage: VICKY_DEAL_STAGE,
-      Pipeline: "Standard (Standard)",
-      Lead_Source: VICKY_LEAD_SOURCE,
-      Amount: cotizacion.totalCLP || undefined,
-      Description: `Deal creado por Vicky para cotización WhatsApp.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP\nSector: ${sectorParaZoho}`,
-      // Layout-required defaults
-      Territorio: VICKY_TERRITORIO,
-      Tombola: VICKY_TOMBOLA,
-      Monda_del_trato: VICKY_MONEDA,
-      Sector: sectorParaZoho,
-      N_Empleados_que_marcan: cliente.userCount,
-      Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
-    }, true);
-    const dealId = toText(dealResult?.id);
-    if (!dealId) throw new Error("No se obtuvo dealId");
+      if (!accountId || !contactId || !dealId) {
+        throw new Error("Conversión de Lead no devolvió todos los IDs");
+      }
 
-    // 4) Quote (Cotización)
+      // Datos nuevos ganan: actualizar Account, Contact y Deal con los datos del prospect
+      stage = "update_account_after_convert";
+      await updateRecord("Accounts", accountId, buildAccountUpdatePayload(cliente, sectorParaZoho), true);
+
+      stage = "update_contact_after_convert";
+      await updateRecord("Contacts", contactId, buildContactUpdatePayload(cliente), true);
+
+      stage = "update_deal_after_convert";
+      await updateRecord("Deals", dealId, {
+        Territorio: VICKY_TERRITORIO,
+        Tombola: VICKY_TOMBOLA,
+        Monda_del_trato: VICKY_MONEDA,
+        Sector: sectorParaZoho,
+        N_Empleados_que_marcan: cliente.userCount,
+        Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
+        Lead_Source: VICKY_LEAD_SOURCE,
+        Description: `Deal creado por Vicky desde Lead convertido.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP\nSector: ${sectorParaZoho}`,
+      }, true);
+
+    } else {
+      // ── CAMINO B: Crear Account o reusar existente ──
+      if (existing.accountId) {
+        stage = "update_existing_account";
+        await updateRecord("Accounts", existing.accountId, buildAccountUpdatePayload(cliente, sectorParaZoho), true);
+        accountId = existing.accountId;
+        reuse.accountReused = true;
+      } else {
+        stage = "create_account";
+        const accountResult = await createRecord("Accounts", {
+          Account_Name: cliente.empresa,
+          RUT_Empresa: cliente.rutEmpresa,
+          Phone: cliente.contactoTelefono || undefined,
+          Description: `Cuenta creada por Vicky (WhatsApp). RUT: ${cliente.rutEmpresa}`,
+          Industry: sectorParaZoho,
+          Territorio: VICKY_TERRITORIO,
+          N_Empleados_dependientes: cliente.userCount,
+          Tiene_potencial_de_expansi_n_Regional: VICKY_EXPANSION_REGIONAL,
+        }, true);
+        accountId = toText(accountResult?.id);
+        if (!accountId) throw new Error("No se obtuvo accountId");
+      }
+
+      // Crear Contact o reusar existente
+      if (existing.contactId) {
+        stage = "update_existing_contact";
+        await updateRecord("Contacts", existing.contactId, buildContactUpdatePayload(cliente), true);
+        contactId = existing.contactId;
+        reuse.contactReused = true;
+      } else {
+        stage = "create_contact";
+        const { firstName, lastName } = splitFullName(cliente.contacto);
+        const contactResult = await createRecord("Contacts", {
+          First_Name: firstName,
+          Last_Name: lastName,
+          Email: cliente.contactoEmail,
+          Phone: cliente.contactoTelefono || undefined,
+          Account_Name: { id: accountId },
+          Lead_Source: VICKY_LEAD_SOURCE,
+          Territorio: VICKY_TERRITORIO,
+        }, true);
+        contactId = toText(contactResult?.id);
+        if (!contactId) throw new Error("No se obtuvo contactId");
+      }
+
+      // Deal SIEMPRE se crea nuevo (cada cotización es un Deal distinto)
+      stage = "create_deal";
+      const dealResult = await createRecord("Deals", {
+        Deal_Name: `${cliente.empresa} - Cotización Vicky`,
+        Account_Name: { id: accountId },
+        Contact_Name: { id: contactId },
+        Stage: VICKY_DEAL_STAGE,
+        Pipeline: "Standard (Standard)",
+        Lead_Source: VICKY_LEAD_SOURCE,
+        Amount: cotizacion.totalCLP || undefined,
+        Description: `Deal creado por Vicky para cotización WhatsApp.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP\nSector: ${sectorParaZoho}`,
+        Territorio: VICKY_TERRITORIO,
+        Tombola: VICKY_TOMBOLA,
+        Monda_del_trato: VICKY_MONEDA,
+        Sector: sectorParaZoho,
+        N_Empleados_que_marcan: cliente.userCount,
+        Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
+      }, true);
+      dealId = toText(dealResult?.id);
+      if (!dealId) throw new Error("No se obtuvo dealId");
+    }
+
+    // ── Cotización (siempre nueva) ──
     stage = "create_quote";
     const quoteFields = {
       Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
@@ -260,7 +362,7 @@ module.exports = async function handler(req, res) {
     const quoteId = toText(quoteResult?.id);
     if (!quoteId) throw new Error("No se obtuvo quoteId");
 
-    // 5) acceptanceUrl
+    // ── acceptanceUrl ──
     stage = "build_acceptance_url";
     const expMs = Date.now() + config.validityDays * 24 * 60 * 60 * 1000;
     const token = signAcceptancePayload({
@@ -271,7 +373,7 @@ module.exports = async function handler(req, res) {
     });
     const acceptanceUrl = `${config.baseUrl}/quote-acceptance.html?token=${encodeURIComponent(token)}`;
 
-    // 6) Generar PDF con PDFShift
+    // ── PDF ──
     stage = "render_pdf";
     const html = buildProposalHtml({
       cliente: { ...cliente, ejecutivo: VICKY_EJECUTIVO_NAME },
@@ -284,7 +386,6 @@ module.exports = async function handler(req, res) {
       margin: "0",
     });
 
-    // 7) Subir PDF a Supabase
     stage = "upload_pdf";
     const { pdfUrl } = await uploadPdfToSupabase({
       pdfBuffer,
@@ -292,7 +393,6 @@ module.exports = async function handler(req, res) {
       empresa: cliente.empresa,
     });
 
-    // 8) Update Quote con URLs
     stage = "update_quote_urls";
     await updateRecord(config.quoteModule, quoteId, {
       [config.quoteAcceptanceUrlField]: acceptanceUrl,
@@ -300,7 +400,7 @@ module.exports = async function handler(req, res) {
       [config.quoteStatusField]: "Enviada",
     }, true);
 
-    // 9) Enviar email (no bloqueante: si falla, sigue)
+    // Email (no bloqueante)
     stage = "send_email";
     try {
       await sendQuoteEmailViaZoho({
@@ -329,6 +429,7 @@ module.exports = async function handler(req, res) {
       acceptanceUrl,
       pdfUrl,
       sectorAplicado: sectorParaZoho,
+      reuse,
       expiresAt: new Date(expMs).toISOString(),
     });
 
