@@ -233,6 +233,85 @@ function isInvalidIdError(error) {
   );
 }
 
+/**
+ * Detecta si un error de Zoho es por "duplicate data". Esto pasa cuando el
+ * createRecord falla porque ya existe un registro con un campo único
+ * (típicamente RUT_Empresa en Accounts).
+ *
+ * Cuando esto ocurre, intentamos encontrar el registro existente y reusarlo
+ * con update conservador (Capa 3).
+ */
+function isDuplicateDataError(error) {
+  if (!error) return false;
+  const message = String(error.message || error || "").toLowerCase();
+  return (
+    message.includes("duplicate data") ||
+    message.includes("duplicate_data")
+  );
+}
+
+// ── Generador de variantes RUT (espejo de lib/zoho-search.ts en Vicky) ──
+//
+// Para "18.435.922-7" genera: ["18.435.922-7", "184359227", "18435922-7"].
+// Necesitamos múltiples variantes porque distintos registros en Zoho pueden
+// tener distintos formatos del mismo RUT.
+function getRutVariants(rut) {
+  if (!rut) return [];
+  const raw = String(rut).trim();
+  if (!raw) return [];
+  const compact = raw.replace(/[.\s-]/g, "").toUpperCase();
+  if (compact.length < 2) return [raw];
+  const cuerpo = compact.slice(0, -1);
+  const dv = compact.slice(-1);
+  const cuerpoConPuntos = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return Array.from(new Set([
+    raw,
+    compact,
+    `${cuerpo}-${dv}`,
+    `${cuerpoConPuntos}-${dv}`,
+  ])).filter(Boolean);
+}
+
+// ── Búsqueda en Zoho (sólo para Capa 3, no para flujo normal) ──
+async function executeCoqlQuery(selectQuery) {
+  try {
+    const response = await zohoApiFetch("/crm/v3/coql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ select_query: selectQuery }),
+    });
+    if (response.status === 204) return [];
+    const text = await response.text();
+    if (!response.ok) {
+      console.warn(`[executeCoqlQuery] error ${response.status}: ${text.slice(0, 150)}`);
+      return [];
+    }
+    const parsed = JSON.parse(text);
+    return parsed?.data || [];
+  } catch (err) {
+    console.warn(`[executeCoqlQuery] excepción: ${err.message?.slice(0, 150)}`);
+    return [];
+  }
+}
+
+async function findAccountIdByRut(rutEmpresa) {
+  const variants = getRutVariants(rutEmpresa);
+  if (variants.length === 0) return null;
+  const escaped = variants.map((v) => `'${v.replace(/'/g, "''")}'`).join(",");
+  const query = `select id from Accounts where RUT_Empresa in (${escaped}) limit 1`;
+  const rows = await executeCoqlQuery(query);
+  return toText(rows[0]?.id) || null;
+}
+
+async function findContactIdByEmail(email) {
+  if (!email) return null;
+  const emailNorm = String(email).trim().toLowerCase();
+  if (!emailNorm) return null;
+  const query = `select id from Contacts where Email = '${emailNorm.replace(/'/g, "''")}' limit 1`;
+  const rows = await executeCoqlQuery(query);
+  return toText(rows[0]?.id) || null;
+}
+
 // ── Mapeos para el subform Detalle_Items_Cotizacion ──
 //
 // El picklist Modalidad en Zoho tiene `display_value` distinto del `reference_value`
@@ -456,7 +535,7 @@ module.exports = async function handler(req, res) {
 
       if (needCreateAccount) {
         stage = "create_account";
-        const accountResult = await createRecord("Accounts", {
+        const createAccountPayload = {
           Account_Name: cliente.empresa,
           RUT_Empresa: cliente.rutEmpresa,
           Phone: cliente.contactoTelefono || undefined,
@@ -465,9 +544,39 @@ module.exports = async function handler(req, res) {
           Territorio: VICKY_TERRITORIO,
           N_Empleados_dependientes: cliente.userCount,
           Tiene_potencial_de_expansi_n_Regional: VICKY_EXPANSION_REGIONAL,
-        }, true);
-        accountId = toText(accountResult?.id);
-        if (!accountId) throw new Error("No se obtuvo accountId");
+        };
+        try {
+          const accountResult = await createRecord("Accounts", createAccountPayload, true);
+          accountId = toText(accountResult?.id);
+          if (!accountId) throw new Error("No se obtuvo accountId");
+        } catch (createError) {
+          if (!isDuplicateDataError(createError)) throw createError;
+          // ── Capa 3: dedupe por RUT ──
+          // El LLM olvidó pasar accountId, pero el Account ya existe en Zoho.
+          // Buscamos por RUT y reusamos con update conservador.
+          console.warn(
+            `[create-from-vicky] Capa 3 Account: createRecord falló por duplicate data. Buscando Account existente con RUT="${cliente.rutEmpresa}"...`,
+          );
+          stage = "dedupe_account_by_rut";
+          const existingAccountId = await findAccountIdByRut(cliente.rutEmpresa);
+          if (!existingAccountId) {
+            throw new Error(
+              `Zoho reportó duplicate data pero no se encontró Account con RUT ${cliente.rutEmpresa} (posible inconsistencia o validación distinta)`,
+            );
+          }
+          console.warn(
+            `[create-from-vicky] Capa 3 Account: encontrado existente id=${existingAccountId}. Aplicando update conservador.`,
+          );
+          const fullPayload = buildAccountFullPayload(cliente, sectorParaZoho);
+          const reuseResult = await tryReuseRecord("Accounts", existingAccountId, fullPayload);
+          if (!reuseResult.ok) {
+            throw new Error(
+              `Capa 3: Account duplicado encontrado (id=${existingAccountId}) pero tryReuseRecord falló`,
+            );
+          }
+          accountId = existingAccountId;
+          reuse.accountReused = true;
+        }
       }
 
       // Crear Contact o reusar existente
@@ -488,7 +597,7 @@ module.exports = async function handler(req, res) {
       if (needCreateContact) {
         stage = "create_contact";
         const { firstName, lastName } = splitFullName(cliente.contacto);
-        const contactResult = await createRecord("Contacts", {
+        const createContactPayload = {
           First_Name: firstName,
           Last_Name: lastName,
           Email: cliente.contactoEmail,
@@ -496,9 +605,37 @@ module.exports = async function handler(req, res) {
           Account_Name: { id: accountId },
           Lead_Source: VICKY_LEAD_SOURCE,
           Territorio: VICKY_TERRITORIO,
-        }, true);
-        contactId = toText(contactResult?.id);
-        if (!contactId) throw new Error("No se obtuvo contactId");
+        };
+        try {
+          const contactResult = await createRecord("Contacts", createContactPayload, true);
+          contactId = toText(contactResult?.id);
+          if (!contactId) throw new Error("No se obtuvo contactId");
+        } catch (createError) {
+          if (!isDuplicateDataError(createError)) throw createError;
+          // ── Capa 3: dedupe por Email ──
+          console.warn(
+            `[create-from-vicky] Capa 3 Contact: createRecord falló por duplicate data. Buscando Contact existente con Email="${cliente.contactoEmail}"...`,
+          );
+          stage = "dedupe_contact_by_email";
+          const existingContactId = await findContactIdByEmail(cliente.contactoEmail);
+          if (!existingContactId) {
+            throw new Error(
+              `Zoho reportó duplicate data pero no se encontró Contact con Email ${cliente.contactoEmail}`,
+            );
+          }
+          console.warn(
+            `[create-from-vicky] Capa 3 Contact: encontrado existente id=${existingContactId}. Aplicando update conservador.`,
+          );
+          const fullPayload = buildContactFullPayload(cliente);
+          const reuseResult = await tryReuseRecord("Contacts", existingContactId, fullPayload);
+          if (!reuseResult.ok) {
+            throw new Error(
+              `Capa 3: Contact duplicado encontrado (id=${existingContactId}) pero tryReuseRecord falló`,
+            );
+          }
+          contactId = existingContactId;
+          reuse.contactReused = true;
+        }
       }
 
       // Deal SIEMPRE se crea nuevo (cada cotización es un Deal distinto)
