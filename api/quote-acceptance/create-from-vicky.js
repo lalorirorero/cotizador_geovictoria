@@ -354,6 +354,46 @@ function mapUnidadToZoho(modalidadZoho, tipo) {
   return "Unidad";
 }
 
+// Mapeo de id de hardware (catálogo de Vicky) → modelo real para mostrar
+// en el PDF de la cotización formal.
+//
+// El catálogo de Vicky usa nombres genéricos ("Reloj control físico") para no
+// exponer marcas/modelos en la conversación. Pero el PDF formal sí debe
+// reflejar el modelo concreto. Este diccionario traduce el `id` del item de
+// hardware al string que se escribe en el campo `Descripcion_Item` del
+// subform Detalle_Items_Cotizacion.
+//
+// Cuando se agregue un hardware nuevo al catálogo de Vicky, agregarlo también
+// aquí. Si falta el mapeo, `Descripcion_Item` queda vacío para ese item.
+const HARDWARE_ID_TO_DESCRIPCION = {
+  senseface_2a: "Sense Face 2A",
+  armorpad: "ARMORPAD",
+  ct58: "CT58",
+  in01a_4glan: "IN01-A (4G/LAN)",
+  in01a_lan: "IN01-A (LAN)",
+  in01a_lanwifi: "IN01-A (LAN/WIFI)",
+  mb10vl: "MB10-VL",
+  mb560vl: "MB560-vl",
+  s922: "S922",
+  senseface_3a: "Sense Face 3A",
+  senseface_4a: "Sense Face 4A",
+  senseface_7a: "Sense Face 7A",
+  speedface_v4l: "SpeedFace V4L",
+  speedface_v5l: "SpeedFace V5L",
+  uru4500: "URU4500",
+  x628c: "X628-C",
+};
+
+// Resuelve el contenido de Descripcion_Item para un item del subform.
+// - hardware: modelo real desde el diccionario (vacío si no está mapeado).
+// - módulo:   vacío (el PDF ya muestra Nombre_Item).
+function resolveDescripcionItem(item) {
+  const tipo = String(item.tipo || "").toLowerCase();
+  if (tipo !== "hardware") return "";
+  const id = String(item.id || "").toLowerCase();
+  return HARDWARE_ID_TO_DESCRIPCION[id] || "";
+}
+
 /**
  * Convierte los items que recibimos de Vicky en el formato que espera el
  * subform Detalle_Items_Cotizacion de Zoho.
@@ -375,6 +415,7 @@ function buildSubformItems(items, ufActual) {
     const subtotalCLP = ufActual > 0 ? Math.round(subtotalUF * ufActual) : 0;
     return {
       Nombre_Item: String(item.nombre || ""),
+      Descripcion_Item: resolveDescripcionItem(item),
       Codigo_Item: String(item.id || ""),
       Cantidad: Number(item.cantidad || 0),
       Precio_Unitario_UF: precioUnitarioUF,
