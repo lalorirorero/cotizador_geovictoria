@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { signAcceptancePayload } = require("../_shared/acceptance-token");
-const { createRecord, updateRecord, toText } = require("../_shared/zoho-crm");
+const { createRecord, updateRecord, getRecord, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { zohoApiFetch } = require("../_shared/zoho-auth");
 const { htmlToPdfBuffer } = require("../_shared/pdfshift-client");
@@ -162,10 +162,22 @@ function buildEmailHtml({ contacto, empresa, acceptanceUrl, pdfUrl, ejecutivo })
 </body></html>`;
 }
 
-// ── Constructores de payloads de update (datos nuevos ganan) ──
-function buildAccountUpdatePayload(cliente, sectorParaZoho) {
+// ── Constructores de payloads de update ──
+//
+// IMPORTANTE: Cuando reusamos un Account/Contact existente (porque buscar_prospect
+// encontró match), aplicamos "update conservador": NO sobrescribimos campos que
+// ya tienen valor en Zoho. Solo llenamos campos null/vacíos.
+//
+// Razón: un Account consolidado (sobre todo si match fue por RUT máxima) tiene
+// datos legítimos del equipo comercial. Que Vicky cambie el RUT a un formato
+// diferente, o el Industry, o el Account_Name, es destructivo.
+//
+// El payload completo se construye igual que antes; el filtrado se hace en
+// `applyConservativeUpdate()` que consulta el registro actual y omite los
+// campos donde Zoho ya tiene valor.
+
+function buildAccountFullPayload(cliente, sectorParaZoho) {
   return {
-    // NO sobrescribimos Account_Name (puede tener variaciones legítimas)
     Phone: cliente.contactoTelefono || undefined,
     Industry: sectorParaZoho,
     Territorio: VICKY_TERRITORIO,
@@ -175,7 +187,7 @@ function buildAccountUpdatePayload(cliente, sectorParaZoho) {
   };
 }
 
-function buildContactUpdatePayload(cliente) {
+function buildContactFullPayload(cliente) {
   const { firstName, lastName } = splitFullName(cliente.contacto);
   return {
     First_Name: firstName,
@@ -185,6 +197,150 @@ function buildContactUpdatePayload(cliente) {
     Lead_Source: VICKY_LEAD_SOURCE,
     Territorio: VICKY_TERRITORIO,
   };
+}
+
+/**
+ * Aplica update conservador: solo sobrescribe campos que están vacíos/null
+ * en el registro existente. Mantiene intactos los campos ya consolidados.
+ */
+function buildConservativePayload(fullPayload, existingRecord) {
+  if (!existingRecord) return fullPayload;
+  const conservative = {};
+  for (const [key, newValue] of Object.entries(fullPayload)) {
+    if (newValue === undefined || newValue === null) continue;
+    const currentValue = existingRecord[key];
+    const isEmpty = currentValue === null || currentValue === undefined || currentValue === "";
+    if (isEmpty) {
+      conservative[key] = newValue;
+    }
+  }
+  return conservative;
+}
+
+/**
+ * Detecta si un error de Zoho es por ID inválido. Esos errores deberían
+ * ser tratados como "no existe" en lugar de errores fatales, para hacer
+ * fallback a crear un registro nuevo.
+ */
+function isInvalidIdError(error) {
+  if (!error) return false;
+  const message = String(error.message || error || "").toLowerCase();
+  return (
+    message.includes("id given seems to be invalid") ||
+    message.includes("invalid_data") ||
+    message.includes("invalid id") ||
+    message.includes("the id is invalid")
+  );
+}
+
+// ── Mapeos para el subform Detalle_Items_Cotizacion ──
+//
+// El picklist Modalidad en Zoho tiene `display_value` distinto del `reference_value`
+// que espera la API. Mapeamos lo que Vicky envía a lo que Zoho acepta.
+//
+// Vicky envía:                   Zoho espera (reference_value):
+//   "Por usuario"           →     "Recurrente"   (display "Por usuario")
+//   "Fijo"                  →     "Único"        (display "Fijo")
+//   "Arriendo mensual"      →     "Arriendo"
+//   "Venta única"           →     "Venta"
+function mapModalidadToZoho(modalidadVicky) {
+  const m = String(modalidadVicky || "").toLowerCase().trim();
+  if (m.startsWith("por usuario")) return "Recurrente";
+  if (m.startsWith("fijo")) return "Único";
+  if (m.startsWith("arriendo")) return "Arriendo";
+  if (m.startsWith("venta")) return "Venta";
+  return "Recurrente"; // fallback razonable para módulos
+}
+
+function isItemRecurrente(modalidadZoho) {
+  return modalidadZoho === "Recurrente" || modalidadZoho === "Arriendo";
+}
+
+// Mapea tipo + id del item al picklist Categoria_Item
+function mapCategoriaToZoho(item) {
+  const tipo = String(item.tipo || "").toLowerCase();
+  const id = String(item.id || "").toLowerCase();
+  if (tipo === "hardware") return "Equipos Biometricos";
+  if (id === "asistencia") return "Plataforma Asistencia";
+  // Resto de módulos (vacaciones, banco_horas, alertas, etc.)
+  if (tipo === "modulo") return "Modulos Adicionales";
+  return "Otro";
+}
+
+// Mapea modalidad al picklist Unidad
+function mapUnidadToZoho(modalidadZoho, tipo) {
+  if (tipo === "hardware") return "Dispositivo";
+  if (modalidadZoho === "Recurrente") return "Usuario";
+  if (modalidadZoho === "Único") return "Servicio";
+  return "Unidad";
+}
+
+/**
+ * Convierte los items que recibimos de Vicky en el formato que espera el
+ * subform Detalle_Items_Cotizacion de Zoho.
+ *
+ * Cada item de Vicky tiene: {tipo, id, nombre, modalidad, cantidad, precioUnitarioUF, subtotalUF}
+ *
+ * El subform de Zoho espera campos: Nombre_Item, Cantidad, Precio_Unitario_UF,
+ * Precio_Unitario_CLP, Subtotal_UF, Subtotal_CLP, Modalidad, Es_Recurrente,
+ * Afecto_IVA, Orden, Codigo_Item, Categoria_Item, Unidad.
+ */
+function buildSubformItems(items, ufActual) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  return items.map((item, index) => {
+    const modalidadZoho = mapModalidadToZoho(item.modalidad);
+    const tipo = String(item.tipo || "").toLowerCase();
+    const precioUnitarioUF = Number(item.precioUnitarioUF || 0);
+    const subtotalUF = Number(item.subtotalUF || 0);
+    const precioUnitarioCLP = ufActual > 0 ? Math.round(precioUnitarioUF * ufActual) : 0;
+    const subtotalCLP = ufActual > 0 ? Math.round(subtotalUF * ufActual) : 0;
+    return {
+      Nombre_Item: String(item.nombre || ""),
+      Codigo_Item: String(item.id || ""),
+      Cantidad: Number(item.cantidad || 0),
+      Precio_Unitario_UF: precioUnitarioUF,
+      Precio_Unitario_CLP: precioUnitarioCLP,
+      Subtotal_UF: subtotalUF,
+      Subtotal_CLP: subtotalCLP,
+      Modalidad: modalidadZoho,
+      Es_Recurrente: isItemRecurrente(modalidadZoho),
+      Afecto_IVA: true,
+      Orden: index + 1,
+      Categoria_Item: mapCategoriaToZoho(item),
+      Unidad: mapUnidadToZoho(modalidadZoho, tipo),
+    };
+  });
+}
+
+/**
+ * Intenta reusar un Account/Contact existente con update conservador.
+ * Si el ID resulta inválido (transcripción errónea, registro borrado, etc.),
+ * retorna { ok: false, invalidId: true } para que el caller haga fallback
+ * a crear un registro nuevo. Cualquier otro error se propaga.
+ */
+async function tryReuseRecord(module, recordId, fullPayload) {
+  try {
+    const existing = await getRecord(module, recordId);
+    if (!existing) {
+      console.warn(`[create-from-vicky] ${module}/${recordId} no existe, fallback a crear nuevo`);
+      return { ok: false, invalidId: true };
+    }
+    const conservativePayload = buildConservativePayload(fullPayload, existing);
+    // Si no hay nada que actualizar, no llamamos updateRecord (evita PUT vacío)
+    if (Object.keys(conservativePayload).length > 0) {
+      await updateRecord(module, recordId, conservativePayload, true);
+    }
+    return { ok: true, recordId };
+  } catch (error) {
+    if (isInvalidIdError(error)) {
+      console.warn(
+        `[create-from-vicky] ${module}/${recordId} reportado como inválido por Zoho, fallback a crear nuevo. Detalle: ${error.message?.slice(0, 150)}`
+      );
+      return { ok: false, invalidId: true };
+    }
+    // Errores no relacionados a ID inválido sí se propagan
+    throw error;
+  }
 }
 
 // ── Handler principal ──
@@ -259,12 +415,14 @@ module.exports = async function handler(req, res) {
         throw new Error("Conversión de Lead no devolvió todos los IDs");
       }
 
-      // Datos nuevos ganan: actualizar Account, Contact y Deal con los datos del prospect
+      // Datos nuevos ganan: actualizar Account, Contact y Deal con los datos del prospect.
+      // En este camino (conversión de Lead) sí queremos que los datos nuevos ganen
+      // porque el Lead era una primera intención desactualizada.
       stage = "update_account_after_convert";
-      await updateRecord("Accounts", accountId, buildAccountUpdatePayload(cliente, sectorParaZoho), true);
+      await updateRecord("Accounts", accountId, buildAccountFullPayload(cliente, sectorParaZoho), true);
 
       stage = "update_contact_after_convert";
-      await updateRecord("Contacts", contactId, buildContactUpdatePayload(cliente), true);
+      await updateRecord("Contacts", contactId, buildContactFullPayload(cliente), true);
 
       stage = "update_deal_after_convert";
       await updateRecord("Deals", dealId, {
@@ -280,12 +438,23 @@ module.exports = async function handler(req, res) {
 
     } else {
       // ── CAMINO B: Crear Account o reusar existente ──
+      let needCreateAccount = !existing.accountId;
+
       if (existing.accountId) {
         stage = "update_existing_account";
-        await updateRecord("Accounts", existing.accountId, buildAccountUpdatePayload(cliente, sectorParaZoho), true);
-        accountId = existing.accountId;
-        reuse.accountReused = true;
-      } else {
+        const accountPayload = buildAccountFullPayload(cliente, sectorParaZoho);
+        const reuseResult = await tryReuseRecord("Accounts", existing.accountId, accountPayload);
+        if (reuseResult.ok) {
+          accountId = reuseResult.recordId;
+          reuse.accountReused = true;
+        } else if (reuseResult.invalidId) {
+          // Fallback: el ID no era válido (transcripción errónea o registro borrado).
+          // Creamos un Account nuevo como si no hubiera venido existing.accountId.
+          needCreateAccount = true;
+        }
+      }
+
+      if (needCreateAccount) {
         stage = "create_account";
         const accountResult = await createRecord("Accounts", {
           Account_Name: cliente.empresa,
@@ -302,12 +471,21 @@ module.exports = async function handler(req, res) {
       }
 
       // Crear Contact o reusar existente
+      let needCreateContact = !existing.contactId;
+
       if (existing.contactId) {
         stage = "update_existing_contact";
-        await updateRecord("Contacts", existing.contactId, buildContactUpdatePayload(cliente), true);
-        contactId = existing.contactId;
-        reuse.contactReused = true;
-      } else {
+        const contactPayload = buildContactFullPayload(cliente);
+        const reuseResult = await tryReuseRecord("Contacts", existing.contactId, contactPayload);
+        if (reuseResult.ok) {
+          contactId = reuseResult.recordId;
+          reuse.contactReused = true;
+        } else if (reuseResult.invalidId) {
+          needCreateContact = true;
+        }
+      }
+
+      if (needCreateContact) {
         stage = "create_contact";
         const { firstName, lastName } = splitFullName(cliente.contacto);
         const contactResult = await createRecord("Contacts", {
@@ -347,6 +525,9 @@ module.exports = async function handler(req, res) {
 
     // ── Cotización (siempre nueva) ──
     stage = "create_quote";
+    const ufActual = Number(cotizacion.ufActual || 0);
+    const subformItems = buildSubformItems(cotizacion.items, ufActual);
+
     const quoteFields = {
       Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
       [config.quoteDealLookupField]: { id: dealId },
@@ -357,6 +538,10 @@ module.exports = async function handler(req, res) {
       [config.contactEmailField]: cliente.contactoEmail,
       [config.contactPhoneField]: cliente.contactoTelefono || undefined,
       [config.companyRutField]: cliente.rutEmpresa,
+      // Subform con el detalle de items. La página de aceptación (session.js)
+      // lee de aquí y calcula los totales en runtime. Si está vacío, todos los
+      // valores se muestran como "-".
+      [config.quoteItemsSubformField]: subformItems,
     };
     const quoteResult = await createRecord(config.quoteModule, quoteFields, true);
     const quoteId = toText(quoteResult?.id);
