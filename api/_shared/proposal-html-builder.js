@@ -246,10 +246,17 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId })
   });
 
   // ── PAGE 2: Summary items ──
+  // Para servicios mostramos la cantidad real de usuarios del cliente (no
+  // `s.cantidad`, que vale 1 cuando el módulo es de tarifa fija). Si el módulo
+  // es "Por usuario" igual cuadra porque Vicky envía cantidad = userCount.
+  // Para "Fijo" agregamos la nota "tarifa fija" para evitar confusión.
+  const userCount = Number(cliente.userCount) || 0;
   let sumRecItems = "";
   let sumNRItems = "";
   servicios.forEach(s => {
-    sumRecItems += "<li>" + escapeHtml(s.nombre) + " (" + s.cantidad + " usuarios)</li>";
+    const usuarios = userCount || s.cantidad || 0;
+    const tarifaInfo = s.tipo === "Fijo" ? ", tarifa fija" : "";
+    sumRecItems += "<li>" + escapeHtml(s.nombre) + " (" + usuarios + " usuarios" + tarifaInfo + ")</li>";
   });
   equipos.forEach(e => {
     if (e.tipo === "Arriendo") {
