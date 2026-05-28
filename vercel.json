@@ -2,7 +2,7 @@
   "routes": [
     {
       "src": "^/pdf/([^/]+)/([^/]+)$",
-      "dest": "https://zsmmbrdasrcwkelnxsre.supabase.co/storage/v1/object/public/cotizaciones-pdf/$1/$2"
+      "dest": "https://vuuulrnvxuewudypoioi.supabase.co/storage/v1/object/public/cotizaciones-pdf/$1/$2"
     },
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "handle": "filesystem" },
