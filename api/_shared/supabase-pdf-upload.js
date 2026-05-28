@@ -1,10 +1,18 @@
 /**
  * Sube un PDF buffer a Supabase Storage y devuelve la URL pública.
- * Replica el patrón de api/quotes/upload-pdf.js existente, pero para uso server-side.
+ *
+ * IMPORTANTE: la URL devuelta NO apunta directamente a Supabase, sino al dominio
+ * Vercel de la cotizadora (default https://cotizacion.geovictoria.com), gracias
+ * al rewrite configurado en vercel.json que mapea /pdf/<quoteId>/<filename>
+ * hacia el storage público de Supabase.
+ *
+ * Esto oculta totalmente el dominio Supabase de cara al cliente y mantiene la
+ * URL del PDF con el branding de GeoVictoria.
  */
 
 const DEFAULT_BUCKET = "cotizaciones-pdf";
 const DEFAULT_MAX_BYTES = 12 * 1024 * 1024; // 12MB
+const DEFAULT_PUBLIC_BASE = "https://cotizacion.geovictoria.com";
 
 function sanitizeFileName(name) {
   return String(name || "cotizacion.pdf")
@@ -50,12 +58,15 @@ async function ensureBucketExists({ supabaseUrl, serviceRoleKey, bucket, maxByte
  * @param {string} params.quoteId - ID del Quote (usado en el path)
  * @param {string} params.empresa - Nombre de empresa (usado en filename)
  * @returns {Promise<{pdfUrl: string, objectPath: string}>}
+ *   pdfUrl: URL pública con dominio Vercel (ej: https://cotizacion.geovictoria.com/pdf/abc123/cotizacion_xxx.pdf)
+ *   objectPath: ruta dentro del bucket Supabase (ej: abc123/cotizacion_xxx.pdf)
  */
 async function uploadPdfToSupabase({ pdfBuffer, quoteId, empresa }) {
   const supabaseUrl = String(process.env.SUPABASE_URL || "").trim();
   const serviceRoleKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
   const bucket = String(process.env.QUOTES_PDF_BUCKET || DEFAULT_BUCKET).trim();
   const maxBytes = Number(process.env.QUOTES_PDF_MAX_BYTES || DEFAULT_MAX_BYTES);
+  const publicBase = String(process.env.PDF_PUBLIC_BASE || DEFAULT_PUBLIC_BASE).trim().replace(/\/+$/, "");
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
@@ -92,7 +103,11 @@ async function uploadPdfToSupabase({ pdfBuffer, quoteId, empresa }) {
     throw new Error(`Supabase upload failed (${uploadResp.status}): ${detail.slice(0, 300)}`);
   }
 
-  const pdfUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${objectPath}`;
+  // URL pública servida por el rewrite de Vercel en vercel.json
+  // El rewrite /pdf/<quoteId>/<filename> apunta internamente a:
+  //   ${SUPABASE_URL}/storage/v1/object/public/${bucket}/<quoteId>/<filename>
+  const pdfUrl = `${publicBase}/pdf/${objectPath}`;
+
   return { pdfUrl, objectPath };
 }
 
