@@ -330,12 +330,24 @@ async function findContactIdByEmail(email) {
 //   "Fijo"                  →     "Único"        (display "Fijo")
 //   "Arriendo mensual"      →     "Arriendo"
 //   "Venta única"           →     "Venta"
+//   "Cobro único"           →     "Venta"        (instalación y otros servicios no recurrentes)
+//
+// IMPORTANTE sobre el picklist "Único" en Zoho: NO significa "pago único". Es el
+// reference_value que corresponde al display "Fijo" (tarifa fija mensual). Por
+// eso los servicios de pago único (como instalación) van a "Venta", que es el
+// único picklist no recurrente disponible.
 function mapModalidadToZoho(modalidadVicky) {
   const m = String(modalidadVicky || "").toLowerCase().trim();
   if (m.startsWith("por usuario")) return "Recurrente";
   if (m.startsWith("fijo")) return "Único";
   if (m.startsWith("arriendo")) return "Arriendo";
   if (m.startsWith("venta")) return "Venta";
+  // Cualquier variante de pago único (cobro único, pago único, etc.) que no
+  // sea explícitamente una venta de equipos: mapea a "Venta" para que quede
+  // clasificada como no recurrente.
+  if (m.includes("único") || m.includes("unico") || m.includes("única") || m.includes("unica")) {
+    return "Venta";
+  }
   return "Recurrente"; // fallback razonable para módulos
 }
 
