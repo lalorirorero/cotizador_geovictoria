@@ -38,8 +38,24 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
+// Formato para UF (regla unificada acordada con Rodrigo):
+//   - Hasta 2 decimales (redondeo).
+//   - Si queda entero, sin decimales.
+//   - Sin ceros trailing innecesarios.
+//   - Coma decimal (formato chileno) y separador de miles.
+// Ej: 5 → "5"; 0.07 → "0,07"; 0.35 → "0,35"; 3.5 → "3,5"; 0.7315 → "0,73".
 function formatUF(value) {
-  return Number(value || 0).toFixed(3);
+  const n = Number(value || 0);
+  const rounded = Math.round(n * 100) / 100;
+  if (Number.isInteger(rounded)) {
+    return rounded.toLocaleString("es-CL");
+  }
+  // Hasta 2 decimales, eliminar ceros trailing, formato chileno.
+  const fixed = rounded.toFixed(2);
+  const [entero, dec] = fixed.split(".");
+  const enteroCL = Number(entero).toLocaleString("es-CL");
+  const decTrimmed = dec.replace(/0+$/, "");
+  return decTrimmed ? `${enteroCL},${decTrimmed}` : enteroCL;
 }
 
 function formatCLP(value) {
