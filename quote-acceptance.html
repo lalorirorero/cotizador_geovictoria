@@ -1755,8 +1755,29 @@
         );
       }
 
+      // Formato para UF (regla unificada acordada con Rodrigo):
+      //   - Hasta 2 decimales (redondeo).
+      //   - Si queda entero, sin decimales.
+      //   - Sin ceros trailing innecesarios.
+      //   - Coma decimal (formato chileno) y separador de miles.
       function fmtUF(value) {
-        return Number(value || 0).toFixed(3) + " UF";
+        const n = Number(value || 0);
+        const rounded = Math.round(n * 100) / 100;
+        let display;
+        if (Number.isInteger(rounded)) {
+          display = rounded.toLocaleString("es-CL");
+        } else {
+          const fixed = rounded.toFixed(2);
+          const [entero, dec] = fixed.split(".");
+          const enteroCL = Number(entero).toLocaleString("es-CL");
+          const decTrimmed = dec.replace(/0+$/, "");
+          display = decTrimmed ? `${enteroCL},${decTrimmed}` : enteroCL;
+        }
+        return display + " UF";
+      }
+      // Versión sin el sufijo " UF" para componer strings manualmente.
+      function fmtUFRaw(value) {
+        return fmtUF(value).replace(/\s*UF$/, "");
       }
 
       const ASISTENCIA_PRICING_TIERS = [
@@ -1781,8 +1802,8 @@
 
       function formatTierPrice(tier) {
         if (!tier) return "-";
-        if (tier.type === "fijo") return `${Number(tier.uf).toFixed(3)} UF (Fijo)`;
-        return `${Number(tier.uf).toFixed(3)} UF/usuario`;
+        if (tier.type === "fijo") return `${fmtUFRaw(tier.uf)} UF (Fijo)`;
+        return `${fmtUFRaw(tier.uf)} UF/usuario`;
       }
 
       function renderAsistenciaPricingTable() {
@@ -1819,12 +1840,12 @@
         const modalidad = String(row?.modalidad || "");
         const value = Number(row?.precioUnitarioUf || 0);
         if (modalidad === "fijo" || modalidad === "Fijo") {
-          return "Fijo: " + value.toFixed(3) + " UF";
+          return "Fijo: " + fmtUFRaw(value) + " UF";
         }
         if (modalidad === "por usuario" || modalidad === "Por usuario") {
-          return value.toFixed(3) + " UF/u";
+          return fmtUFRaw(value) + " UF/u";
         }
-        return value.toFixed(3) + " UF";
+        return fmtUFRaw(value) + " UF";
       }
 
       function formatCLPReferenceNote(q, totals) {
