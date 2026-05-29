@@ -240,13 +240,21 @@ function isInvalidIdError(error) {
  *
  * Cuando esto ocurre, intentamos encontrar el registro existente y reusarlo
  * con update conservador (Capa 3).
+ *
+ * Nota sobre "multiple errors": cuando un Account nuevo tiene 2+ campos
+ * UNIQUE duplicados a la vez (típicamente Account_Name + RUT_Empresa
+ * para el mismo cliente que ya cotizó antes), Zoho agrupa los errores y
+ * devuelve "Multiple errors in the request" en lugar de "duplicate data".
+ * Lo tratamos igual: intentamos dedup por RUT y, si no encontramos match,
+ * el código aguas abajo lanza un error claro.
  */
 function isDuplicateDataError(error) {
   if (!error) return false;
   const message = String(error.message || error || "").toLowerCase();
   return (
     message.includes("duplicate data") ||
-    message.includes("duplicate_data")
+    message.includes("duplicate_data") ||
+    message.includes("multiple errors")
   );
 }
 
