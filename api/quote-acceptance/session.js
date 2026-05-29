@@ -31,17 +31,6 @@ function isRecurrentModalidad(value) {
   if (!modalidad) return true;
   if (modalidad.includes("venta")) return false;
   if (modalidad.includes("no recurrente")) return false;
-  // Capturar variantes de "único"/"unico" (con y sin acento, m/f) usados en
-  // modalidades de pago único como "Cobro único" (Vicky lo envía así para
-  // instalaciones), "Pago único", "Venta única", etc.
-  if (
-    modalidad.includes("único") ||
-    modalidad.includes("única") ||
-    modalidad.includes("unico") ||
-    modalidad.includes("unica")
-  ) {
-    return false;
-  }
   return true;
 }
 
