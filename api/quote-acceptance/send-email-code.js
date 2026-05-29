@@ -202,6 +202,13 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     const detailMessage = `${stage}: ${toText(error?.message || error)}`;
+    // Log explícito para que el detalle quede registrado en runtime logs de
+    // Vercel cuando el endpoint devuelve 502 (sin esto solo se ve el status
+    // code sin contexto).
+    console.error("[send-email-code]", detailMessage, {
+      errorCode: toText(error?.code),
+      stack: toText(error?.stack).split("\n").slice(0, 3).join(" | "),
+    });
     const isExpired = toText(error?.code) === "TOKEN_EXPIRED";
     sendJson(res, isExpired ? 410 : 502, {
       success: false,
