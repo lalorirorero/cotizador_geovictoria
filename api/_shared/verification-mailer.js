@@ -155,7 +155,6 @@ async function sendViaZohoCrm({ quoteModule, quoteId, quoteDealLookupField, toEm
             email: toEmail,
           },
         ],
-        org_email: true,
         subject,
         content: html,
         mail_format: "html",
