@@ -763,6 +763,7 @@ module.exports = async function handler(req, res) {
       cotizacion,
       acceptanceUrl,
       cotizacionId: quoteId.slice(-8).toUpperCase(),
+      validezHasta: new Date(expMs).toISOString(),
     });
     const pdfBuffer = await htmlToPdfBuffer(html, {
       format: "Letter",
