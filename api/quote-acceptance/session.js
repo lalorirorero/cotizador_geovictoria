@@ -34,7 +34,13 @@ function isRecurrentModalidad(value) {
   return true;
 }
 
-function computeTotals(items) {
+function clampDescuentoPct(value) {
+  const n = Math.round(Number(value || 0));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(0, Math.min(30, Math.round(n / 5) * 5));
+}
+
+function computeTotals(items, descuentoPct = 0) {
   const rows = Array.isArray(items) ? items : [];
   const subtotalUf = sumBy(rows, "subtotalUf");
   const subtotalClp = sumBy(rows, "subtotalClp");
@@ -64,6 +70,11 @@ function computeTotals(items) {
     }
   });
 
+  const pct = clampDescuentoPct(descuentoPct);
+  const factor = 1 - pct / 100;
+  const recurrenteUfConDescuento = Number((recurrenteUf * factor).toFixed(3));
+  const recurrenteClpConDescuento = Math.round(recurrenteClp * factor);
+
   return {
     subtotalUf: Number(subtotalUf.toFixed(3)),
     subtotalClp: Math.round(subtotalClp),
@@ -75,6 +86,12 @@ function computeTotals(items) {
     recurrenteClp: Math.round(recurrenteClp),
     noRecurrenteUf: Number(noRecurrenteUf.toFixed(3)),
     noRecurrenteClp: Math.round(noRecurrenteClp),
+    // Descuento (solo recurrente). pct=0 => sin descuento; los "con descuento" igualan al recurrente.
+    descuentoPct: pct,
+    recurrenteUfConDescuento,
+    recurrenteClpConDescuento,
+    descuentoRecurrenteUf: Number((recurrenteUf - recurrenteUfConDescuento).toFixed(3)),
+    descuentoRecurrenteClp: Math.round(recurrenteClp) - recurrenteClpConDescuento,
   };
 }
 
@@ -184,6 +201,7 @@ export default async function handler(req, res) {
       afectoIva: "Afecto_IVA",
     };
     const items = sanitizeItems(quote?.[config.quoteItemsSubformField], fieldMap);
+    const descuentoPct = clampDescuentoPct(quote?.[config.quoteDiscountPctField]);
 
     sendJson(res, 200, {
       success: true,
@@ -243,7 +261,7 @@ export default async function handler(req, res) {
         supportEmail: config.supportContactEmail,
       },
       items,
-      totals: computeTotals(items),
+      totals: computeTotals(items, descuentoPct),
     });
   } catch (error) {
     const isExpired = toText(error?.code) === "TOKEN_EXPIRED";
