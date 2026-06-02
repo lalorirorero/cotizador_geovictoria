@@ -1,29 +1,26 @@
 /**
- * Construye el HTML de la propuesta (cotización) server-side.
+ * Construye el HTML de la cotización (one-pager) server-side.
  *
- * Port del `buildProposalHTML` del cliente (index.html) — genera el mismo
- * HTML de 4 páginas (Cover, Resumen, Detalle, T&C+Firma) que se descarga
- * desde la cotizadora interactiva, pero ejecutado server-side para que
- * PDFShift (Chromium headless) lo renderice como PDF profesional.
+ * Reemplaza la versión de 4 páginas por una cotización de UNA sola página,
+ * alineada al estilo gráfico de GeoVictoria. PDFShift (Chromium headless) la
+ * renderiza como PDF profesional.
  *
- * Mantiene la interfaz pública intacta:
+ * Interfaz pública intacta — el caller (create-from-vicky) no cambia:
  *   buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId })
  *
- * Internamente adapta el formato de Vicky (`cotizacion.items` con tipos
- * modulo/hardware/servicio) al formato del builder original (servicios,
- * equipos, accesorios, serviciosAsoc) — el caller no cambia.
+ * Mapeo de datos:
+ *   - cliente: empresa, contacto, rutEmpresa, ejecutivo (+ email/teléfono).
+ *   - cotizacion.items (tipo modulo/hardware/servicio) → filas con modalidad
+ *     normalizada a 3 valores: "Pago mensual" / "Pago único" / "Sin costo".
+ *   - cotizacion.ufActual: UF del día para convertir UF → CLP.
+ *   - Totales separados: Recurrente (mensual) vs Pago único.
+ *   - Línea fija de Capacitación online sin costo en TODAS las cotizaciones.
  */
 
-const {
-  PROPOSAL_INTRO,
-  PROPOSAL_BENEFICIOS,
-  PROPOSAL_TYC,
-  SERVICIOS_GRATIS,
-  PRICING_TIERS,
-  LOGO_BLANCO_SVG,
-  LOGO_ORIGINAL_SVG,
-  ISO_ORIGINAL_SVG,
-} = require("./proposal-constants");
+const { LOGO_ORIGINAL_SVG } = require("./proposal-constants");
+
+// Ventana de validez de la cotización (días).
+const VALIDEZ_DIAS = 30;
 
 // ───────────────────────────────────────────────────────────────────────────
 // Helpers de formato
@@ -38,54 +35,33 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
-// Formato para UF (regla unificada acordada con Rodrigo):
-//   - Hasta 2 decimales (redondeo).
-//   - Si queda entero, sin decimales.
-//   - Sin ceros trailing innecesarios.
-//   - Coma decimal (formato chileno) y separador de miles.
-// Ej: 5 → "5"; 0.07 → "0,07"; 0.35 → "0,35"; 3.5 → "3,5"; 0.7315 → "0,73".
-function formatUF(value) {
-  const n = Number(value || 0);
-  const rounded = Math.round(n * 100) / 100;
-  if (Number.isInteger(rounded)) {
-    return rounded.toLocaleString("es-CL");
-  }
-  // Hasta 2 decimales, eliminar ceros trailing, formato chileno.
-  const fixed = rounded.toFixed(2);
-  const [entero, dec] = fixed.split(".");
-  const enteroCL = Number(entero).toLocaleString("es-CL");
-  const decTrimmed = dec.replace(/0+$/, "");
-  return decTrimmed ? `${enteroCL},${decTrimmed}` : enteroCL;
-}
-
 function formatCLP(value) {
   return "$" + Math.round(Number(value || 0)).toLocaleString("es-CL");
 }
 
-function formatFechaLarga(date = new Date()) {
-  return date.toLocaleDateString("es-CL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+// UF: hasta 2 decimales, sin ceros trailing, coma decimal (formato chileno).
+function formatUF(value) {
+  const n = Number(value || 0);
+  const r = Math.round(n * 100) / 100;
+  if (Number.isInteger(r)) return r.toLocaleString("es-CL");
+  const [e, d] = r.toFixed(2).split(".");
+  const ec = Number(e).toLocaleString("es-CL");
+  const dt = d.replace(/0+$/, "");
+  return dt ? `${ec},${dt}` : ec;
+}
+
+function formatFechaCorta(date) {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${date.getFullYear()}`;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Adaptador Vicky → formato del builder cliente
+// Adaptador Vicky → listas tipadas
+//   tipo "modulo"   → servicios (suscripción mensual)
+//   tipo "hardware" → equipos   (arriendo recurrente o venta no recurrente)
+//   tipo "servicio" → serviciosAsoc (instalación, no recurrente)
 // ───────────────────────────────────────────────────────────────────────────
-
-/**
- * Convierte la estructura `cotizacion.items` (Vicky) al formato esperado
- * por el builder original (servicios / equipos / accesorios / serviciosAsoc).
- *
- * Vicky envía items con `tipo: "modulo" | "hardware" | "servicio"`. El
- * builder espera 4 listas separadas con campos algo distintos.
- *
- * Mapeo:
- *   tipo "modulo"   → servicios (suscripción mensual)
- *   tipo "hardware" → equipos   (arriendo recurrente o venta no recurrente)
- *   tipo "servicio" → serviciosAsoc (instalación, no recurrente)
- */
 function adaptarItemsVicky(items) {
   const servicios = [];
   const equipos = [];
@@ -99,7 +75,6 @@ function adaptarItemsVicky(items) {
         cantidad: Number(it.cantidad || 1),
         tipo: it.modalidad === "Fijo" ? "Fijo" : "Por usuario",
         precioUnit: Number(it.precioUnitarioUF || 0),
-        descuento: 0,
         subtotalUF: Number(it.subtotalUF || 0),
         rango: it.tierAplicado || "",
       });
@@ -119,12 +94,14 @@ function adaptarItemsVicky(items) {
       const nombreRaw = String(it.nombre || "");
       const zonaMatch = nombreRaw.match(/\(([^)]+)\)\s*$/);
       const zona = zonaMatch ? zonaMatch[1] : "";
-      const nombre = zonaMatch ? nombreRaw.replace(/\s*\([^)]+\)\s*$/, "") : nombreRaw;
+      const nombre = zonaMatch
+        ? nombreRaw.replace(/\s*\([^)]+\)\s*$/, "")
+        : nombreRaw;
       serviciosAsoc.push({
         nombre,
         cantidad: Number(it.cantidad || 1),
         zona,
-        precioUnit: Number(it.precioUnitarioUF || 0),
+        precioUnit: Number(it.precioUnit || it.precioUnitarioUF || 0),
         subtotalUF: Number(it.subtotalUF || 0),
       });
     }
@@ -134,336 +111,301 @@ function adaptarItemsVicky(items) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// CSS (idéntico al del cliente, embebido en cada PDF)
+// Descripciones por tipo de ítem (oferta actual: asistencia + relojes control)
 // ───────────────────────────────────────────────────────────────────────────
+function descServicio(s) {
+  const base =
+    "Marcaje web, app móvil con GPS y biometría. Gestión de turnos, vacaciones y horas extra. Reportería en línea.";
+  return s.rango ? `${base} Tramo ${s.rango}.` : base;
+}
+const DESC_EQUIPO =
+  "Reloj biométrico de control de asistencia (facial y huella), con conexión WiFi y Ethernet. Autorizado por la Dirección del Trabajo.";
+const DESC_SERVICIO_ASOC =
+  "Instalación en terreno y puesta en marcha del equipo, con carga inicial de trabajadores.";
+const DESC_CAPACITACION =
+  "Capacitación online al equipo administrador en el uso de la plataforma: configuración, marcaje, turnos, vacaciones y reportería. Incluida sin costo.";
 
-const PP_CSS = `
-.pp *{margin:0;padding:0;box-sizing:border-box}
-.pp{font-family:'Nunito',sans-serif;color:#646464;font-size:13px;line-height:1.5}
-.pp-page{width:816px;height:1056px;position:relative;overflow:hidden;background:#fff}
-.pp .cover-hdr{background:#00AFF2;color:#fff;padding:48px 60px 38px}
-.pp .cv-br{display:block;line-height:1}.pp .cv-br b{color:#FFBB00}
-.pp .cv-tg{font-size:13px;opacity:.8;margin-top:4px}
-.pp .cv-tl{font-size:38px;font-weight:700;margin-top:30px;font-family:'BRSonoma','Nunito',sans-serif}
-.pp .cv-st{font-size:22px;font-weight:700;color:#FFBB00;margin-top:6px;font-family:'BRSonoma','Nunito',sans-serif}
-.pp .ys{height:6px;background:#FFBB00}
-.pp .info{display:grid;grid-template-columns:1fr 1fr;padding:16px 40px}
-.pp .info-i{padding:8px 0}.pp .info-l{font-size:10px;font-weight:700;color:#00AFF2;text-transform:uppercase;letter-spacing:1px}
-.pp .info-v{font-size:15px;font-weight:700;margin-top:2px}
-.pp .pc{padding:0 40px 50px}
-.pp .sh{font-size:18px;font-weight:700;color:#fff;padding:8px 14px;margin:14px 0 8px;background:#00AFF2;border-left:5px solid #FFBB00;font-family:'BRSonoma','Nunito',sans-serif}
-.pp .it{font-size:12px;color:rgba(100,100,100,0.8);line-height:1.6;margin-bottom:8px}
-.pp .bf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 0}
-.pp .bf-item{background:rgba(0,175,242,0.2);border-radius:6px;padding:8px 12px;border-left:4px solid #00AFF2}
-.pp .bf-t{font-size:12px;font-weight:700;color:#00AFF2;margin-bottom:2px}
-.pp .bf-d{font-size:11px;color:rgba(100,100,100,0.8);line-height:1.4}
-.pp .alc{background:rgba(100,100,100,0.06);border:1px solid rgba(100,100,100,0.2);border-radius:6px;padding:14px 18px}
-.pp .alc>p{font-size:12px;color:#646464;margin-bottom:10px}
-.pp .alc ul{list-style:none;padding:0;margin:0}
-.pp .alc li{font-size:12px;color:rgba(100,100,100,0.8);padding:3px 0 3px 16px;position:relative}
-.pp .alc li:before{content:'';position:absolute;left:0;top:9px;width:5px;height:5px;background:rgba(100,100,100,0.6);border-radius:50%}
-.pp .alc-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-top:6px}
-.pp .alc-col{border-right:1px solid rgba(100,100,100,0.2);padding-right:20px}
-.pp .alc-col:last-child{border-right:none;padding-right:0;padding-left:4px}
-.pp .alc-col ul{margin:0}
-.pp .alc-label{font-size:12px;font-weight:800;color:#646464;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-.pp .alc-tots{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(100,100,100,0.2)}
-.pp .alc-tot{font-size:13px;font-weight:700;color:#646464}
-.pp .alc-tot .pr{color:#00AFF2}.pp .alc-tot .rf{color:rgba(100,100,100,0.6);font-size:11px;font-weight:400}
-.pp .sb{margin-top:14px;border-radius:8px;overflow:hidden;box-shadow:0 1px 8px rgba(0,175,242,0.2)}
-.pp .sb table{font-size:12px;margin:0}
-.pp .sb td{padding:9px 14px;border-bottom:1px solid rgba(100,100,100,0.2)}
-.pp .sb .tr-sub td{background:rgba(100,100,100,0.06);font-weight:700;border-bottom:1px solid rgba(100,100,100,0.2)}
-.pp .sb .tr-iva td{background:#fff}
-.pp .sb .tr-tot{background:#00AFF2}.pp .sb .tr-tot td{color:#fff;border-bottom:none;font-weight:700;font-size:14px}
-.pp .qa-cta{margin-top:12px;background:#EDF6FF;border:1px solid #B8D8F4;border-radius:14px;padding:20px 22px}
-.pp .qa-cta-text{font-size:11.5px;line-height:1.45;color:#315A8A;text-align:center;margin:0 0 14px}
-.pp .qa-cta-action{display:flex;justify-content:center}
-.pp .qa-cta-btn{display:inline-block;background:#00AFF2;color:#fff;text-decoration:none;font-size:12px;font-weight:700;padding:10px 34px;border:1px solid #009EDC;border-radius:18px;box-shadow:0 2px 0 rgba(0,0,0,0.1)}
-.pp table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px}
-.pp th{background:rgba(0,175,242,0.2);color:#00AFF2;font-weight:700;padding:6px 7px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid rgba(0,175,242,0.4)}
-.pp td{padding:5px 7px;text-align:center;border-bottom:1px solid rgba(100,100,100,0.2);font-size:10.5px}
-.pp td:first-child{text-align:left;font-weight:600}
-.pp tr:nth-child(even) td{background:transparent}
-.pp .str{background:rgba(100,100,100,0.06)}.pp .str td{border-bottom:none;font-weight:700;background:transparent;color:#646464}
-.pp .rng{font-size:9px;color:rgba(100,100,100,0.6);font-weight:400;font-style:italic}
-.pp .ufn{font-size:9px;color:rgba(100,100,100,0.6);font-style:italic;margin-top:4px}
-.pp .phb{display:flex;justify-content:space-between;align-items:center;padding:20px 40px;background:rgba(100,100,100,0.06);border-bottom:3px solid #FFBB00}
-.pp .ph-br{display:block;flex-shrink:0;line-height:1}.pp .ph-br b{color:#FFBB00}
-.pp .ph-r{font-size:10px;color:rgba(100,100,100,0.6)}
-.pp .tyc{padding-left:18px}.pp .tyc li{font-size:11px;color:rgba(100,100,100,0.8);line-height:1.5;margin-bottom:3px}
-.pp .tyc li::marker{color:#00AFF2;font-weight:700}
-.pp .ft th{background:rgba(255,187,0,0.2);color:#646464;border-bottom:2px solid #FFBB00}.pp .ft td:first-child{color:#00AFF2;font-weight:700}
-.pp .vn{background:rgba(255,187,0,0.2);border-left:4px solid #FFBB00;padding:10px 14px;font-size:11.5px;color:rgba(100,100,100,0.8);margin-top:14px;border-radius:0 6px 6px 0}
-.pp .sig{margin-top:20px;padding:20px;border-top:2px solid rgba(100,100,100,0.2);display:flex;align-items:center;gap:16px}
-.pp .sig-icon{flex-shrink:0}
-.pp .sig-info{display:flex;flex-direction:column;gap:1px}
-.pp .sig-n{font-size:14px;font-weight:700;color:#646464}
-.pp .sig-c{font-size:12px;color:rgba(100,100,100,0.8)}
-.pp .sig-co{font-size:12px;color:rgba(100,100,100,0.8)}
-.pp .sig-div{width:1px;background:rgba(100,100,100,0.2);align-self:stretch;margin:0 4px}
-.pp .sig-contact{display:flex;flex-direction:column;gap:1px}
-.pp .sig-cx{font-size:12px;font-weight:700;color:#00AFF2}
-.pp .pn{position:absolute;bottom:12px;right:40px;font-size:10px;color:rgba(100,100,100,0.4)}
+// Datos fijos de la empresa (cabecera superior derecha).
+const ORG = {
+  nombre: "Victoria S.A",
+  rut: "76.188.587-1",
+  matriz: "Matriz: Avenida Los Leones 2061, Piso 4, Providencia, Santiago",
+  tel: "(2) 2897 6514",
+};
+
+// Cursor "click" (SVG blanco) para el botón CTA.
+const CTA_CURSOR =
+  '<span class="cta-cursor"><svg width="42" height="42" viewBox="0 0 64 64"><g transform="rotate(-18 32 32)"><g stroke="#ffffff" stroke-width="3" stroke-linecap="round" fill="none"><line x1="30" y1="5" x2="30" y2="11"/><line x1="19" y1="8" x2="22" y2="13"/><line x1="41" y1="8" x2="38" y2="13"/><line x1="12" y1="16" x2="17" y2="19"/></g><path d="M26 20 C26 16.7 27.8 14 30 14 C32.2 14 34 16.7 34 20 L34 33 C35.5 31 38 30 40 31.5 C41 29.5 43.5 29.5 44.5 31.5 C45.5 30 48 30.5 48 34 L48 44 C48 51 43 56 36 56 L33 56 C29 56 26 54.5 23 51.5 L18.5 47 C16.8 45.3 16.8 43 18.5 41.3 C20.2 39.6 22.5 39.6 24.2 41.3 L26 43 Z" fill="#ffffff" stroke="#0a5470" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></g></svg></span>';
+
+// ───────────────────────────────────────────────────────────────────────────
+// CSS (one-pager, versión para PDF: fondo blanco, sin sombra de página)
+// ───────────────────────────────────────────────────────────────────────────
+const ONEPAGER_CSS = `
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#fff;margin:0;padding:0;font-family:'Nunito','Segoe UI',sans-serif;color:#4b4b4b}
+.page{width:816px;min-height:1056px;background:#fff;margin:0 auto;padding:34px 40px 24px;position:relative;display:flex;flex-direction:column}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #FFBB00;padding-bottom:14px}
+.hdr .logo{flex-shrink:0}
+.hdr .org{text-align:right;font-size:9.5px;line-height:1.5;color:#646464}
+.hdr .org b{font-size:13px;color:#00AFF2;display:block;margin-bottom:2px}
+.title{text-align:center;margin:18px 0 6px}
+.title .t{font-size:26px;font-weight:800;color:#646464;letter-spacing:1px}
+.title .n{font-size:26px;font-weight:800;color:#00AFF2;margin-left:10px}
+.title .ys{height:4px;width:200px;background:#FFBB00;margin:6px auto 0;border-radius:2px}
+.meta{display:grid;grid-template-columns:1.3fr 1fr;gap:4px 24px;margin:14px 0 6px;font-size:11px}
+.meta .l{color:#00AFF2;font-weight:800;text-transform:uppercase;font-size:9px;letter-spacing:.5px}
+.meta .row{display:flex;gap:6px}
+.meta .row span{color:#4b4b4b;font-weight:600}
+.band{background:#00AFF2;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-left:5px solid #FFBB00;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}
+th{background:rgba(0,175,242,.16);color:#00AFF2;font-weight:800;text-transform:uppercase;font-size:8.5px;letter-spacing:.3px;padding:6px 7px;border-bottom:2px solid rgba(0,175,242,.4);text-align:left}
+th.r{text-align:right}
+td{padding:6px 7px;border-bottom:1px solid rgba(100,100,100,.18);vertical-align:top}
+.c-nom{font-weight:700;color:#4b4b4b;width:18%}
+.c-modal{font-weight:700;color:#646464;font-size:9px;width:10%}
+.c-desc{color:rgba(75,75,75,.85);font-size:9px;line-height:1.4;width:38%}
+.c-num{text-align:right;white-space:nowrap}
+.c-tot{font-weight:800;color:#646464}
+.uf-ref{display:block;font-size:8px;color:rgba(100,100,100,.55);font-weight:600;font-style:italic}
+.sub td{font-weight:800;color:#646464;border-top:2px solid rgba(100,100,100,.3)}
+.note{background:#00AFF2;color:#fff;font-size:9.5px;padding:6px 12px;margin-top:8px;border-radius:3px}
+.bottom{display:grid;grid-template-columns:1.55fr 1fr;gap:24px;margin-top:14px;align-items:start}
+.box h4{color:#00AFF2;font-size:11px;font-weight:800;text-transform:uppercase;margin-bottom:5px}
+.tyc{list-style:none;margin:0 0 12px}
+.tyc li{font-size:9px;line-height:1.45;color:rgba(75,75,75,.9);padding-left:13px;position:relative;margin-bottom:3px}
+.tyc li:before{content:'';position:absolute;left:0;top:5px;width:5px;height:5px;background:#00AFF2;border-radius:50%}
+.flow{list-style:none;counter-reset:s;margin:0}
+.flow li{counter-increment:s;font-size:9.5px;line-height:1.4;color:#4b4b4b;font-weight:600;padding-left:24px;position:relative;margin-bottom:5px}
+.flow li:before{content:counter(s);position:absolute;left:0;top:-1px;width:16px;height:16px;background:#FFBB00;color:#646464;border-radius:50%;text-align:center;font-weight:800;font-size:10px;line-height:16px}
+.tot{border:1px solid rgba(0,175,242,.5);border-radius:6px;overflow:hidden}
+.tot .tr{display:flex;justify-content:space-between;padding:4.5px 14px;font-size:11px;border-bottom:1px solid rgba(100,100,100,.18)}
+.tot .tr span:first-child{color:#646464;font-weight:600}
+.tot .tr span:last-child{font-weight:700;color:#4b4b4b;text-align:right}
+.tot .tr .uf-ref{font-size:8px}
+.tot .grand{background:#00AFF2;border-bottom:none}
+.tot .grand span{color:#fff !important;font-weight:800;font-size:13px}
+.tot .tot-h{background:rgba(0,175,242,.10);color:#00AFF2;font-weight:800;text-transform:uppercase;font-size:8px;letter-spacing:.4px;padding:4px 14px;border-bottom:1px solid rgba(100,100,100,.15)}
+.tot .tot-st{background:rgba(0,175,242,.05)}
+.tot .tot-st span{font-weight:800 !important;color:#00AFF2 !important}
+.tot .grand .uf-ref{color:rgba(255,255,255,.85) !important}
+.cta-btn{display:block;position:relative;text-align:center;margin-top:12px;background:#00AFF2;color:#fff;text-decoration:none;font-weight:800;font-size:12.5px;padding:12px 10px;border-radius:9px;border-bottom:4px solid #0086c0;letter-spacing:.3px}
+.cta-cursor{position:absolute;right:12px;bottom:-13px;line-height:0}
+.cta-cursor svg{display:block}
+.cta-sub{margin-top:16px;text-align:center;font-size:9.5px;line-height:1.5;font-weight:700;color:rgba(75,75,75,.92)}
+.foot{margin-top:auto;border-top:1px solid rgba(0,175,242,.25);padding-top:8px;display:flex;justify-content:space-between;font-size:9px;color:rgba(100,100,100,.7)}
+.foot b{color:#00AFF2}
 @page{size:Letter;margin:0}
-body,html{margin:0;padding:0;background:#fff}
 `;
 
 // ───────────────────────────────────────────────────────────────────────────
 // Builder principal
 // ───────────────────────────────────────────────────────────────────────────
+function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, validezHasta }) {
+  cliente = cliente || {};
+  cotizacion = cotizacion || {};
 
-function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId }) {
+  // ── Cliente / ejecutivo ──
   const empresa = escapeHtml(cliente.empresa || "EMPRESA");
   const contacto = escapeHtml(cliente.contacto || "");
-  const email = escapeHtml(cliente.contactoEmail || "");
-  const telefono = escapeHtml(cliente.contactoTelefono || "");
+  const rutEmpresa = escapeHtml(cliente.rutEmpresa || "");
   const ejecutivo = escapeHtml(cliente.ejecutivo || "Eddyluz Mujica");
-  const cargo = escapeHtml(cliente.cargo || "Ejecutiva Comercial");
+  const ejecutivoEmail = escapeHtml(
+    cliente.ejecutivoEmail || "emujica@geovictoria.com",
+  );
+  const ejecutivoTelefono = escapeHtml(
+    cliente.ejecutivoTelefono || "+56 9 3932 1687",
+  );
+  const cotizNumero = escapeHtml(cotizacionId || "—");
 
+  // ── Fechas ──
   const hoy = new Date();
-  const fecha = formatFechaLarga(hoy);
-  const ufDate = fecha;
+  const fecha = formatFechaCorta(hoy);
+  // "Válida hasta": idealmente la expiración real del enlace de aceptación
+  // (create-from-vicky calcula expMs = ahora + config.validityDays y lo guarda
+  // como expiresAt). Si no se entrega, se usa el fallback de VALIDEZ_DIAS.
+  const vence = validezHasta
+    ? formatFechaCorta(new Date(validezHasta))
+    : formatFechaCorta(
+        new Date(hoy.getTime() + VALIDEZ_DIAS * 24 * 60 * 60 * 1000),
+      );
 
-  // Adaptar items de Vicky al formato del builder
-  const { servicios, equipos, accesorios, serviciosAsoc } = adaptarItemsVicky(cotizacion.items || []);
+  // ── UF del día ──
+  const ufValue = Number(cotizacion.ufActual || 0);
+  const toCLP = (uf) => (ufValue > 0 ? Math.round(Number(uf || 0) * ufValue) : 0);
 
-  // totalServ = subtotal de servicios mensuales (sin hardware ni instalación)
-  const totalServ = servicios.reduce((s, x) => s + Number(x.subtotalUF || 0), 0);
+  // ── Items → filas tipadas ──
+  const { servicios, equipos, accesorios, serviciosAsoc } = adaptarItemsVicky(
+    cotizacion.items || [],
+  );
 
-  const totals = {
-    totalServ,
-    subtotalNeto: Number(cotizacion.subtotalUF || 0),
-    iva: Number(cotizacion.ivaUF || 0),
-    totalConIva: Number(cotizacion.totalUF || 0),
+  const filas = [];
+  const pushFila = (nombre, modalidad, desc, precioUnitUF, cant, subtotalUF, recurrente) => {
+    const stUF = Number(subtotalUF || 0);
+    filas.push({
+      nombre: escapeHtml(nombre),
+      modalidad,
+      desc: escapeHtml(desc),
+      puCLP: toCLP(precioUnitUF),
+      cant: Number(cant || 1),
+      totalUF: stUF,
+      totalCLP: toCLP(stUF),
+      recurrente: !!recurrente,
+    });
   };
 
-  const ufValue = Number(cotizacion.ufActual || 0);
+  servicios.forEach((s) =>
+    pushFila(s.nombre, "Pago mensual", descServicio(s), s.precioUnit, s.cantidad, s.subtotalUF, true),
+  );
+  equipos.forEach((e) => {
+    const rec = e.tipo === "Arriendo";
+    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", DESC_EQUIPO, e.precioUnit, e.cantidad, e.subtotalUF, rec);
+  });
+  accesorios.forEach((a) => {
+    const rec = a.tipo === "Arriendo";
+    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", DESC_EQUIPO, a.precioUnit, a.cantidad, a.subtotalUF, rec);
+  });
+  serviciosAsoc.forEach((s) => {
+    const nombre = s.zona ? `${s.nombre} (${s.zona})` : s.nombre;
+    pushFila(nombre, "Pago único", DESC_SERVICIO_ASOC, s.precioUnit, s.cantidad, s.subtotalUF, false);
+  });
+  // Línea fija: capacitación online sin costo, en TODAS las cotizaciones.
+  pushFila("Capacitación online", "Sin costo", DESC_CAPACITACION, 0, 1, 0, false);
 
-  // ── Pre-cálculos espejo del cliente ──
-  let totalRec = totals.totalServ;
-  let totalNR = 0;
-  equipos.forEach(e => {
-    if (e.tipo === "Arriendo") totalRec += e.subtotalUF;
-    else totalNR += e.subtotalUF;
-  });
-  accesorios.forEach(a => {
-    if (a.tipo === "Arriendo") totalRec += a.subtotalUF;
-    else totalNR += a.subtotalUF;
-  });
-  serviciosAsoc.forEach(s => { totalNR += s.subtotalUF; });
+  // ── Totales separados (recurrente vs único) ──
+  const sumUF = (arr) => arr.reduce((acc, f) => acc + f.totalUF, 0);
+  const recUF = sumUF(filas.filter((f) => f.recurrente));
+  const uniUF = sumUF(filas.filter((f) => !f.recurrente));
+  const netoUF = recUF + uniUF;
+  const netoCLP = toCLP(netoUF);
 
-  // ── PAGE 1: Intro + Beneficios ──
-  let introHTML = "";
-  PROPOSAL_INTRO.forEach(p => { introHTML += '<p class="it">' + escapeHtml(p) + "</p>"; });
-  let benefHTML = "";
-  PROPOSAL_BENEFICIOS.forEach(b => {
-    benefHTML += '<div class="bf-item"><div class="bf-t">' + escapeHtml(b.titulo) + '</div><div class="bf-d">' + escapeHtml(b.desc) + "</div></div>";
-  });
+  const recNetoCLP = toCLP(recUF);
+  const recIva = Math.round(recNetoCLP * 0.19);
+  const recTot = recNetoCLP + recIva;
+  const recTotUF = recUF * 1.19;
 
-  // ── PAGE 2: Summary items ──
-  // Para servicios mostramos la cantidad real de usuarios del cliente (no
-  // `s.cantidad`, que vale 1 cuando el módulo es de tarifa fija). Si el módulo
-  // es "Por usuario" igual cuadra porque Vicky envía cantidad = userCount.
-  // Para "Fijo" agregamos la nota "tarifa fija" para evitar confusión.
-  const userCount = Number(cliente.userCount) || 0;
-  let sumRecItems = "";
-  let sumNRItems = "";
-  servicios.forEach(s => {
-    const usuarios = userCount || s.cantidad || 0;
-    const tarifaInfo = s.tipo === "Fijo" ? ", tarifa fija" : "";
-    sumRecItems += "<li>" + escapeHtml(s.nombre) + " (" + usuarios + " usuarios" + tarifaInfo + ")</li>";
-  });
-  equipos.forEach(e => {
-    if (e.tipo === "Arriendo") {
-      sumRecItems += "<li>" + e.cantidad + "x " + escapeHtml(e.nombre) + "</li>";
-    } else {
-      sumNRItems += "<li>" + e.cantidad + "x " + escapeHtml(e.nombre) + " (Venta)</li>";
-    }
-  });
-  accesorios.forEach(a => {
-    if (a.tipo === "Arriendo") {
-      sumRecItems += "<li>" + a.cantidad + "x " + escapeHtml(a.nombre) + "</li>";
-    } else {
-      sumNRItems += "<li>" + a.cantidad + "x " + escapeHtml(a.nombre) + " (Venta)</li>";
-    }
-  });
-  serviciosAsoc.forEach(s => {
-    sumNRItems += "<li>" + s.cantidad + "x " + escapeHtml(s.nombre) + (s.zona ? " (" + escapeHtml(s.zona) + ")" : "") + "</li>";
-  });
+  const uniNetoCLP = toCLP(uniUF);
+  const uniIva = Math.round(uniNetoCLP * 0.19);
+  const uniTot = uniNetoCLP + uniIva;
+  const uniTotUF = uniUF * 1.19;
 
-  // ── Tabla de Pricing Tiers ──
-  let tiersRows = "";
-  PRICING_TIERS.forEach(t => {
-    const rango = t.max === Infinity ? t.min + "+" : t.min + " - " + t.max;
-    const precio = t.type === "fijo" ? formatUF(t.uf) + " UF (Fijo)" : formatUF(t.uf) + " UF/usuario";
-    tiersRows += "<tr><td>" + rango + "</td><td>" + precio + "</td></tr>";
-  });
+  // ── Filas de la tabla ──
+  const rowItem = (f) =>
+    `<tr>` +
+    `<td class="c-nom">${f.nombre}</td>` +
+    `<td class="c-modal">${f.modalidad}</td>` +
+    `<td class="c-desc">${f.desc}</td>` +
+    `<td class="c-num">${formatCLP(f.puCLP)}</td>` +
+    `<td class="c-num">${f.cant}</td>` +
+    `<td class="c-num c-tot">${formatCLP(f.totalCLP)}` +
+    (f.totalUF > 0 ? `<span class="uf-ref">${formatUF(f.totalUF)} UF</span>` : "") +
+    `</td>` +
+    `</tr>`;
 
-  // ── PAGE 3: Detalle plano ──
-  let detailRows = "";
-  servicios.forEach(s => {
-    const precio = s.tipo === "Fijo" ? "Fijo: " + formatUF(s.precioUnit) + " UF" : formatUF(s.precioUnit) + " UF/u";
-    const rng = s.rango ? '<br><span class="rng">Rango aplicado: ' + escapeHtml(s.rango) + "</span>" : "";
-    detailRows += "<tr><td>" + escapeHtml(s.nombre) + rng + "</td><td>Servicio</td><td>Mensual</td><td>" + s.cantidad + "</td><td>" + precio + "</td><td>" + (s.descuento > 0 ? s.descuento + "%" : "-") + "</td><td>" + formatUF(s.subtotalUF) + "</td><td>" + (ufValue > 0 ? formatCLP(s.subtotalUF * ufValue) : "-") + "</td></tr>";
-  });
-  equipos.forEach(e => {
-    detailRows += "<tr><td>" + escapeHtml(e.nombre) + "</td><td>Equipo</td><td>" + e.tipo + "</td><td>" + e.cantidad + "</td><td>" + formatUF(e.precioUnit) + " UF</td><td>-</td><td>" + formatUF(e.subtotalUF) + "</td><td>" + (ufValue > 0 ? formatCLP(e.subtotalUF * ufValue) : "-") + "</td></tr>";
-  });
-  accesorios.forEach(a => {
-    detailRows += "<tr><td>" + escapeHtml(a.nombre) + "</td><td>Accesorio</td><td>" + a.tipo + "</td><td>" + a.cantidad + "</td><td>" + formatUF(a.precioUnit) + " UF</td><td>-</td><td>" + formatUF(a.subtotalUF) + "</td><td>" + (ufValue > 0 ? formatCLP(a.subtotalUF * ufValue) : "-") + "</td></tr>";
-  });
-  serviciosAsoc.forEach(s => {
-    detailRows += "<tr><td>" + escapeHtml(s.nombre) + (s.zona ? " (" + escapeHtml(s.zona) + ")" : "") + "</td><td>Serv. Asoc.</td><td>-</td><td>" + s.cantidad + "</td><td>" + formatUF(s.precioUnit) + " UF</td><td>-</td><td>" + formatUF(s.subtotalUF) + "</td><td>" + (ufValue > 0 ? formatCLP(s.subtotalUF * ufValue) : "-") + "</td></tr>";
-  });
+  const rowsHtml = filas.map(rowItem).join("");
 
-  // ── PAGE 4: T&C + Firma ──
-  let tycItems = "";
-  PROPOSAL_TYC.forEach(item => { tycItems += "<li>" + escapeHtml(item) + "</li>"; });
-  let freeRows = "";
-  SERVICIOS_GRATIS.forEach(s => {
-    freeRows += "<tr><td>" + escapeHtml(s.servicio) + '</td><td style="text-align:left">' + escapeHtml(s.desc) + "</td></tr>";
-  });
+  // ── Caja de totales (oculta el grupo cuyo neto es 0) ──
+  const grpRec = recUF > 0;
+  const grpUni = uniUF > 0;
+  let totHtml = "";
+  if (grpRec) {
+    const recClass = grpUni ? "tot-st" : "grand";
+    totHtml +=
+      `<div class="tot-h">Pago mensual (recurrente)</div>` +
+      `<div class="tr"><span>Neto</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>` +
+      `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(recIva)}</span></div>` +
+      `<div class="tr ${recClass}"><span>Total mensual</span><span>${formatCLP(recTot)}/mes<span class="uf-ref">${formatUF(recTotUF)} UF</span></span></div>`;
+  }
+  if (grpUni) {
+    totHtml +=
+      `<div class="tot-h">Pago único</div>` +
+      `<div class="tr"><span>Neto</span><span>${formatCLP(uniNetoCLP)}<span class="uf-ref">${formatUF(uniUF)} UF</span></span></div>` +
+      `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(uniIva)}</span></div>` +
+      `<div class="tr grand"><span>Total único</span><span>${formatCLP(uniTot)}<span class="uf-ref">${formatUF(uniTotUF)} UF</span></span></div>`;
+  }
+  if (!grpRec && !grpUni) {
+    totHtml +=
+      `<div class="tot-h">Total</div>` +
+      `<div class="tr grand"><span>Total</span><span>${formatCLP(0)}</span></div>`;
+  }
 
-  const ufNote = ufValue > 0
-    ? '<p class="ufn">* Valores referenciales en CLP calculados con UF del ' + escapeHtml(ufDate) + ": " + formatCLP(ufValue) + ". El cobro se realiza en UF.</p>"
-    : "";
+  const ctaHref = escapeHtml(acceptanceUrl || "#");
+  const notaUf = ufValue > 0 ? formatCLP(ufValue) : "—";
+  const notaTexto = `Valores en CLP con referencia en la UF del día de la cotización (${fecha}): ${notaUf}.`;
 
-  // ── Render HTML completo (4 páginas) ──
   return `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<title>Propuesta Comercial — ${empresa}</title>
-<style>${PP_CSS}</style>
-</head>
+<html lang="es"><head><meta charset="utf-8">
+<title>Cotización ${cotizNumero} — ${empresa}</title>
+<style>${ONEPAGER_CSS}</style></head>
 <body>
-<div class="pp">
-  <!-- PAGE 1: Cover + About GeoVictoria -->
-  <div class="pp-page">
-    <div class="cover-hdr">
-      <div class="cv-br">${LOGO_BLANCO_SVG}</div>
-      <div class="cv-tg">Control de Asistencia &amp; Gestión de Personal</div>
-      <div class="cv-tl">Propuesta Comercial</div>
-      <div class="cv-st">${empresa}</div>
+<div class="page">
+
+  <div class="hdr">
+    <div class="logo">${LOGO_ORIGINAL_SVG}</div>
+    <div class="org">
+      <b>${ORG.nombre}</b>
+      R.U.T: ${ORG.rut}<br>${ORG.matriz}<br>Teléfono: ${ORG.tel}
     </div>
-    <div class="ys"></div>
-    <div class="info">
-      <div class="info-i"><div class="info-l">Fecha</div><div class="info-v">${escapeHtml(fecha)}</div></div>
-      <div class="info-i"><div class="info-l">Ejecutivo Comercial</div><div class="info-v">${ejecutivo}</div></div>
-      <div class="info-i"><div class="info-l">Empresa</div><div class="info-v">${empresa}</div></div>
-      <div class="info-i"><div class="info-l">Email</div><div class="info-v">${email || "-"}</div></div>
-      <div class="info-i"><div class="info-l">Contacto</div><div class="info-v">${contacto || "-"}</div></div>
-      <div class="info-i"><div class="info-l">Teléfono</div><div class="info-v">${telefono || "-"}</div></div>
-    </div>
-    <div class="pc">
-      <div class="sh">Acerca de GeoVictoria</div>
-      ${introHTML}
-      <div class="sh">¿Por qué GeoVictoria?</div>
-      <div class="bf-grid">${benefHTML}</div>
-    </div>
-    <div class="pn">1</div>
   </div>
 
-  <!-- PAGE 2: Summary + Totals -->
-  <div class="pp-page">
-    <div class="phb">
-      <div class="ph-br">${LOGO_ORIGINAL_SVG}</div>
-      <div class="ph-r">Propuesta Comercial — ${empresa}</div>
+  <div class="title"><span class="t">COTIZACIÓN N°</span><span class="n">${cotizNumero}</span><div class="ys"></div></div>
+
+  <div class="meta">
+    <div>
+      <div class="row"><span class="l">Empresa:</span><span>${empresa}</span></div>
+      <div class="row"><span class="l">R.U.T:</span><span>${rutEmpresa}</span></div>
+      <div class="row"><span class="l">Contacto:</span><span>${contacto}</span></div>
     </div>
-    <div class="pc" style="padding-top:6px">
-      <div class="sh">Resumen de la Propuesta</div>
-      <div class="alc">
-        <p>Propuesta para <strong>${empresa}</strong>:</p>
-        <div class="alc-cols">
-          <div class="alc-col"><div class="alc-label">Recurrente Mensual</div><ul>${sumRecItems}</ul></div>
-          ${sumNRItems ? '<div class="alc-col"><div class="alc-label">No Recurrente</div><ul>' + sumNRItems + "</ul></div>" : ""}
-        </div>
-        <div class="alc-tots">
-          <div class="alc-tot">Recurrente Mensual: <span class="pr">${formatUF(totalRec)} UF</span>${ufValue > 0 ? ' <span class="rf">(' + formatCLP(totalRec * ufValue) + ")</span>" : ""}</div>
-          ${totalNR > 0 ? '<div class="alc-tot">No Recurrente: <span class="pr">' + formatUF(totalNR) + " UF</span>" + (ufValue > 0 ? ' <span class="rf">(' + formatCLP(totalNR * ufValue) + ")</span>" : "") + "</div>" : ""}
-        </div>
-      </div>
-      <div class="sb">
-        <table>
-          <tr class="tr-sub"><td style="text-align:left">Subtotal (sin IVA)</td><td>${formatUF(totals.subtotalNeto)} UF</td><td>${ufValue > 0 ? formatCLP(totals.subtotalNeto * ufValue) + " CLP" : "-"}</td></tr>
-          <tr><td style="text-align:left">IVA (19%)</td><td>${formatUF(totals.iva)} UF</td><td>${ufValue > 0 ? formatCLP(totals.iva * ufValue) + " CLP" : "-"}</td></tr>
-          <tr class="tr-tot"><td style="text-align:left">Total con IVA</td><td>${formatUF(totals.totalConIva)} UF</td><td>${ufValue > 0 ? formatCLP(totals.totalConIva * ufValue) + " CLP" : "-"}</td></tr>
-        </table>
-      </div>
-      ${ufNote}
-      <div class="qa-cta">
-        <p class="qa-cta-text">Para continuar con tu implementación, confirma esta propuesta en línea.<br>Te tomará menos de 2 minutos y validaremos tu identidad con un código a tu correo de contacto.</p>
-        <div class="qa-cta-action"><a class="qa-cta-btn" href="${escapeHtml(acceptanceUrl || "https://cotizacion.geovictoria.com/quote-acceptance.html")}" target="_blank" rel="noopener">Revisar y aceptar cotización</a></div>
-      </div>
+    <div>
+      <div class="row"><span class="l">Fecha:</span><span>${fecha}</span></div>
+      <div class="row"><span class="l">Válida hasta:</span><span>${vence}</span></div>
+      <div class="row"><span class="l">Ejecutivo:</span><span>${ejecutivo}</span></div>
+      <div class="row"><span class="l">E-mail:</span><span>${ejecutivoEmail}</span></div>
     </div>
-    <div class="pn">2</div>
   </div>
 
-  <!-- PAGE 3: Detalle de costos -->
-  <div class="pp-page">
-    <div class="phb">
-      <div class="ph-br">${LOGO_ORIGINAL_SVG}</div>
-      <div class="ph-r">Propuesta Comercial — ${empresa}</div>
+  <div class="band">Productos y Servicios</div>
+  <table>
+    <thead>
+      <tr><th>Nombre</th><th>Modalidad</th><th>Descripción</th><th class="r">P. Unitario</th><th class="r">Cant.</th><th class="r">Total Neto</th></tr>
+    </thead>
+    <tbody>${rowsHtml}
+      <tr class="sub"><td colspan="5">Subtotal (sin IVA)</td><td class="c-num">${formatCLP(netoCLP)}<span class="uf-ref">${formatUF(netoUF)} UF</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">${notaTexto}</div>
+
+  <div class="bottom">
+    <div class="box">
+      <h4>Términos y Condiciones</h4>
+      <ul class="tyc">
+        <li>Valores en CLP con referencia en UF; convertidos al valor de la UF del día de la cotización. No incluyen IVA salvo donde se indique.</li>
+        <li>El arriendo de equipos incluye mantención y reposición por falla técnica; los equipos son propiedad de GeoVictoria.</li>
+        <li>Incluye sin costo: soporte L-V 8:30-18:00, capacitación inicial, actualizaciones, app móvil y portal del colaborador.</li>
+        <li>Plataforma cloud en Microsoft Azure con uptime garantizado de 99,5 %. Valores ajustables anualmente según UF/IPC.</li>
+      </ul>
+      <h4>Cómo continúas</h4>
+      <ol class="flow">
+        <li>Revisa el detalle de tu cotización.</li>
+        <li>Acepta los términos y condiciones.</li>
+        <li>Paga en línea de forma segura.</li>
+        <li>Comienza a usar GeoVictoria en 24 horas hábiles.</li>
+      </ol>
     </div>
-    <div class="pc" style="padding-top:6px">
-      <div class="sh">Detalle de Costos</div>
-      <table>
-        <thead>
-          <tr><th>Ítem</th><th>Tipo</th><th>Modalidad</th><th>Cant.</th><th>Precio Unit.</th><th>Dcto.</th><th>Subtotal (UF)</th><th>Ref. CLP</th></tr>
-        </thead>
-        <tbody>
-          ${detailRows}
-          <tr class="str" style="border-top:2px solid rgba(100,100,100,0.4)"><td colspan="6"><strong>Subtotal (sin IVA)</strong></td><td><strong>${formatUF(totals.subtotalNeto)}</strong></td><td><strong>${ufValue > 0 ? formatCLP(totals.subtotalNeto * ufValue) : "-"}</strong></td></tr>
-          <tr class="str"><td colspan="6"><strong>IVA (19%)</strong></td><td><strong>${formatUF(totals.iva)}</strong></td><td><strong>${ufValue > 0 ? formatCLP(totals.iva * ufValue) : "-"}</strong></td></tr>
-          <tr style="background:#00AFF2"><td colspan="6" style="color:#fff;font-weight:700;font-size:12px;border-bottom:none">Total con IVA</td><td style="color:#fff;font-weight:700;font-size:12px;border-bottom:none">${formatUF(totals.totalConIva)}</td><td style="color:#fff;font-weight:700;font-size:12px;border-bottom:none">${ufValue > 0 ? formatCLP(totals.totalConIva * ufValue) : "-"}</td></tr>
-        </tbody>
-      </table>
-      ${ufNote}
-      <div class="sh" style="margin-top:16px">Tabla de Precios — Asistencia</div>
-      <table>
-        <thead><tr><th>Rango de Usuarios</th><th>Precio Mensual</th></tr></thead>
-        <tbody>${tiersRows}</tbody>
-      </table>
+    <div>
+      <div class="tot">${totHtml}</div>
+      <a class="cta-btn" href="${ctaHref}">Haz clic aquí para aceptar, pagar y comenzar…${CTA_CURSOR}</a>
+      <p class="cta-sub">Paga e inicia tu onboarding en solo 15 minutos.<br>Activaremos tu servicio en 24 horas hábiles.</p>
     </div>
-    <div class="pn">3</div>
   </div>
 
-  <!-- PAGE 4: T&C + Firma -->
-  <div class="pp-page">
-    <div class="phb">
-      <div class="ph-br">${LOGO_ORIGINAL_SVG}</div>
-      <div class="ph-r">Propuesta Comercial — ${empresa}</div>
-    </div>
-    <div class="pc" style="padding-top:6px">
-      <div class="sh">Términos y Condiciones</div>
-      <ol class="tyc">${tycItems}</ol>
-      <div class="sh">Servicios Adicionales Sin Costo</div>
-      <table class="ft">
-        <thead><tr><th>Servicio Incluido</th><th style="text-align:left">Descripción</th></tr></thead>
-        <tbody>${freeRows}</tbody>
-      </table>
-      <div class="vn"><strong>Vigencia:</strong> Esta propuesta tiene una validez de 30 días a partir de la fecha de emisión (${escapeHtml(fecha)}). Posterior a este período, los valores podrán ser actualizados.</div>
-      <div class="sig">
-        <div class="sig-icon">${ISO_ORIGINAL_SVG}</div>
-        <div class="sig-info">
-          <p class="sig-n">${ejecutivo}</p>
-          <p class="sig-c">${cargo}</p>
-          <p class="sig-co">GeoVictoria | Chile</p>
-        </div>
-        <div class="sig-div"></div>
-        <div class="sig-contact">
-          ${email ? '<p class="sig-cx">' + email + "</p>" : ""}
-          ${telefono ? '<p class="sig-cx">' + telefono + "</p>" : ""}
-          <p class="sig-cx">www.geovictoria.com</p>
-        </div>
-      </div>
-    </div>
-    <div class="pn">4</div>
+  <div class="foot">
+    <div>Página 1 de 1 · Cotización N° ${cotizNumero}</div>
+    <div><b>Ejecutivo Comercial:</b> ${ejecutivo} · ${ejecutivoEmail} · ${ejecutivoTelefono}</div>
   </div>
+
 </div>
-</body>
-</html>`;
+</body></html>`;
 }
 
 module.exports = { buildProposalHtml };
