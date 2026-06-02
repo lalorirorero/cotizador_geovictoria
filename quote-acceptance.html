@@ -998,6 +998,14 @@
                     <div class="k">Recurrente mensual</div>
                     <div id="qRecurring" class="v">-</div>
                   </div>
+                  <div class="item" id="qDiscountRow" style="display: none">
+                    <div class="k">Descuento por aceptacion online</div>
+                    <div id="qDiscount" class="v">-</div>
+                  </div>
+                  <div class="item" id="qRecurringFinalRow" style="display: none">
+                    <div class="k">Total mensual a pagar</div>
+                    <div id="qRecurringFinal" class="v">-</div>
+                  </div>
                   <div class="item">
                     <div class="k">No recurrente</div>
                     <div id="qNonRecurring" class="v">-</div>
@@ -1940,6 +1948,21 @@
             fmtUF(data.totals?.recurrenteUf) + " / " + fmtCLP(data.totals?.recurrenteClp);
           document.getElementById("qNonRecurring").textContent =
             fmtUF(data.totals?.noRecurrenteUf) + " / " + fmtCLP(data.totals?.noRecurrenteClp);
+          // Descuento (solo recurrente). Se muestra unicamente si hay un % aplicado.
+          var dctoPct = Number(data.totals?.descuentoPct || 0);
+          var discountRow = document.getElementById("qDiscountRow");
+          var recurringFinalRow = document.getElementById("qRecurringFinalRow");
+          if (dctoPct > 0) {
+            document.getElementById("qDiscount").textContent =
+              "-" + dctoPct + "%  (-" + fmtCLP(data.totals?.descuentoRecurrenteClp) + ")";
+            document.getElementById("qRecurringFinal").textContent =
+              fmtUF(data.totals?.recurrenteUfConDescuento) + " / " + fmtCLP(data.totals?.recurrenteClpConDescuento);
+            discountRow.style.display = "";
+            recurringFinalRow.style.display = "";
+          } else {
+            discountRow.style.display = "none";
+            recurringFinalRow.style.display = "none";
+          }
           const pdfLink = document.getElementById("pdfLink");
           pdfLink.href = q.pdfUrl || "#";
           if (q.pdfUrl) {
