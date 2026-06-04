@@ -173,15 +173,19 @@
         }
 
         function setSteps(currentStep, state) {
+          // Si la suscripcion no aplica, ocultamos su paso y renumeramos.
+          var subActive = state.subscription.required;
           var pills = stepsBar.querySelectorAll(".step-pill");
           pills.forEach(function (pill) {
             var step = pill.getAttribute("data-step");
             pill.classList.remove("active", "done");
-            if (step === "oneshot") {
-              if (!state.oneShot.required || state.oneShot.approved) pill.classList.add("done");
-            } else if (step === "sub") {
+            if (step === "sub") {
+              pill.style.display = subActive ? "" : "none";
               if (!state.subscription.required || state.subscription.authorized) pill.classList.add("done");
+            } else if (step === "oneshot") {
+              if (!state.oneShot.required || state.oneShot.approved) pill.classList.add("done");
             } else if (step === "done") {
+              pill.textContent = (subActive ? "3" : "2") + " · Onboarding";
               if (state.onboarding.ready) pill.classList.add("done");
             }
             if (step === currentStep) pill.classList.add("active");
@@ -235,19 +239,41 @@
           }
         }
 
+        function amountRow(label, value) {
+          return '<div class="amount-row"><span class="label">' + label +
+            '</span><span class="value">' + value + "</span></div>";
+        }
+
         function renderOneShot(state) {
+          var a = state.amounts;
+          var hasFirstMonth = Number(a.firstMonthClp || 0) > 0;
+          var rows = "";
+          if (hasFirstMonth && Number(a.oneShotItemsClp || 0) > 0) {
+            rows += amountRow("Servicios iniciales", fmtCLP(a.oneShotItemsClp));
+            rows += amountRow("Primer mes de servicio", fmtCLP(a.firstMonthClp));
+          }
+          rows += amountRow(
+            "Pago inicial total",
+            "<strong>" + fmtCLP(a.oneShotClp) + "</strong>"
+          );
+          if (state.subscription.required) {
+            rows += amountRow("Suscripcion mensual", fmtCLP(a.recurringClp) + " <small>/mes</small>");
+          }
+          var lead = hasFirstMonth
+            ? "Realiza el pago inicial, que incluye los servicios iniciales y el primer mes de servicio. Seras redirigido a Mercado Pago para completarlo de forma segura."
+            : "Realiza el pago unico de los servicios iniciales. Seras redirigido a Mercado Pago para completarlo de forma segura.";
+          var monthlyNote = hasFirstMonth
+            ? '<p style="font-size:12px;color:var(--suave);margin:-4px 0 14px">' +
+              "El valor mensual del servicio se factura por separado a partir del 2&ordm; mes y es referencial: " +
+              "se calcula sobre los usuarios de la cotizacion y varia segun los usuarios activos de cada periodo." +
+              "</p>"
+            : "";
           contentEl.innerHTML =
-            '<div class="amount-box">' +
-            '<div class="amount-row"><span class="label">Pago inicial (una vez)</span>' +
-            '<span class="value">' + fmtCLP(state.amounts.oneShotClp) + "</span></div>" +
-            '<div class="amount-row"><span class="label">Suscripcion mensual</span>' +
-            '<span class="value">' + fmtCLP(state.amounts.recurringClp) +
-            ' <small>/mes</small></span></div>' +
-            "</div>" +
+            '<div class="amount-box">' + rows + "</div>" +
+            monthlyNote +
             "<h2>Paso 1: Pago inicial</h2>" +
-            '<p class="lead">Realiza el pago unico de los servicios iniciales. ' +
-            "Seras redirigido a Mercado Pago para completarlo de forma segura.</p>" +
-            '<button class="btn" id="payBtn">Pagar ' + fmtCLP(state.amounts.oneShotClp) + "</button>";
+            '<p class="lead">' + lead + "</p>" +
+            '<button class="btn" id="payBtn">Pagar ' + fmtCLP(a.oneShotClp) + "</button>";
           document.getElementById("payBtn").addEventListener("click", function () {
             startStep("/api/payments/create-preference", "Conectando con Mercado Pago...");
           });
