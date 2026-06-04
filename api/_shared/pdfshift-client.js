@@ -1,19 +1,67 @@
 /**
- * Cliente PDFShift para convertir HTML a PDF server-side.
- * Doc: https://docs.pdfshift.io/api-reference/convert-to-pdf
+ * Render de HTML -> PDF (Buffer).
+ *
+ * Por defecto usa **Chromium** (puppeteer-core + @sparticuz/chromium), que no
+ * tiene costo por documento. Si Chromium falla por cualquier motivo, cae de
+ * forma automatica a **PDFShift** (si hay API key), de modo que la generacion
+ * de PDF nunca se rompe durante la migracion.
+ *
+ * Control por entorno:
+ *   - PDF_RENDERER = "chromium" (default) | "pdfshift"
+ *   - PUPPETEER_EXECUTABLE_PATH = ruta a Chrome local (solo para dev local)
+ *   - PDFSHIFT_API_KEY = credencial PDFShift (respaldo / modo pdfshift)
+ *   - PDFSHIFT_SANDBOX = "true" => PDF con marca de agua, sin gastar creditos
+ *
+ * La firma `htmlToPdfBuffer(html, options) -> Promise<Buffer>` se mantiene
+ * identica a la anterior, por lo que ningun llamador necesita cambios.
  */
 
-async function htmlToPdfBuffer(html, options = {}) {
+function marginToObject(margin) {
+  const value = margin === undefined || margin === null ? "20mm" : String(margin);
+  return { top: value, bottom: value, left: value, right: value };
+}
+
+// ── Render con Chromium (sin costo por PDF) ───────────────────────────────
+async function renderWithChromium(html, options = {}) {
+  // require perezoso: solo se carga si efectivamente usamos Chromium.
+  const chromium = require("@sparticuz/chromium");
+  const puppeteer = require("puppeteer-core");
+
+  const localExecutable = String(process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
+  const executablePath = localExecutable || (await chromium.executablePath());
+
+  const browser = await puppeteer.launch({
+    args: localExecutable ? ["--no-sandbox", "--disable-setuid-sandbox"] : chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath,
+    headless: chromium.headless,
+  });
+
+  try {
+    const page = await browser.newPage();
+    // PDFShift usa media "screen" por defecto (use_print=false): replicamos.
+    await page.emulateMediaType("screen");
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const pdf = await page.pdf({
+      format: options.format || "Letter",
+      landscape: options.landscape === true,
+      printBackground: true,
+      margin: marginToObject(options.margin),
+    });
+    return Buffer.from(pdf);
+  } finally {
+    await browser.close();
+  }
+}
+
+// ── Render con PDFShift (respaldo / modo legacy) ──────────────────────────
+async function renderWithPdfShift(html, options = {}) {
   const apiKey = String(process.env.PDFSHIFT_API_KEY || "").trim();
   if (!apiKey) {
     throw new Error("Falta PDFSHIFT_API_KEY en environment variables");
   }
-  if (!html || typeof html !== "string") {
-    throw new Error("htmlToPdfBuffer requiere un HTML string como primer argumento");
-  }
 
-  // Sandbox = true genera PDF con marca de agua sin gastar créditos.
-  // Útil para pruebas. Producción debe ir con sandbox=false.
+  // Sandbox = true genera PDF con marca de agua sin gastar creditos (pruebas).
   const isSandbox = options.sandbox === true || process.env.PDFSHIFT_SANDBOX === "true";
 
   const body = {
@@ -43,13 +91,38 @@ async function htmlToPdfBuffer(html, options = {}) {
 
   if (!response.ok) {
     const errText = await response.text().catch(() => "");
-    throw new Error(
-      `PDFShift HTTP ${response.status}: ${errText.slice(0, 300)}`
-    );
+    throw new Error(`PDFShift HTTP ${response.status}: ${errText.slice(0, 300)}`);
   }
 
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
 
-module.exports = { htmlToPdfBuffer };
+// ── Dispatcher ────────────────────────────────────────────────────────────
+async function htmlToPdfBuffer(html, options = {}) {
+  if (!html || typeof html !== "string") {
+    throw new Error("htmlToPdfBuffer requiere un HTML string como primer argumento");
+  }
+
+  const renderer = String(process.env.PDF_RENDERER || "chromium").toLowerCase();
+
+  if (renderer === "pdfshift") {
+    return renderWithPdfShift(html, options);
+  }
+
+  try {
+    return await renderWithChromium(html, options);
+  } catch (chromiumError) {
+    // Respaldo: si hay PDFShift configurado, no rompemos la generacion de PDF.
+    if (String(process.env.PDFSHIFT_API_KEY || "").trim()) {
+      console.error(
+        "[pdf] Chromium fallo, usando PDFShift como respaldo:",
+        chromiumError?.message || chromiumError
+      );
+      return renderWithPdfShift(html, options);
+    }
+    throw chromiumError;
+  }
+}
+
+module.exports = { htmlToPdfBuffer, renderWithChromium, renderWithPdfShift };
