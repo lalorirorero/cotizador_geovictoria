@@ -80,7 +80,12 @@ async function searchPaymentsByExternalReference(config, externalReference) {
     criteria: "desc",
   }).toString();
   const result = await mpRequest(config, `/v1/payments/search?${qs}`);
-  return Array.isArray(result?.results) ? result.results : [];
+  const all = Array.isArray(result?.results) ? result.results : [];
+  // El search de MP no siempre filtra de forma estricta por external_reference,
+  // asi que filtramos en cliente para quedarnos solo con los de esta cotizacion.
+  return all.filter(
+    (p) => String(p?.external_reference || "") === String(externalReference)
+  );
 }
 
 function createPreapproval(config, payload) {
@@ -100,7 +105,13 @@ function getPreapproval(config, preapprovalId) {
 async function searchPreapprovalByExternalReference(config, externalReference) {
   const qs = new URLSearchParams({ external_reference: externalReference }).toString();
   const result = await mpRequest(config, `/preapproval/search?${qs}`);
-  return Array.isArray(result?.results) ? result.results : [];
+  const all = Array.isArray(result?.results) ? result.results : [];
+  // IMPORTANTE: /preapproval/search de Mercado Pago NO filtra por
+  // external_reference (devuelve otros preapprovals del collector). Filtramos
+  // en cliente para no confundir suscripciones de cotizaciones distintas.
+  return all.filter(
+    (p) => String(p?.external_reference || "") === String(externalReference)
+  );
 }
 
 /**
