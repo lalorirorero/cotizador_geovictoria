@@ -8,12 +8,21 @@ export default async function handler(req, res) {
     out.steps.requireChromium = true;
     const puppeteer = require("puppeteer-core");
     out.steps.requirePuppeteer = true;
+    const path = require("path");
+
+    try { chromium.setGraphicsMode = false; } catch (_e) {}
 
     out.steps.headless = chromium.headless;
     out.steps.argsCount = Array.isArray(chromium.args) ? chromium.args.length : null;
 
     const execPath = await chromium.executablePath();
     out.steps.executablePath = execPath;
+
+    // CRÍTICO: que el loader encuentre libnss3.so (libs extraídas junto al binario).
+    process.env.LD_LIBRARY_PATH = [path.dirname(execPath), process.env.LD_LIBRARY_PATH]
+      .filter(Boolean)
+      .join(":");
+    out.steps.ldLibraryPath = process.env.LD_LIBRARY_PATH;
 
     const browser = await puppeteer.launch({
       args: chromium.args,
