@@ -2338,6 +2338,18 @@
             throw new Error(data.error || "No se pudo confirmar aceptacion.");
           }
 
+          if (data.requiresPayment && data.paymentUrl) {
+            flowState.acceptedAt = data.acceptedAt || flowState.acceptedAt;
+            setMessage("Cotizacion aceptada. Te llevamos a la pasarela de pago...", "ok");
+            startOnboardingRedirect(data.paymentUrl, {
+              title: "Estamos preparando tu pago",
+              detail:
+                "Tu cotizacion fue aceptada. Ahora te llevamos a Mercado Pago para completar el pago inicial y activar tu suscripcion.",
+              delayMs: 1500,
+            });
+            return;
+          }
+
           if (data.alreadyAccepted) {
             flowState.acceptedLocked = true;
             flowState.onboardingUrl = data.onboardingUrl || flowState.onboardingUrl;
