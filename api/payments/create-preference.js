@@ -67,17 +67,33 @@ export default async function handler(req, res) {
     }
 
     const externalReference = buildExternalReference(quoteId, "oneshot");
+
+    // Lineas del checkout: servicios iniciales (una vez) + primer mes de
+    // servicio prepagado (si corresponde). El total = amounts.oneShotClp.
+    const items = [];
+    if (amounts.oneShotItemsClp > 0) {
+      items.push({
+        id: `qa-${quoteId}-oneshot`,
+        title: mpConfig.oneShotTitle,
+        description: quoteName || `Cotizacion ${quoteId}`,
+        quantity: 1,
+        unit_price: amounts.oneShotItemsClp,
+        currency_id: mpConfig.currencyId,
+      });
+    }
+    if (amounts.firstMonthClp > 0) {
+      items.push({
+        id: `qa-${quoteId}-firstmonth`,
+        title: "Primer mes de servicio (adelantado)",
+        description: quoteName || `Cotizacion ${quoteId}`,
+        quantity: 1,
+        unit_price: amounts.firstMonthClp,
+        currency_id: mpConfig.currencyId,
+      });
+    }
+
     const preference = {
-      items: [
-        {
-          id: `qa-${quoteId}-oneshot`,
-          title: mpConfig.oneShotTitle,
-          description: quoteName || `Cotizacion ${quoteId}`,
-          quantity: 1,
-          unit_price: amounts.oneShotClp,
-          currency_id: mpConfig.currencyId,
-        },
-      ],
+      items,
       payer: billingEmail ? { email: billingEmail } : undefined,
       back_urls: {
         success: landingUrl(mpConfig, token, { oneshot: "success" }),
