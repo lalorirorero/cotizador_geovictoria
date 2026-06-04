@@ -1,4 +1,4 @@
-﻿# Cotizador GeoVictoria (Replica 1:1)
+# Cotizador GeoVictoria (Replica 1:1)
 
 Replica estatica de la calculadora publicada en:
 `https://geovictoria-cotizador.netlify.app/`
@@ -173,3 +173,60 @@ Campos de `Autoservicio_Onboarding` usados por handoff interno (default):
 ### Validación backend en Blueprint (Before Transition)
 - Archivo de referencia: `zoho-widget/DELUGE_before_transition_validar_cotizacion.deluge`
 - Este control evita bypass de UI y bloquea la transición si no existe cotización válida con `PDF_URL`.
+
+## Integración de pagos con Mercado Pago (one-shot + suscripción)
+
+Inserta un paso de pago **entre** la aceptación de la cotización y el onboarding.
+Está protegido por feature-flag (`MP_PAYMENTS_ENABLED`): con el flag **apagado**
+(default) el flujo actual `confirm → onboarding` no cambia.
+
+### Flujo (con `MP_PAYMENTS_ENABLED=true`)
+1. El cliente acepta la cotización (`/api/quote-acceptance/confirm`).
+2. En vez de hacer handoff a onboarding, `confirm` devuelve `requiresPayment: true` y
+   un `paymentUrl` hacia `pago.html` (con un token de sesión de pago firmado).
+3. `pago.html` orquesta dos cobros consecutivos (no se pueden combinar en MP):
+   - **Pago único** (`POST /checkout/preferences`) por los ítems no recurrentes (venta).
+   - **Suscripción recurrente** (`POST /preapproval`, `status: "pending"`) por el monto mensual.
+4. El **webhook** (`/api/payments/webhook`) valida la firma y, cuando el pago está
+   aprobado y la suscripción autorizada, dispara el handoff a onboarding (idempotente).
+5. `pago.html` consulta `/api/payments/status`, que también reconcilia contra MP y
+   finaliza el onboarding si el webhook no llegó (resiliencia en sandbox). Al estar
+   listo, redirige al onboarding.
+
+Los montos los calcula el backend a partir del subform de la cotización
+(`api/_shared/quote-pricing.js`): one-shot = ítems de venta/no recurrentes;
+recurrente = ítems recurrentes con el descuento aplicado. Con `MP_CHARGE_INCLUDE_IVA=true`
+se cobra bruto (IVA 19% incluido). CLP se cobra en enteros (sin decimales).
+
+### Endpoints nuevos
+- `POST /api/payments/create-preference` → preferencia de pago único, retorna `initPoint`.
+- `POST /api/payments/create-subscription` → preapproval recurrente, retorna `initPoint`.
+- `GET  /api/payments/status?token=...` → estado de pago/suscripción + onboarding.
+- `POST /api/payments/webhook` → notificaciones de MP (topics `payment` y `subscription_preapproval`).
+
+### Landing
+- `/pago.html?token=...` → pantalla del journey de pago (sin datos sensibles de tarjeta; los captura Mercado Pago).
+
+### Variables de entorno (Vercel)
+- `MP_PAYMENTS_ENABLED` (default `false`) — activa el paso de pago.
+- `MP_ENVIRONMENT` (`test` | `production`, default `test`).
+- `MP_ACCESS_TOKEN` (**obligatoria**, solo backend) — Access Token de la app MP.
+- `MP_PUBLIC_KEY` (opcional).
+- `MP_WEBHOOK_SECRET` (recomendada) — secreto para validar la firma `x-signature`.
+- `MP_CURRENCY_ID` (default `CLP`).
+- `MP_CHARGE_INCLUDE_IVA` (default `true`).
+- `MP_STATEMENT_DESCRIPTOR` (default `GEOVICTORIA`).
+- `MP_SUBSCRIPTION_REASON` (default `Suscripcion GeoVictoria`).
+- `MP_ONESHOT_TITLE` (default `Servicios iniciales GeoVictoria`).
+- `MP_PAYMENT_SESSION_TTL_MINUTES` (default `1440`).
+- `MP_PAYMENT_LANDING_PATH` (default `/pago.html`).
+- `MP_NOTIFICATION_URL` (opcional; default `<baseUrl>/api/payments/webhook`).
+- `MP_QUOTE_STATUS_PAYMENT_PENDING` (default `Pago Pendiente`) — estado best-effort en la cotización mientras el pago está pendiente.
+
+El token de sesión de pago se firma con `QUOTE_VERIFICATION_SECRET` (o `QUOTE_ACCEPTANCE_SECRET`).
+
+### Pruebas (sandbox)
+- Crear test users (comprador/vendedor) y usar tarjetas de prueba (CVV `123`, exp `11/30`):
+  - Mastercard `5254 1336 7440 3564`, Visa crédito `4013 5406 8274 6260`, Visa débito `4915 1120 5524 6507`.
+- Forzar resultado por nombre del titular: `APRO` (aprobado), `CONT` (pendiente), `OTHE`/`FUND`/`SECU` (rechazos). Documento `123456789` para APRO/OTHE.
+- Configurar `MP_NOTIFICATION_URL` con una URL pública para recibir webhooks; si no, `status.js` reconcilia el estado igual.
