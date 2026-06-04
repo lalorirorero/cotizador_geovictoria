@@ -1,9 +1,14 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
 const { getRecord, updateRecordBestEffort, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
+const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
 const { runOnboardingHandoff } = require("../_shared/onboarding-handoff");
 const { runNdvHandoff } = require("../_shared/ndv-handoff");
-const { verifyVerificationToken, normalizeEmail } = require("../_shared/verification-token");
+const {
+  verifyVerificationToken,
+  signVerificationPayload,
+  normalizeEmail,
+} = require("../_shared/verification-token");
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -69,6 +74,18 @@ function toZohoDateTime(value) {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toText(value).toLowerCase());
+}
+
+function buildPaymentSessionToken(mpConfig, { quoteId, dealId, billingEmail }) {
+  const ttlMinutes = Math.max(5, Number(mpConfig.paymentSessionTtlMinutes) || 1440);
+  return signVerificationPayload(
+    { quoteId, dealId, billingEmail, exp: Date.now() + ttlMinutes * 60 * 1000 },
+    "payment_session"
+  );
+}
+
+function buildPaymentUrl(mpConfig, token) {
+  return `${mpConfig.landingUrl}?${new URLSearchParams({ token }).toString()}`;
 }
 
 async function triggerHandoff(config, payload) {
@@ -257,6 +274,7 @@ export default async function handler(req, res) {
     }
 
     const config = getAcceptanceConfig(req);
+    const mpConfig = getMercadoPagoConfig(req);
     const payload = verifyAcceptanceToken(token);
     const quote = await getRecord(config.quoteModule, payload.quoteId);
     const currentOnboardingUrl = toText(quote?.[config.quoteOnboardingUrlField]);
@@ -311,6 +329,28 @@ export default async function handler(req, res) {
       return;
     }
     if (alreadyAccepted) {
+      // Con pagos habilitados, una cotizacion aceptada sin onboarding implica
+      // que el pago/suscripcion aun esta pendiente: reanudamos el journey de pago.
+      if (mpConfig.enabled) {
+        const sessionToken = buildPaymentSessionToken(mpConfig, {
+          quoteId: payload.quoteId,
+          dealId: payload.dealId,
+          billingEmail: normalizeEmail(quote?.[config.billingEmailField]),
+        });
+        sendJson(res, 200, {
+          success: true,
+          alreadyAccepted: true,
+          requiresPayment: true,
+          quoteId: payload.quoteId,
+          acceptedAt: acceptedAtIso,
+          paymentUrl: buildPaymentUrl(mpConfig, sessionToken),
+          paymentSessionToken: sessionToken,
+          message:
+            "Esta cotizacion ya fue aceptada. Continua con el pago para activar tu servicio.",
+        });
+        return;
+      }
+
       try {
         const handoffResult = await triggerHandoff(config, {
           eventType: "quote.accepted.recover",
@@ -445,6 +485,33 @@ export default async function handler(req, res) {
         updateMap[config.quoteEmailVerifiedAtField] = acceptedAtIso;
       }
       await updateRecordBestEffort(config.quoteModule, payload.quoteId, updateMap, true);
+    }
+
+    // Pagos habilitados: se difiere el handoff a onboarding hasta que el pago
+    // unico + la suscripcion recurrente queden confirmados (via webhook/status).
+    if (mpConfig.enabled) {
+      await updateRecordBestEffort(
+        config.quoteModule,
+        payload.quoteId,
+        { [config.quoteHandoffStatusField]: mpConfig.statusPaymentPending },
+        true
+      );
+      const sessionToken = buildPaymentSessionToken(mpConfig, {
+        quoteId: payload.quoteId,
+        dealId: payload.dealId,
+        billingEmail: billingEmailFromForm,
+      });
+      sendJson(res, 200, {
+        success: true,
+        requiresPayment: true,
+        quoteId: payload.quoteId,
+        dealId: payload.dealId,
+        acceptedAt: acceptedAtIso,
+        paymentUrl: buildPaymentUrl(mpConfig, sessionToken),
+        paymentSessionToken: sessionToken,
+        message: "Cotizacion aceptada. Continua con el pago para activar tu servicio.",
+      });
+      return;
     }
 
     let handoffResult = null;
