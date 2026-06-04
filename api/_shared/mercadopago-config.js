@@ -51,6 +51,12 @@ function getMercadoPagoConfig(req) {
     webhookSecret: toText(process.env.MP_WEBHOOK_SECRET),
     currencyId: toText(process.env.MP_CURRENCY_ID || "CLP"),
     includeIva: toBool(process.env.MP_CHARGE_INCLUDE_IVA, true),
+    // Suscripcion recurrente: desactivada por ahora. El monto recurrente varia
+    // por usuarios activos/mes (input aun no integrado), asi que por defecto solo
+    // se cobra el pago unico. Encender con MP_SUBSCRIPTION_ENABLED=true.
+    subscriptionEnabled: toBool(process.env.MP_SUBSCRIPTION_ENABLED, false),
+    // Cobrar el primer mes de servicio por adelantado dentro del pago unico.
+    oneShotIncludeFirstMonth: toBool(process.env.MP_ONESHOT_INCLUDE_FIRST_MONTH, true),
     statementDescriptor: toText(process.env.MP_STATEMENT_DESCRIPTOR || "GEOVICTORIA"),
     subscriptionReason: toText(process.env.MP_SUBSCRIPTION_REASON || "Suscripcion GeoVictoria"),
     oneShotTitle: toText(process.env.MP_ONESHOT_TITLE || "Servicios iniciales GeoVictoria"),
