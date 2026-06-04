@@ -163,7 +163,7 @@ async function maybeFinalizeQuote({ mpConfig, acceptanceConfig, quoteId, dealId 
       mpConfig,
       buildExternalReference(quoteId, "sub")
     );
-    subscriptionAuthorized = isPreapprovalActive(preapprovals?.[0]);
+    subscriptionAuthorized = (preapprovals || []).some(isPreapprovalActive);
   }
 
   const paymentsComplete = oneShotApproved && subscriptionAuthorized;
