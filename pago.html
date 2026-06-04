@@ -135,6 +135,16 @@
     <script>
       (function () {
         var token = new URLSearchParams(window.location.search).get("token") || "";
+        // El back_url del preapproval no puede llevar el token (limite de longitud
+        // de Mercado Pago), por lo que al volver de la suscripcion la URL no lo trae.
+        // Lo persistimos al cargar y lo recuperamos desde localStorage si falta.
+        try {
+          if (token) {
+            window.localStorage.setItem("gv_mp_token", token);
+          } else {
+            token = window.localStorage.getItem("gv_mp_token") || "";
+          }
+        } catch (e) {}
         var loadingEl = document.getElementById("loading");
         var contentEl = document.getElementById("content");
         var msgEl = document.getElementById("msg");
