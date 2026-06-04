@@ -1,0 +1,10 @@
+{
+  "name": "cotizador-geovictoria",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API serverless del cotizador GeoVictoria (Vercel).",
+  "dependencies": {
+    "@sparticuz/chromium": "^131.0.0",
+    "puppeteer-core": "^23.11.0"
+  }
+}
