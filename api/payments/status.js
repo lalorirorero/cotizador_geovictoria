@@ -37,7 +37,8 @@ export default async function handler(req, res) {
     }
 
     const hasOneShot = amounts.oneShotClp > 0;
-    const hasSubscription = amounts.recurringClp > 0;
+    // La suscripcion recurrente esta desactivada hasta integrar usuarios activos/mes.
+    const hasSubscription = mpConfig.subscriptionEnabled && amounts.recurringClp > 0;
 
     let oneShotApproved = !hasOneShot;
     let oneShotStatus = hasOneShot ? "pending" : "not_required";
@@ -97,6 +98,8 @@ export default async function handler(req, res) {
       includeIva: amounts.includeIva,
       amounts: {
         oneShotClp: amounts.oneShotClp,
+        oneShotItemsClp: amounts.oneShotItemsClp,
+        firstMonthClp: amounts.firstMonthClp,
         recurringClp: amounts.recurringClp,
         breakdown: amounts.breakdown,
       },
