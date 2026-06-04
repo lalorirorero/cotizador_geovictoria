@@ -19,6 +19,8 @@ const PROPOSAL_BENEFICIOS = [
 ];
 
 const PROPOSAL_TYC = [
+  'El pago inicial —al aceptar esta cotización— incluye los conceptos de pago único (equipos, instalación y servicios iniciales) y el primer mes de servicio de la plataforma, cobrado por adelantado.',
+  'El valor mensual indicado es referencial, calculado sobre la cantidad de usuarios de esta cotización, y está sujeto a mantener dicha cantidad. Cualquier variación en el número de usuarios activos modificará el cobro mensual, ajuste que se reflejará en la facturación del período siguiente.',
   'Los precios indicados están expresados en UF (Unidad de Fomento) y su equivalente referencial en CLP.',
   'Los valores no incluyen IVA salvo donde se indique expresamente.',
   'El servicio de arriendo de equipos incluye mantención y reposición por falla técnica.',
