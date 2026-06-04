@@ -34,9 +34,12 @@ async function parseBody(req) {
   }
 }
 
-function landingUrl(mpConfig, token, extraParams) {
-  const params = new URLSearchParams({ token, ...(extraParams || {}) });
-  return `${mpConfig.landingUrl}?${params.toString()}`;
+// El back_url del preapproval debe ser CORTO: la columna BACK_URL de Mercado
+// Pago tiene un limite (~255) y un token largo en la query hace fallar el
+// /preapproval con "Data too long for column 'BACK_URL'". Por eso no incrustamos
+// el token aqui; pago.html lo recupera desde localStorage al volver.
+function subscriptionBackUrl(mpConfig) {
+  return mpConfig.landingUrl;
 }
 
 export default async function handler(req, res) {
@@ -79,7 +82,7 @@ export default async function handler(req, res) {
       reason: mpConfig.subscriptionReason,
       external_reference: externalReference,
       payer_email: billingEmail,
-      back_url: landingUrl(mpConfig, token, { sub: "return" }),
+      back_url: subscriptionBackUrl(mpConfig),
       status: "pending",
       auto_recurring: {
         frequency: 1,
