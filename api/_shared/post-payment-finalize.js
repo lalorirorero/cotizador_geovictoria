@@ -146,7 +146,8 @@ async function maybeFinalizeQuote({ mpConfig, acceptanceConfig, quoteId, dealId 
   const amounts = computePaymentAmounts(items, descuentoPct, { includeIva: mpConfig.includeIva });
 
   const hasOneShot = amounts.oneShotClp > 0;
-  const hasSubscription = amounts.recurringClp > 0;
+  // La suscripcion recurrente esta desactivada hasta integrar usuarios activos/mes.
+  const hasSubscription = mpConfig.subscriptionEnabled && amounts.recurringClp > 0;
 
   let oneShotApproved = !hasOneShot;
   if (hasOneShot) {
