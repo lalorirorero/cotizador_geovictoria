@@ -327,6 +327,14 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
       `<div class="tot-h">Total</div>` +
       `<div class="tr grand"><span>Total</span><span>${formatCLP(0)}</span></div>`;
   }
+  if (grpRec) {
+    totHtml +=
+      `<div style="margin-top:8px;font-size:8px;line-height:1.4;color:#646464">` +
+      `El pago inicial (al aceptar) incluye los conceptos de pago único y el primer mes de servicio. ` +
+      `El valor mensual es referencial, calculado sobre la cantidad de usuarios de esta cotización; ` +
+      `la variación de usuarios activos modifica el cobro mensual en la facturación del período siguiente.` +
+      `</div>`;
+  }
 
   const ctaHref = escapeHtml(acceptanceUrl || "#");
   const notaUf = ufValue > 0 ? formatCLP(ufValue) : "—";
