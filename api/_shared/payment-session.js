@@ -43,6 +43,7 @@ async function resolvePaymentSession(req, token) {
   const descuentoPct = clampDescuentoPct(quote?.[acceptanceConfig.quoteDiscountPctField]);
   const amounts = computePaymentAmounts(items, descuentoPct, {
     includeIva: mpConfig.includeIva,
+    includeFirstMonth: mpConfig.oneShotIncludeFirstMonth,
   });
 
   const billingEmail =
