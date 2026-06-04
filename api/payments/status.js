@@ -65,9 +65,12 @@ export default async function handler(req, res) {
           mpConfig,
           buildExternalReference(quoteId, "sub")
         );
-        const preapproval = preapprovals?.[0];
-        subscriptionAuthorized = isPreapprovalActive(preapproval);
-        subscriptionStatus = toText(preapproval?.status) || "pending";
+        // Puede haber mas de un preapproval para la misma cotizacion (reintentos):
+        // basta con que ALGUNO este autorizado.
+        const activePreapproval = (preapprovals || []).find(isPreapprovalActive);
+        subscriptionAuthorized = Boolean(activePreapproval);
+        subscriptionStatus =
+          toText(activePreapproval?.status || preapprovals?.[0]?.status) || "pending";
       } catch (_error) {
         subscriptionStatus = "unknown";
       }
