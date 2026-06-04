@@ -64,6 +64,12 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Suscripcion recurrente desactivada por ahora (se cobra solo el pago unico).
+    if (!mpConfig.subscriptionEnabled) {
+      sendJson(res, 200, { success: true, skipped: true, reason: "subscription_disabled" });
+      return;
+    }
+
     if (amounts.recurringClp <= 0) {
       sendJson(res, 200, { success: true, skipped: true, reason: "no_subscription" });
       return;
