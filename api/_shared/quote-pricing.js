@@ -72,6 +72,10 @@ function sanitizeItems(items, fieldMap = DEFAULT_FIELD_MAP) {
  */
 function computePaymentAmounts(items, descuentoPct = 0, options = {}) {
   const includeIva = options.includeIva !== false;
+  // Si se incluye el primer mes, el monto recurrente del 1er ciclo se cobra
+  // por adelantado DENTRO del pago unico (la suscripcion recurrente puede estar
+  // desactivada por ahora).
+  const includeFirstMonth = options.includeFirstMonth === true;
   const rows = Array.isArray(items) ? items : [];
   const pct = clampDescuentoPct(descuentoPct);
   const factor = 1 - pct / 100;
@@ -101,13 +105,19 @@ function computePaymentAmounts(items, descuentoPct = 0, options = {}) {
   const recurringIva = includeIva ? recurringIvaBaseDisc * IVA_RATE : 0;
 
   // CLP no admite decimales: se cobra en enteros.
-  const oneShotClp = Math.round(oneShotNet + oneShotIva);
+  const oneShotItemsClp = Math.round(oneShotNet + oneShotIva);
   const recurringClp = Math.round(recurringNetDisc + recurringIva);
+  // Primer mes prepagado en el one-shot (si corresponde).
+  const firstMonthClp = includeFirstMonth ? recurringClp : 0;
+  const oneShotClp = oneShotItemsClp + firstMonthClp;
 
   return {
     oneShotClp,
+    oneShotItemsClp,
+    firstMonthClp,
     recurringClp,
     includeIva,
+    includeFirstMonth,
     descuentoPct: pct,
     breakdown: {
       oneShotNetClp: Math.round(oneShotNet),
