@@ -1113,6 +1113,8 @@
                   Revisa estas condiciones y acepta para continuar al paso de facturacion.
                 </p>
                 <ol class="terms terms-summary">
+                  <li>El pago inicial incluye los conceptos de pago unico (equipos, instalacion y servicios iniciales) y el primer mes de servicio de la plataforma, cobrado por adelantado.</li>
+                  <li>El valor mensual es referencial, calculado sobre la cantidad de usuarios de esta cotizacion, y esta sujeto a mantener dicha cantidad: la variacion de usuarios activos modifica el cobro mensual en la facturacion del periodo siguiente.</li>
                   <li>Vigencia comercial: 30 dias corridos desde la emision de la cotizacion.</li>
                   <li>Implementacion estimada: 2 a 3 semanas desde recepcion de planilla validada.</li>
                   <li>Atencion comercial y soporte en horario habil de lunes a viernes.</li>
@@ -1411,7 +1413,15 @@
         onboardingUrl: "",
         redirectPending: false,
         pendingConfirmAfterVerification: false,
+        paymentsEnabled: false,
       };
+
+      // Texto del CTA segun si el flujo incluye pago antes del onboarding.
+      function confirmCtaLabel() {
+        return flowState.paymentsEnabled
+          ? "Aceptar y continuar al pago"
+          : "Aceptar cotizacion y continuar";
+      }
 
       function normalizeEmail(value) {
         return String(value || "").trim().toLowerCase();
@@ -1651,10 +1661,12 @@
 
         if (stage === 2) {
           if (verified) {
-            journeyHintEl.textContent = "Correo validado. Puedes aceptar la cotizacion y continuar al onboarding.";
+            journeyHintEl.textContent = flowState.paymentsEnabled
+              ? "Correo validado. Puedes aceptar la cotizacion y continuar al pago."
+              : "Correo validado. Puedes aceptar la cotizacion y continuar al onboarding.";
           } else if (!flowState.pendingConfirmAfterVerification) {
             journeyHintEl.textContent =
-              "Cuando presiones Aceptar cotizacion y continuar, te pediremos validar el correo de contacto.";
+              "Cuando presiones " + confirmCtaLabel() + ", te pediremos validar el correo de contacto.";
           } else if (remaining > 0) {
             journeyHintEl.textContent = "Codigo enviado. Ingresalo para validar y habilitar la confirmacion.";
           } else if (verificationState.challengeToken) {
@@ -1986,6 +1998,11 @@
           flowState.acceptedAt = q.acceptedAt || "";
           flowState.onboardingUrl = q.onboardingUrl || "";
           flowState.pendingConfirmAfterVerification = false;
+          flowState.paymentsEnabled = data.paymentsEnabled === true;
+          if (!flowState.acceptedLocked) {
+            const cb = document.getElementById("confirmBtn");
+            if (cb) cb.textContent = confirmCtaLabel();
+          }
           setVerifyPromptVisible(false);
 
           const rows = data.items || [];
