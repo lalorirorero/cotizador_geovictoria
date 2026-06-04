@@ -26,9 +26,26 @@ async function renderWithChromium(html, options = {}) {
   // require perezoso: solo se carga si efectivamente usamos Chromium.
   const chromium = require("@sparticuz/chromium");
   const puppeteer = require("puppeteer-core");
+  const path = require("path");
 
   const localExecutable = String(process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
+
+  if (!localExecutable) {
+    // Sin GPU/swiftshader: más liviano y evita libs extra en serverless.
+    try { chromium.setGraphicsMode = false; } catch (_e) {}
+  }
+
   const executablePath = localExecutable || (await chromium.executablePath());
+
+  if (!localExecutable) {
+    // CRÍTICO en Vercel/Lambda (AL2023): que el loader encuentre libnss3.so y
+    // demás librerías que @sparticuz extrae junto al binario.
+    try {
+      process.env.LD_LIBRARY_PATH = [path.dirname(executablePath), process.env.LD_LIBRARY_PATH]
+        .filter(Boolean)
+        .join(":");
+    } catch (_e) {}
+  }
 
   const browser = await puppeteer.launch({
     args: localExecutable ? ["--no-sandbox", "--disable-setuid-sandbox"] : chromium.args,
