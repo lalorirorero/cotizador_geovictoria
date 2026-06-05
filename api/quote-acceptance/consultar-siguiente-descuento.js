@@ -36,6 +36,7 @@ const {
   hayEscalonDespues,
   descuentosHasta,
   previewAmounts,
+  buildMensajeNegociacion,
 } = require("../_shared/discount-engine");
 
 function sendJson(res, status, payload) {
@@ -53,36 +54,6 @@ function parseBody(req) {
     }
   }
   return typeof req.body === "object" && req.body ? req.body : {};
-}
-
-// Formato CLP simple e independiente de ICU (Vercel/Node): $1.234.567
-function fmtCLP(n) {
-  const v = Math.round(Number(n) || 0);
-  return "$" + v.toLocaleString("en-US").replace(/,/g, ".");
-}
-
-function buildMensajeNegociacion(escalon, amounts) {
-  const pagoInicial = fmtCLP(amounts.oneShotClp);
-  const mensual = fmtCLP(amounts.recurringClp);
-
-  let oferta;
-  if (escalon.tipo === "instalacion_rm") {
-    oferta = `Puedo ofrecerte un ${escalon.pct}% de descuento en la instalación de los equipos (Región Metropolitana).`;
-  } else if (escalon.tipo === "instalacion_region") {
-    oferta = `Puedo ofrecerte un ${escalon.pct}% de descuento en la instalación de los equipos.`;
-  } else {
-    oferta = `Puedo ofrecerte un ${escalon.pct}% de descuento sobre el plan mensual.`;
-  }
-
-  const partes = [
-    oferta,
-    `Con eso tu pago inicial queda en ${pagoInicial} y el plan mensual en ${mensual}/mes (IVA incluido).`,
-  ];
-  if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
-  partes.push(
-    "¿Lo dejamos así y te actualizo la cotización, o querés que veamos algo más?",
-  );
-  return partes.join(" ");
 }
 
 module.exports = async function handler(req, res) {

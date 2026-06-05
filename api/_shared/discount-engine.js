@@ -103,6 +103,37 @@ function previewAmounts(quote, config, descuentos) {
   });
 }
 
+// Formato CLP simple e independiente de ICU (Vercel/Node): $1.234.567
+function fmtCLP(n) {
+  const v = Math.round(Number(n) || 0);
+  return "$" + v.toLocaleString("en-US").replace(/,/g, ".");
+}
+
+// Mensaje que Vicky copia tal cual para ofrecer el descuento en la
+// conversación (negociación), con el precio recalculado. Mismo formato en el
+// flujo referencial (preform) y en el post-cotización.
+function buildMensajeNegociacion(escalon, amounts) {
+  const pagoInicial = fmtCLP(amounts.oneShotClp);
+  const mensual = fmtCLP(amounts.recurringClp);
+
+  let oferta;
+  if (escalon.tipo === "instalacion_rm") {
+    oferta = `Puedo ofrecerte un ${escalon.pct}% de descuento en la instalación de los equipos (Región Metropolitana).`;
+  } else if (escalon.tipo === "instalacion_region") {
+    oferta = `Puedo ofrecerte un ${escalon.pct}% de descuento en la instalación de los equipos.`;
+  } else {
+    oferta = `Puedo ofrecerte un ${escalon.pct}% de descuento sobre el plan mensual.`;
+  }
+
+  const partes = [
+    oferta,
+    `Con eso tu pago inicial queda en ${pagoInicial} y el plan mensual en ${mensual}/mes (IVA incluido).`,
+  ];
+  if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
+  partes.push("¿Lo dejamos así o querés que veamos algo más?");
+  return partes.join(" ");
+}
+
 module.exports = {
   DISCOUNT_LADDER,
   tieneInstalacionDeZona,
@@ -111,4 +142,6 @@ module.exports = {
   hayEscalonDespues,
   descuentosHasta,
   previewAmounts,
+  fmtCLP,
+  buildMensajeNegociacion,
 };

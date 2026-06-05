@@ -6,6 +6,7 @@ const { zohoApiFetch } = require("../_shared/zoho-auth");
 const { htmlToPdfBuffer } = require("../_shared/pdfshift-client");
 const { uploadPdfToSupabase } = require("../_shared/supabase-pdf-upload");
 const { buildProposalHtml } = require("../_shared/proposal-html-builder");
+const { descuentosHasta } = require("../_shared/discount-engine");
 
 const VICKY_OWNER_EMAIL = toText(process.env.VICKY_OWNER_EMAIL) || "egomez@geovictoria.com";
 const VICKY_FROM_EMAIL = toText(process.env.VICKY_FROM_EMAIL) || "vicky@geovictoria.com";
@@ -514,6 +515,10 @@ module.exports = async function handler(req, res) {
     const cliente = body.cliente || {};
     const cotizacion = body.cotizacion || {};
     const existing = body.existing || {};
+    // Descuento negociado en el preform (forma "siguiente índice" = escalón+1).
+    // 0 = sin descuento. Si > 0, la cotización nace ya con ese descuento y el
+    // PDF v1 refleja el precio acordado (un solo PDF, sin regenerar).
+    const escalonDescuento = Math.max(0, Number(body.escalonDescuento || 0));
 
     // Validaciones
     if (!cliente.empresa || !cliente.contacto || !cliente.contactoEmail || !cliente.rutEmpresa) {
@@ -734,6 +739,18 @@ module.exports = async function handler(req, res) {
     const ufActual = Number(cotizacion.ufActual || 0);
     const subformItems = buildSubformItems(cotizacion.items, ufActual, config);
 
+    // Si la cotización nace con descuento negociado en el preform, calculamos
+    // el descuento acumulado con el MISMO motor que usa el commit (mismos ítems
+    // → mismos números). El PDF v1 ya sale con el precio acordado.
+    let descIniciales = { recurrentePct: 0, instalacionRMPct: 0, instalacionRegionPct: 0 };
+    let condicionDiscursivaInicial = null;
+    if (escalonDescuento > 0) {
+      const pseudoQuote = { [config.quoteItemsSubformField]: subformItems };
+      const acum = descuentosHasta(pseudoQuote, config, escalonDescuento - 1);
+      descIniciales = acum.descuentos;
+      condicionDiscursivaInicial = acum.lastEscalon ? acum.lastEscalon.condicionDiscursiva : null;
+    }
+
     const quoteFields = {
       Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
       [config.quoteDealLookupField]: { id: dealId },
@@ -751,11 +768,12 @@ module.exports = async function handler(req, res) {
       // Estado inicial de descuentos y versionado (aplicar_siguiente_descuento
       // los actualiza después).
       [config.quoteVersionPdfField]: 1,
-      [config.quoteEscalonField]: 0,
-      [config.quoteEscalonNegociacionField]: 0,
-      [config.quoteDiscountPctField]: 0,
-      [config.quoteDiscountInstRMPctField]: 0,
-      [config.quoteDiscountInstRegionPctField]: 0,
+      [config.quoteEscalonField]: escalonDescuento,
+      [config.quoteEscalonNegociacionField]: escalonDescuento,
+      [config.quoteDiscountUnlockedField]: escalonDescuento > 0,
+      [config.quoteDiscountPctField]: descIniciales.recurrentePct,
+      [config.quoteDiscountInstRMPctField]: descIniciales.instalacionRMPct,
+      [config.quoteDiscountInstRegionPctField]: descIniciales.instalacionRegionPct,
     };
     const quoteResult = await createRecord(config.quoteModule, quoteFields, true);
     const quoteId = toText(quoteResult?.id);
@@ -780,6 +798,8 @@ module.exports = async function handler(req, res) {
       acceptanceUrl,
       cotizacionId: quoteId.slice(-8).toUpperCase(),
       validezHasta: new Date(expMs).toISOString(),
+      descuentos: descIniciales,
+      condicionDiscursiva: condicionDiscursivaInicial,
     });
     const pdfBuffer = await htmlToPdfBuffer(html, {
       format: "Letter",
@@ -842,3 +862,8 @@ module.exports = async function handler(req, res) {
     });
   }
 };
+
+// Exponemos buildSubformItems para que consultar-descuento-referencial reuse la
+// MISMA construcción de subform (así el preview del preform y la cotización
+// formal usan idéntica conversión de modalidad/zona → mismos números).
+module.exports.buildSubformItems = buildSubformItems;

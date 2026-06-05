@@ -12,6 +12,10 @@
       "memory": 1024,
       "maxDuration": 30
     },
+    "api/quote-acceptance/consultar-descuento-referencial.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
     "api/payments/status.js": {
       "memory": 1024,
       "maxDuration": 30
