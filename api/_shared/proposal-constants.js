@@ -63,6 +63,70 @@ const LOGO_ORIGINAL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 
 
 const ISO_ORIGINAL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="50" height="50">   <path fill="#00AFF2" d="M35.54,92.94s-2.7-20.42-19.43-54.8l17.13,4.57s8.18,18.38,9.11,24.97c4.11-5.23,20.42-17.13,20.42-17.13l17.13,4.59c-31.84,21.48-44.36,37.83-44.36,37.83"/>   <path fill="#FFBB00" d="M16.73,31.2c-.15.55-.3,1.14-.42,1.71l16.31,4.36c0-.4.15-.8.25-1.2,2.47-9.17,11.91-14.61,21.08-12.14,9.17,2.47,14.61,11.91,12.14,21.08-.11.4-.23.74-.36,1.12l16.31,4.38c.17-.55.32-1.05.48-1.62,4.87-18.17-5.88-36.84-24.05-41.73-2.97-.8-6.01-1.16-9.08-1.12-15.3.11-28.66,10.39-32.65,25.16"/> </svg>';
 
+// ───────────────────────────────────────────────────────────────────────────
+// Escalones de descuento (Vicky V3)
+//
+// Orden de aplicación cuando el prospecto objeta el precio. La cotizadora
+// avanza un solo paso por llamada de aplicar_siguiente_descuento, decidiendo
+// el próximo según el estado actual del quote:
+//
+//   - Los escalones de instalación se aplican solo si la cotización tiene
+//     ítems de instalación con la zona correspondiente. Si no aplica, se
+//     saltan automáticamente al siguiente.
+//   - Los escalones de recurrente se aplican secuencialmente hasta 30 %.
+//   - Los descuentos son acumulativos sobre líneas distintas (instalación y
+//     recurrente conviven en el mismo PDF).
+//   - condicionDiscursiva es texto que Vicky comunica al cliente; no tiene
+//     enforcement técnico (el descuento queda aplicado aunque se venza).
+// ───────────────────────────────────────────────────────────────────────────
+const DISCOUNT_LADDER = [
+  {
+    tipo: "instalacion_rm",
+    pct: 50,
+    condicionDiscursiva: null,
+    label: "50 % de descuento en instalación de equipos (Región Metropolitana)",
+  },
+  {
+    tipo: "instalacion_region",
+    pct: 25,
+    condicionDiscursiva: null,
+    label: "25 % de descuento en instalación de equipos (regiones)",
+  },
+  {
+    tipo: "recurrente_10",
+    pct: 10,
+    condicionDiscursiva: null,
+    label: "10 % de descuento sobre el plan mensual",
+  },
+  {
+    tipo: "recurrente_15",
+    pct: 15,
+    condicionDiscursiva: null,
+    label: "15 % de descuento sobre el plan mensual",
+  },
+  {
+    tipo: "recurrente_20",
+    pct: 20,
+    condicionDiscursiva:
+      "Este descuento aplica si aceptas y pagas dentro de las próximas 24 horas.",
+    label: "20 % de descuento sobre el plan mensual",
+  },
+  {
+    tipo: "recurrente_25",
+    pct: 25,
+    condicionDiscursiva:
+      "Este descuento aplica si aceptas y pagas dentro de las próximas 24 horas.",
+    label: "25 % de descuento sobre el plan mensual",
+  },
+  {
+    tipo: "recurrente_30",
+    pct: 30,
+    condicionDiscursiva:
+      "Este descuento aplica si aceptas y pagas dentro de la próxima hora.",
+    label: "30 % de descuento sobre el plan mensual",
+  },
+];
+
 module.exports = {
   PROPOSAL_INTRO,
   PROPOSAL_BENEFICIOS,
@@ -72,4 +136,5 @@ module.exports = {
   LOGO_BLANCO_SVG,
   LOGO_ORIGINAL_SVG,
   ISO_ORIGINAL_SVG,
+  DISCOUNT_LADDER,
 };

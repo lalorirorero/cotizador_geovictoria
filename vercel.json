@@ -4,6 +4,10 @@
       "memory": 1536,
       "maxDuration": 60
     },
+    "api/quote-acceptance/aplicar-siguiente-descuento.js": {
+      "memory": 1536,
+      "maxDuration": 60
+    },
     "api/payments/status.js": {
       "memory": 1024,
       "maxDuration": 30

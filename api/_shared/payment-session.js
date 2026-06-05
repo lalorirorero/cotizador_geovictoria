@@ -40,8 +40,12 @@ async function resolvePaymentSession(req, token) {
   }
 
   const items = sanitizeItems(quote?.[acceptanceConfig.quoteItemsSubformField]);
-  const descuentoPct = clampDescuentoPct(quote?.[acceptanceConfig.quoteDiscountPctField]);
-  const amounts = computePaymentAmounts(items, descuentoPct, {
+  const descuentos = {
+    recurrentePct: clampDescuentoPct(quote?.[acceptanceConfig.quoteDiscountPctField]),
+    instalacionRMPct: Number(quote?.[acceptanceConfig.quoteDiscountInstRMPctField] || 0),
+    instalacionRegionPct: Number(quote?.[acceptanceConfig.quoteDiscountInstRegionPctField] || 0),
+  };
+  const amounts = computePaymentAmounts(items, descuentos, {
     includeIva: mpConfig.includeIva,
     includeFirstMonth: mpConfig.oneShotIncludeFirstMonth,
   });

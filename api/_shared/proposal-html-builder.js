@@ -5,8 +5,17 @@
  * alineada al estilo gráfico de GeoVictoria. PDFShift (Chromium headless) la
  * renderiza como PDF profesional.
  *
- * Interfaz pública intacta — el caller (create-from-vicky) no cambia:
- *   buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId })
+ * Interfaz pública (compat hacia atrás): create-from-vicky no necesita
+ * pasar descuentos en la generación inicial.
+ *   buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId,
+ *                       validezHasta, version, descuentos, condicionDiscursiva })
+ *
+ *   - version: número de versión del PDF (1 = original). Se pinta como "vN"
+ *     junto al N° de cotización cuando >= 2.
+ *   - descuentos: { recurrentePct, instalacionRMPct, instalacionRegionPct }.
+ *     Si viene, los descuentos se aplican por línea en la tabla y al total.
+ *   - condicionDiscursiva: texto que se pinta al pie del bloque de totales
+ *     (ej. "Este descuento aplica si pagas en 24 horas").
  *
  * Mapeo de datos:
  *   - cliente: empresa, contacto, rutEmpresa, ejecutivo (+ email/teléfono).
@@ -97,10 +106,18 @@ function adaptarItemsVicky(items) {
       const nombre = zonaMatch
         ? nombreRaw.replace(/\s*\([^)]+\)\s*$/, "")
         : nombreRaw;
+      // zonaTarifa viene de la generación inicial en Vicky ("RM" / "regiones");
+      // si no, se infiere "regiones" como fallback (mismo criterio que session.js
+      // cuando no hay clasificación clara).
+      const zonaTarifa = String(it.zonaTarifa || "").toLowerCase() === "rm"
+        ? "RM"
+        : "regiones";
       serviciosAsoc.push({
         nombre,
         cantidad: Number(it.cantidad || 1),
         zona,
+        zonaTarifa,
+        codigo: String(it.id || it.codigo || "").toLowerCase(),
         precioUnit: Number(it.precioUnit || it.precioUnitarioUF || 0),
         subtotalUF: Number(it.subtotalUF || 0),
       });
@@ -109,6 +126,11 @@ function adaptarItemsVicky(items) {
 
   return { servicios, equipos, accesorios, serviciosAsoc };
 }
+
+// Codigo_Item de servicios reconocidos como instalación. Espejo de
+// CODIGOS_INSTALACION en quote-pricing.js (no se importa para no acoplar el
+// builder de HTML a quote-pricing).
+const CODIGOS_INSTALACION_PDF = new Set(["instalacion_reloj"]);
 
 // ───────────────────────────────────────────────────────────────────────────
 // Descripciones por tipo de ítem (oferta actual: asistencia + relojes control)
@@ -195,15 +217,47 @@ td{padding:4px 7px;border-bottom:1px solid rgba(100,100,100,.18);vertical-align:
 .cta-sub{margin-top:10px;text-align:center;font-size:9.5px;line-height:1.45;font-weight:700;color:rgba(75,75,75,.92)}
 .foot{margin-top:auto;border-top:1px solid rgba(0,175,242,.25);padding-top:7px;display:flex;justify-content:space-between;font-size:9px;color:rgba(100,100,100,.7)}
 .foot b{color:#00AFF2}
+.line-old{text-decoration:line-through;color:#a0a0a0;font-weight:600;margin-right:4px;font-size:9.5px}
+.line-disc{display:inline-block;margin-left:5px;background:#FFBB00;color:#646464;font-weight:800;font-size:8.5px;padding:1px 5px;border-radius:3px;letter-spacing:.3px}
+.title .v{display:inline-block;margin-left:8px;background:#FFBB00;color:#646464;font-size:11px;font-weight:800;padding:2px 8px;border-radius:4px;vertical-align:middle;letter-spacing:.5px}
+.disc-applied{margin-top:6px;padding:6px 10px;background:rgba(255,187,12,.18);border-left:3px solid #FFBB00;font-size:9.5px;color:#646464;line-height:1.4}
+.disc-applied b{color:#646464;font-weight:800}
+.disc-cond{margin-top:6px;font-size:9px;color:#646464;font-style:italic;line-height:1.35}
 @page{size:Letter;margin:0}
 `;
+
+function clampPctLocal(value, max) {
+  const n = Math.round(Number(value || 0));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(0, Math.min(max, n));
+}
 
 // ───────────────────────────────────────────────────────────────────────────
 // Builder principal
 // ───────────────────────────────────────────────────────────────────────────
-function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, validezHasta }) {
+function buildProposalHtml({
+  cliente,
+  cotizacion,
+  acceptanceUrl,
+  cotizacionId,
+  validezHasta,
+  version,
+  descuentos,
+  condicionDiscursiva,
+}) {
   cliente = cliente || {};
   cotizacion = cotizacion || {};
+
+  // Descuentos por línea / global. Sanear acá para que sea robusto al caller.
+  const descRecPct = clampPctLocal(descuentos?.recurrentePct, 30);
+  const descInstRMPct = clampPctLocal(descuentos?.instalacionRMPct, 50);
+  const descInstRegionPct = clampPctLocal(descuentos?.instalacionRegionPct, 50);
+  const factorRec = 1 - descRecPct / 100;
+  const factorInstRM = 1 - descInstRMPct / 100;
+  const factorInstRegion = 1 - descInstRegionPct / 100;
+  const hayDescuento = descRecPct > 0 || descInstRMPct > 0 || descInstRegionPct > 0;
+
+  const versionNum = Number(version) > 1 ? Number(version) : 1;
 
   // ── Cliente / ejecutivo ──
   const empresa = escapeHtml(cliente.empresa || "EMPRESA");
@@ -240,17 +294,24 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
   );
 
   const filas = [];
-  const pushFila = (nombre, modalidad, desc, precioUnitUF, cant, subtotalUF, recurrente) => {
+  const pushFila = (nombre, modalidad, desc, precioUnitUF, cant, subtotalUF, recurrente, opts = {}) => {
     const stUF = Number(subtotalUF || 0);
+    // Descuento opcional por línea (solo se usa hoy para instalación).
+    const factorLinea = Number(opts.factorLinea ?? 1);
+    const descLineaPct = Number(opts.descLineaPct ?? 0);
+    const stUFNeto = stUF * factorLinea;
     filas.push({
       nombre: escapeHtml(nombre),
       modalidad,
       desc: escapeHtml(desc),
       puCLP: toCLP(precioUnitUF),
       cant: Number(cant || 1),
-      totalUF: stUF,
-      totalCLP: toCLP(stUF),
+      totalUFBruto: stUF,
+      totalCLPBruto: toCLP(stUF),
+      totalUF: stUFNeto,
+      totalCLP: toCLP(stUFNeto),
       recurrente: !!recurrente,
+      descLineaPct,
     });
   };
 
@@ -267,14 +328,34 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
   });
   serviciosAsoc.forEach((s) => {
     const nombre = s.zona ? `${s.nombre} (${s.zona})` : s.nombre;
-    pushFila(nombre, "Pago único", DESC_SERVICIO_ASOC, s.precioUnit, s.cantidad, s.subtotalUF, false);
+    // Descuento de instalación aplica solo a items reconocidos como instalación
+    // y según la zona tarifa (RM vs regiones).
+    const esInstalacion = CODIGOS_INSTALACION_PDF.has(String(s.codigo || ""));
+    let factorLinea = 1;
+    let descLineaPct = 0;
+    if (esInstalacion) {
+      if (s.zonaTarifa === "RM" && descInstRMPct > 0) {
+        factorLinea = factorInstRM;
+        descLineaPct = descInstRMPct;
+      } else if (s.zonaTarifa === "regiones" && descInstRegionPct > 0) {
+        factorLinea = factorInstRegion;
+        descLineaPct = descInstRegionPct;
+      }
+    }
+    pushFila(nombre, "Pago único", DESC_SERVICIO_ASOC, s.precioUnit, s.cantidad, s.subtotalUF, false, {
+      factorLinea,
+      descLineaPct,
+    });
   });
   // Línea fija: capacitación online sin costo, en TODAS las cotizaciones.
   pushFila("Capacitación online", "Sin costo", DESC_CAPACITACION, 0, 1, 0, false);
 
   // ── Totales separados (recurrente vs único) ──
+  // Sobre los recurrentes aplica el descuento global del recurrente.
+  // Sobre los no recurrentes ya quedaron aplicados los descuentos por línea.
   const sumUF = (arr) => arr.reduce((acc, f) => acc + f.totalUF, 0);
-  const recUF = sumUF(filas.filter((f) => f.recurrente));
+  const recUFBruto = sumUF(filas.filter((f) => f.recurrente));
+  const recUF = recUFBruto * factorRec;
   const uniUF = sumUF(filas.filter((f) => !f.recurrente));
   const netoUF = recUF + uniUF;
   const netoCLP = toCLP(netoUF);
@@ -290,17 +371,31 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
   const uniTotUF = uniUF * 1.19;
 
   // ── Filas de la tabla ──
-  const rowItem = (f) =>
-    `<tr>` +
-    `<td class="c-nom">${f.nombre}</td>` +
-    `<td class="c-modal">${f.modalidad}</td>` +
-    `<td class="c-desc">${f.desc}</td>` +
-    `<td class="c-num">${formatCLP(f.puCLP)}</td>` +
-    `<td class="c-num">${f.cant}</td>` +
-    `<td class="c-num c-tot">${formatCLP(f.totalCLP)}` +
-    (f.totalUF > 0 ? `<span class="uf-ref">${formatUF(f.totalUF)} UF</span>` : "") +
-    `</td>` +
-    `</tr>`;
+  const rowItem = (f) => {
+    // Si hay descuento por línea, mostramos el bruto tachado encima del neto.
+    let totalCellInner;
+    if (f.descLineaPct > 0 && f.totalUFBruto > 0) {
+      totalCellInner =
+        `<span class="line-old">${formatCLP(f.totalCLPBruto)}</span> ` +
+        `${formatCLP(f.totalCLP)}` +
+        `<span class="line-disc">−${f.descLineaPct}%</span>` +
+        (f.totalUF > 0 ? `<span class="uf-ref">${formatUF(f.totalUF)} UF</span>` : "");
+    } else {
+      totalCellInner =
+        `${formatCLP(f.totalCLP)}` +
+        (f.totalUF > 0 ? `<span class="uf-ref">${formatUF(f.totalUF)} UF</span>` : "");
+    }
+    return (
+      `<tr>` +
+      `<td class="c-nom">${f.nombre}</td>` +
+      `<td class="c-modal">${f.modalidad}</td>` +
+      `<td class="c-desc">${f.desc}</td>` +
+      `<td class="c-num">${formatCLP(f.puCLP)}</td>` +
+      `<td class="c-num">${f.cant}</td>` +
+      `<td class="c-num c-tot">${totalCellInner}</td>` +
+      `</tr>`
+    );
+  };
 
   const rowsHtml = filas.map(rowItem).join("");
 
@@ -327,6 +422,11 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
   }
   if (grpRec) {
     totHtml += `<div class="tot-h" style="margin-top:6px">Valor mensual del servicio — desde el 2&ordm; mes</div>`;
+    if (descRecPct > 0) {
+      const recBrutoCLP = toCLP(recUFBruto);
+      totHtml += `<div class="tr"><span>Neto sin descuento</span><span><span class="line-old">${formatCLP(recBrutoCLP)}</span></span></div>`;
+      totHtml += `<div class="tr"><span>Descuento aplicado</span><span><span class="line-disc">−${descRecPct}%</span></span></div>`;
+    }
     totHtml += `<div class="tr"><span>Neto</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
     totHtml += `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(recIva)}</span></div>`;
     totHtml += `<div class="tr grand"><span>Total mensual (referencial)</span><span>${formatCLP(recTot)}/mes<span class="uf-ref">${formatUF(recTotUF)} UF</span></span></div>`;
@@ -335,6 +435,19 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
       `El <b>Pago inicial</b> es lo que se cobra al aceptar e incluye los conceptos de pago &uacute;nico y el primer mes de servicio. ` +
       `El <b>Valor mensual</b> es referencial, calculado sobre la cantidad de usuarios de esta cotizaci&oacute;n y sujeto a mantenerla: se factura mensualmente desde el segundo mes, y la variaci&oacute;n de usuarios activos lo ajusta en la facturaci&oacute;n del per&iacute;odo siguiente.` +
       `</div>`;
+  }
+
+  // Resumen de descuentos vigentes (si los hay).
+  if (hayDescuento) {
+    const items = [];
+    if (descInstRMPct > 0) items.push(`${descInstRMPct}% en instalación (Región Metropolitana)`);
+    if (descInstRegionPct > 0) items.push(`${descInstRegionPct}% en instalación (regiones)`);
+    if (descRecPct > 0) items.push(`${descRecPct}% en el plan mensual`);
+    totHtml += `<div class="disc-applied"><b>Descuentos aplicados:</b> ${escapeHtml(items.join(" · "))}</div>`;
+  }
+  // Condición discursiva (ej. "paga en 24h"). No tiene enforcement técnico.
+  if (condicionDiscursiva) {
+    totHtml += `<div class="disc-cond">${escapeHtml(String(condicionDiscursiva))}</div>`;
   }
 
   const ctaHref = escapeHtml(acceptanceUrl || "#");
@@ -356,7 +469,12 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
     </div>
   </div>
 
-  <div class="title"><span class="t">COTIZACIÓN N°</span><span class="n">${cotizNumero}</span><div class="ys"></div></div>
+  <div class="title">
+    <span class="t">COTIZACIÓN N°</span>
+    <span class="n">${cotizNumero}</span>
+    ${versionNum >= 2 ? `<span class="v">v${versionNum}</span>` : ""}
+    <div class="ys"></div>
+  </div>
 
   <div class="meta">
     <div>

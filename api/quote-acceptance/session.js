@@ -19,6 +19,8 @@ function sanitizeItems(items, fieldMap) {
     subtotalClp: Number(row?.[fieldMap.subtotalCLP] || 0),
     modalidad: toText(row?.[fieldMap.modalidad]),
     afectoIva: row?.[fieldMap.afectoIva] === true,
+    codigo: toText(row?.[fieldMap.codigo]),
+    zonaTarifa: toText(row?.[fieldMap.zonaTarifa]),
   }));
 }
 
@@ -40,10 +42,39 @@ function clampDescuentoPct(value) {
   return Math.max(0, Math.min(30, Math.round(n / 5) * 5));
 }
 
-function computeTotals(items, descuentoPct = 0) {
+function clampInstalacionPctLocal(value) {
+  const n = Math.round(Number(value || 0));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(0, Math.min(50, n));
+}
+
+function isInstalacionRow(row) {
+  return String(row?.codigo || "").toLowerCase() === "instalacion_reloj";
+}
+
+function getZonaTarifaLocal(row) {
+  const raw = String(row?.zonaTarifa || "").toLowerCase().trim();
+  if (raw === "rm") return "RM";
+  if (raw === "regiones" || raw === "region") return "regiones";
+  return null;
+}
+
+// descuentos = { recurrentePct, instalacionRMPct, instalacionRegionPct }
+// (acepta también número simple como antes para no romper callers viejos).
+function computeTotals(items, descuentos = 0) {
   const rows = Array.isArray(items) ? items : [];
   const subtotalUf = sumBy(rows, "subtotalUf");
   const subtotalClp = sumBy(rows, "subtotalClp");
+
+  let recRecurrente = typeof descuentos === "number" ? descuentos : descuentos?.recurrentePct;
+  let recInstRM = typeof descuentos === "number" ? 0 : descuentos?.instalacionRMPct;
+  let recInstRegion = typeof descuentos === "number" ? 0 : descuentos?.instalacionRegionPct;
+  const pctRec = clampDescuentoPct(recRecurrente);
+  const pctInstRM = clampInstalacionPctLocal(recInstRM);
+  const pctInstRegion = clampInstalacionPctLocal(recInstRegion);
+  const factorRec = 1 - pctRec / 100;
+  const factorInstRM = 1 - pctInstRM / 100;
+  const factorInstRegion = 1 - pctInstRegion / 100;
 
   let recurrenteUf = 0;
   let recurrenteClp = 0;
@@ -51,10 +82,24 @@ function computeTotals(items, descuentoPct = 0) {
   let noRecurrenteClp = 0;
   let ivaUf = 0;
   let ivaClp = 0;
+  let ahorroInstalacionUf = 0;
+  let ahorroInstalacionClp = 0;
 
   rows.forEach((row) => {
-    const subtotalRowUf = Number(row?.subtotalUf || 0);
-    const subtotalRowClp = Number(row?.subtotalClp || 0);
+    const subtotalRowUfBruto = Number(row?.subtotalUf || 0);
+    const subtotalRowClpBruto = Number(row?.subtotalClp || 0);
+    // Descuento por línea (solo instalación).
+    let factorLinea = 1;
+    if (isInstalacionRow(row)) {
+      const zona = getZonaTarifaLocal(row);
+      if (zona === "RM") factorLinea = factorInstRM;
+      else if (zona === "regiones") factorLinea = factorInstRegion;
+    }
+    const subtotalRowUf = subtotalRowUfBruto * factorLinea;
+    const subtotalRowClp = subtotalRowClpBruto * factorLinea;
+    ahorroInstalacionUf += subtotalRowUfBruto - subtotalRowUf;
+    ahorroInstalacionClp += subtotalRowClpBruto - subtotalRowClp;
+
     if (isRecurrentModalidad(row?.modalidad)) {
       recurrenteUf += subtotalRowUf;
       recurrenteClp += subtotalRowClp;
@@ -70,10 +115,8 @@ function computeTotals(items, descuentoPct = 0) {
     }
   });
 
-  const pct = clampDescuentoPct(descuentoPct);
-  const factor = 1 - pct / 100;
-  const recurrenteUfConDescuento = Number((recurrenteUf * factor).toFixed(3));
-  const recurrenteClpConDescuento = Math.round(recurrenteClp * factor);
+  const recurrenteUfConDescuento = Number((recurrenteUf * factorRec).toFixed(3));
+  const recurrenteClpConDescuento = Math.round(recurrenteClp * factorRec);
 
   return {
     subtotalUf: Number(subtotalUf.toFixed(3)),
@@ -86,12 +129,15 @@ function computeTotals(items, descuentoPct = 0) {
     recurrenteClp: Math.round(recurrenteClp),
     noRecurrenteUf: Number(noRecurrenteUf.toFixed(3)),
     noRecurrenteClp: Math.round(noRecurrenteClp),
-    // Descuento (solo recurrente). pct=0 => sin descuento; los "con descuento" igualan al recurrente.
-    descuentoPct: pct,
+    descuentoPct: pctRec,
+    descuentoInstalacionRMPct: pctInstRM,
+    descuentoInstalacionRegionPct: pctInstRegion,
     recurrenteUfConDescuento,
     recurrenteClpConDescuento,
     descuentoRecurrenteUf: Number((recurrenteUf - recurrenteUfConDescuento).toFixed(3)),
     descuentoRecurrenteClp: Math.round(recurrenteClp) - recurrenteClpConDescuento,
+    ahorroInstalacionUf: Number(ahorroInstalacionUf.toFixed(3)),
+    ahorroInstalacionClp: Math.round(ahorroInstalacionClp),
   };
 }
 
@@ -199,9 +245,15 @@ export default async function handler(req, res) {
       subtotalCLP: "Subtotal_CLP",
       modalidad: "Modalidad",
       afectoIva: "Afecto_IVA",
+      codigo: "Codigo_Item",
+      zonaTarifa: config.quoteItemZonaTarifaField,
     };
     const items = sanitizeItems(quote?.[config.quoteItemsSubformField], fieldMap);
-    const descuentoPct = clampDescuentoPct(quote?.[config.quoteDiscountPctField]);
+    const descuentos = {
+      recurrentePct: clampDescuentoPct(quote?.[config.quoteDiscountPctField]),
+      instalacionRMPct: Number(quote?.[config.quoteDiscountInstRMPctField] || 0),
+      instalacionRegionPct: Number(quote?.[config.quoteDiscountInstRegionPctField] || 0),
+    };
 
     sendJson(res, 200, {
       success: true,
@@ -261,7 +313,7 @@ export default async function handler(req, res) {
         supportEmail: config.supportContactEmail,
       },
       items,
-      totals: computeTotals(items, descuentoPct),
+      totals: computeTotals(items, descuentos),
     });
   } catch (error) {
     const isExpired = toText(error?.code) === "TOKEN_EXPIRED";

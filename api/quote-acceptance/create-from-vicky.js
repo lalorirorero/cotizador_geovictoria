@@ -424,7 +424,7 @@ function resolveDescripcionItem(item) {
  * Precio_Unitario_CLP, Subtotal_UF, Subtotal_CLP, Modalidad, Es_Recurrente,
  * Afecto_IVA, Orden, Codigo_Item, Categoria_Item, Unidad.
  */
-function buildSubformItems(items, ufActual) {
+function buildSubformItems(items, ufActual, config) {
   if (!Array.isArray(items) || items.length === 0) return [];
   return items.map((item, index) => {
     const modalidadZoho = mapModalidadToZoho(item.modalidad);
@@ -433,7 +433,11 @@ function buildSubformItems(items, ufActual) {
     const subtotalUF = Number(item.subtotalUF || 0);
     const precioUnitarioCLP = ufActual > 0 ? Math.round(precioUnitarioUF * ufActual) : 0;
     const subtotalCLP = ufActual > 0 ? Math.round(subtotalUF * ufActual) : 0;
-    return {
+    // Zona tarifa: solo para items de servicio que la traen explícita. Se usa
+    // server-side para decidir descuentos de instalación.
+    const zonaRaw = String(item.zonaTarifa || "").toLowerCase().trim();
+    const zonaTarifa = zonaRaw === "rm" ? "RM" : zonaRaw === "regiones" ? "regiones" : "";
+    const row = {
       Nombre_Item: String(item.nombre || ""),
       Descripcion_Item: resolveDescripcionItem(item),
       Codigo_Item: String(item.id || ""),
@@ -449,6 +453,10 @@ function buildSubformItems(items, ufActual) {
       Categoria_Item: mapCategoriaToZoho(item),
       Unidad: mapUnidadToZoho(modalidadZoho, tipo),
     };
+    if (zonaTarifa && config?.quoteItemZonaTarifaField) {
+      row[config.quoteItemZonaTarifaField] = zonaTarifa;
+    }
+    return row;
   });
 }
 
@@ -724,7 +732,7 @@ module.exports = async function handler(req, res) {
     // ── Cotización (siempre nueva) ──
     stage = "create_quote";
     const ufActual = Number(cotizacion.ufActual || 0);
-    const subformItems = buildSubformItems(cotizacion.items, ufActual);
+    const subformItems = buildSubformItems(cotizacion.items, ufActual, config);
 
     const quoteFields = {
       Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
@@ -740,6 +748,13 @@ module.exports = async function handler(req, res) {
       // lee de aquí y calcula los totales en runtime. Si está vacío, todos los
       // valores se muestran como "-".
       [config.quoteItemsSubformField]: subformItems,
+      // Estado inicial de descuentos y versionado (aplicar_siguiente_descuento
+      // los actualiza después).
+      [config.quoteVersionPdfField]: 1,
+      [config.quoteEscalonField]: 0,
+      [config.quoteDiscountPctField]: 0,
+      [config.quoteDiscountInstRMPctField]: 0,
+      [config.quoteDiscountInstRegionPctField]: 0,
     };
     const quoteResult = await createRecord(config.quoteModule, quoteFields, true);
     const quoteId = toText(quoteResult?.id);

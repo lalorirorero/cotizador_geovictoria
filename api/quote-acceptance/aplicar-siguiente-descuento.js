@@ -1,0 +1,345 @@
+/**
+ * Endpoint: POST /api/quote-acceptance/aplicar-siguiente-descuento
+ *
+ * Avanza una cotización al siguiente escalón de descuento según el orden de
+ * negocio (ver DISCOUNT_LADDER en proposal-constants.js). Regenera el PDF
+ * con la versión incrementada (mismo número de cotización, nueva fecha/hora,
+ * "vN" en el header), lo sube a Supabase Storage y actualiza Zoho.
+ *
+ * Reemplaza al endpoint anterior escalar-descuento.js, que solo subía el %
+ * recurrente y no regeneraba PDF.
+ *
+ * Body:
+ *   { "quoteId": "<id de la cotización en Zoho>" }
+ *
+ * Respuesta exitosa:
+ *   {
+ *     ok: true,
+ *     version: 2,
+ *     link_pdf: "https://cotizacion.geovictoria.com/pdf/...",
+ *     ultimo_escalon: {
+ *       tipo: "instalacion_rm" | "recurrente_10" | ...,
+ *       pct: 50,
+ *       condicion_discursiva: null | "Este descuento aplica si pagas..."
+ *     },
+ *     tope_alcanzado: false,
+ *     mensaje_para_prospecto: "Texto que Vicky copia tal cual al cliente"
+ *   }
+ *
+ * Respuesta cuando ya no hay más escalones:
+ *   { ok: false, error: "TOPE_ALCANZADO", tope_alcanzado: true }
+ */
+
+const {
+  getRecord,
+  getRecordWithFields,
+  updateRecord,
+  toText,
+} = require("../_shared/zoho-crm");
+const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
+const { DISCOUNT_LADDER } = require("../_shared/proposal-constants");
+const { signAcceptancePayload } = require("../_shared/acceptance-token");
+const { htmlToPdfBuffer } = require("../_shared/pdfshift-client");
+const { uploadPdfToSupabase } = require("../_shared/supabase-pdf-upload");
+const { buildProposalHtml } = require("../_shared/proposal-html-builder");
+
+function sendJson(res, status, payload) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(payload));
+}
+
+function parseBody(req) {
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body || "{}");
+    } catch {
+      return {};
+    }
+  }
+  return typeof req.body === "object" && req.body ? req.body : {};
+}
+
+// Detecta si la cotización tiene ítems de instalación de la zona dada. Lee el
+// subform Detalle_Items_Cotizacion. Si el quote no tiene la zona, ese escalón
+// se salta automáticamente al elegir el siguiente.
+function tieneInstalacionDeZona(quote, config, zona) {
+  const items = quote?.[config.quoteItemsSubformField];
+  if (!Array.isArray(items)) return false;
+  return items.some((row) => {
+    const codigo = String(row?.Codigo_Item || "").toLowerCase();
+    if (codigo !== "instalacion_reloj") return false;
+    const rowZona = String(row?.[config.quoteItemZonaTarifaField] || "")
+      .toLowerCase()
+      .trim();
+    if (zona === "RM") return rowZona === "rm";
+    if (zona === "regiones") return rowZona === "regiones" || rowZona === "region";
+    return false;
+  });
+}
+
+// Devuelve { siguiente, index } o null si no hay más escalones aplicables.
+// Salta los escalones de instalación cuyo target no exista en la cotización.
+function elegirSiguienteEscalon(quote, config) {
+  const indexActual = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
+  for (let i = indexActual; i < DISCOUNT_LADDER.length; i++) {
+    const escalon = DISCOUNT_LADDER[i];
+    if (escalon.tipo === "instalacion_rm" && !tieneInstalacionDeZona(quote, config, "RM")) {
+      continue;
+    }
+    if (escalon.tipo === "instalacion_region" && !tieneInstalacionDeZona(quote, config, "regiones")) {
+      continue;
+    }
+    return { escalon, index: i + 1 };
+  }
+  return null;
+}
+
+// Carga datos de cliente para regenerar el HTML del PDF. Espejo simplificado
+// de lo que arma create-from-vicky.js en el primer PDF.
+async function buildClienteParaHtml(quote, config) {
+  const dealId = toText(
+    quote?.[config.quoteDealLookupField]?.id || quote?.[config.quoteDealLookupField]
+  );
+  const accountId = toText(quote?.Cuenta_Asociada?.id);
+  const contactId = toText(
+    quote?.[config.quoteContactLookupField]?.id ||
+      quote?.[config.quoteContactLookupField]
+  );
+
+  const account = accountId
+    ? await getRecordWithFields("Accounts", accountId, ["Account_Name", "RUT_Empresa"])
+    : null;
+  const contact = contactId
+    ? await getRecordWithFields("Contacts", contactId, ["First_Name", "Last_Name"])
+    : null;
+
+  const contactoFullName = [contact?.First_Name, contact?.Last_Name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return {
+    empresa: toText(account?.Account_Name) || toText(quote?.Name) || "EMPRESA",
+    contacto: contactoFullName || "",
+    contactoEmail: toText(quote?.[config.contactEmailField]),
+    rutEmpresa: toText(quote?.[config.companyRutField]) || toText(account?.RUT_Empresa),
+    ejecutivo: "Eddyluz Mujica",
+  };
+}
+
+// Convierte el subform de Zoho a la forma que espera buildProposalHtml en
+// cotizacion.items (mismo shape que envía Vicky en create-from-vicky).
+function subformACotizacionItems(quote, config) {
+  const subform = quote?.[config.quoteItemsSubformField];
+  if (!Array.isArray(subform)) return [];
+  return subform.map((row) => {
+    const modalidadZoho = String(row?.Modalidad || "");
+    const codigo = String(row?.Codigo_Item || "").toLowerCase();
+    // El builder usa item.tipo para enrutar la fila a servicios / equipos /
+    // serviciosAsoc. Reconstruimos el tipo a partir del código y modalidad.
+    let tipo = "modulo";
+    if (codigo === "instalacion_reloj") tipo = "servicio";
+    else if (modalidadZoho === "Arriendo" || modalidadZoho === "Venta") tipo = "hardware";
+    return {
+      tipo,
+      id: codigo,
+      nombre: String(row?.Nombre_Item || ""),
+      modalidad:
+        modalidadZoho === "Recurrente"
+          ? "Por usuario"
+          : modalidadZoho === "Único"
+          ? "Fijo"
+          : modalidadZoho === "Arriendo"
+          ? "Arriendo mensual"
+          : modalidadZoho === "Venta"
+          ? "Venta única"
+          : "Cobro único",
+      cantidad: Number(row?.Cantidad || 0),
+      precioUnitarioUF: Number(row?.Precio_Unitario_UF || 0),
+      subtotalUF: Number(row?.Subtotal_UF || 0),
+      zonaTarifa: String(row?.[config.quoteItemZonaTarifaField] || ""),
+    };
+  });
+}
+
+async function getUFActualSafe() {
+  try {
+    const res = await fetch("https://mindicador.cl/api/uf", { cache: "no-store" });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data?.serie?.[0]?.valor || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function buildMensajeParaProspecto(escalon, linkPdf) {
+  let cuerpo;
+  if (escalon.tipo === "instalacion_rm") {
+    cuerpo = `Puedo aplicarte un ${escalon.pct}% de descuento en la instalación (Región Metropolitana).`;
+  } else if (escalon.tipo === "instalacion_region") {
+    cuerpo = `Puedo aplicarte un ${escalon.pct}% de descuento en la instalación.`;
+  } else {
+    cuerpo = `Puedo aplicarte un ${escalon.pct}% de descuento sobre el plan mensual.`;
+  }
+  const partes = [cuerpo];
+  if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
+  partes.push(`Acá tienes la cotización actualizada: ${linkPdf}`);
+  return partes.join(" ");
+}
+
+const crypto = require("crypto");
+
+module.exports = async function handler(req, res) {
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-vicky-secret");
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
+  if (req.method !== "POST") {
+    return sendJson(res, 405, { ok: false, error: "Metodo no permitido." });
+  }
+
+  const expectedSecret = toText(process.env.VICKY_COTIZADORA_SECRET);
+  const providedSecret = toText(req.headers["x-vicky-secret"]);
+  if (expectedSecret && expectedSecret !== providedSecret) {
+    return sendJson(res, 401, { ok: false, error: "Unauthorized" });
+  }
+
+  let stage = "init";
+  try {
+    const config = getAcceptanceConfig(req);
+    const body = parseBody(req);
+    const quoteId = toText(body.quoteId);
+    if (!quoteId) {
+      return sendJson(res, 400, { ok: false, error: "Falta quoteId." });
+    }
+
+    stage = "fetch_quote";
+    const quote = await getRecord(config.quoteModule, quoteId);
+    if (!quote) {
+      return sendJson(res, 404, { ok: false, error: "Cotizacion no encontrada." });
+    }
+
+    // 1. Decidir el escalón a aplicar.
+    stage = "elegir_escalon";
+    const eleccion = elegirSiguienteEscalon(quote, config);
+    if (!eleccion) {
+      return sendJson(res, 200, {
+        ok: false,
+        error: "TOPE_ALCANZADO",
+        tope_alcanzado: true,
+      });
+    }
+    const { escalon, index: nuevoEscalonIdx } = eleccion;
+
+    // 2. Calcular los descuentos consolidados resultantes.
+    stage = "consolidar_descuentos";
+    const descRecActual = Number(quote?.[config.quoteDiscountPctField] || 0);
+    const descRMActual = Number(quote?.[config.quoteDiscountInstRMPctField] || 0);
+    const descRegionActual = Number(quote?.[config.quoteDiscountInstRegionPctField] || 0);
+
+    let descRecNuevo = descRecActual;
+    let descRMNuevo = descRMActual;
+    let descRegionNuevo = descRegionActual;
+
+    if (escalon.tipo === "instalacion_rm") descRMNuevo = escalon.pct;
+    else if (escalon.tipo === "instalacion_region") descRegionNuevo = escalon.pct;
+    else descRecNuevo = escalon.pct; // los escalones recurrente_NN llevan el % directo
+
+    // 3. Versionar.
+    stage = "version_bump";
+    const versionActual = Math.max(1, Number(quote?.[config.quoteVersionPdfField] || 1));
+    const versionNueva = versionActual + 1;
+
+    // 4. Regenerar el PDF.
+    stage = "render_pdf";
+    const cliente = await buildClienteParaHtml(quote, config);
+    const ufActual = await getUFActualSafe();
+    const items = subformACotizacionItems(quote, config);
+
+    // acceptanceUrl: regeneramos el token con la misma data, expiración fresca
+    // según validityDays. La página de aceptación trabaja contra el mismo
+    // quoteId/dealId.
+    const dealId = toText(
+      quote?.[config.quoteDealLookupField]?.id || quote?.[config.quoteDealLookupField]
+    );
+    const expMs = Date.now() + config.validityDays * 24 * 60 * 60 * 1000;
+    const acceptanceToken = signAcceptancePayload({
+      quoteId,
+      dealId,
+      iat: Date.now(),
+      exp: expMs,
+      nonce: crypto.randomBytes(8).toString("hex"),
+      v: 1,
+    });
+    const acceptanceUrl = `${config.baseUrl}/quote-acceptance.html?token=${encodeURIComponent(acceptanceToken)}`;
+
+    const html = buildProposalHtml({
+      cliente,
+      cotizacion: { items, ufActual },
+      acceptanceUrl,
+      cotizacionId: quoteId.slice(-8).toUpperCase(),
+      validezHasta: new Date(expMs).toISOString(),
+      version: versionNueva,
+      descuentos: {
+        recurrentePct: descRecNuevo,
+        instalacionRMPct: descRMNuevo,
+        instalacionRegionPct: descRegionNuevo,
+      },
+      condicionDiscursiva: escalon.condicionDiscursiva,
+    });
+
+    stage = "upload_pdf";
+    const pdfBuffer = await htmlToPdfBuffer(html, { format: "Letter", margin: "0" });
+    const { pdfUrl } = await uploadPdfToSupabase({
+      pdfBuffer,
+      quoteId,
+      empresa: cliente.empresa,
+    });
+
+    // 5. Persistir el nuevo estado en Zoho. PDF_URL apunta al último PDF;
+    //    los anteriores quedan archivados en Supabase Storage.
+    stage = "update_quote";
+    await updateRecord(
+      config.quoteModule,
+      quoteId,
+      {
+        [config.quoteDiscountPctField]: descRecNuevo,
+        [config.quoteDiscountInstRMPctField]: descRMNuevo,
+        [config.quoteDiscountInstRegionPctField]: descRegionNuevo,
+        [config.quoteDiscountUnlockedField]: true,
+        [config.quoteEscalonField]: nuevoEscalonIdx,
+        [config.quoteVersionPdfField]: versionNueva,
+        [config.quotePdfUrlField]: pdfUrl,
+        [config.quoteAcceptanceUrlField]: acceptanceUrl,
+      },
+      true
+    );
+
+    const topeAlcanzado = nuevoEscalonIdx >= DISCOUNT_LADDER.length;
+
+    return sendJson(res, 200, {
+      ok: true,
+      version: versionNueva,
+      link_pdf: pdfUrl,
+      ultimo_escalon: {
+        tipo: escalon.tipo,
+        pct: escalon.pct,
+        condicion_discursiva: escalon.condicionDiscursiva,
+      },
+      tope_alcanzado: topeAlcanzado,
+      mensaje_para_prospecto: buildMensajeParaProspecto(escalon, pdfUrl),
+    });
+  } catch (error) {
+    console.error(`[aplicar-siguiente-descuento] ERROR en stage=${stage}:`, error);
+    return sendJson(res, 500, {
+      ok: false,
+      error: "No se pudo aplicar el siguiente descuento.",
+      detail: String(error?.message || error).slice(0, 400),
+    });
+  }
+};

@@ -29,6 +29,17 @@ function getAcceptanceConfig(req) {
     quoteItemsSubformField: toText(process.env.QUOTE_ITEMS_SUBFORM_FIELD || "Detalle_Items_Cotizacion"),
     quoteDiscountPctField: toText(process.env.QUOTE_DISCOUNT_PCT_FIELD || "Descuento_Recurrente_Pct"),
     quoteDiscountUnlockedField: toText(process.env.QUOTE_DISCOUNT_UNLOCKED_FIELD || "Descuento_Desbloqueado"),
+    quoteDiscountInstRMPctField: toText(
+      process.env.QUOTE_DISCOUNT_INST_RM_PCT_FIELD || "Descuento_Instalacion_RM_Pct"
+    ),
+    quoteDiscountInstRegionPctField: toText(
+      process.env.QUOTE_DISCOUNT_INST_REGION_PCT_FIELD || "Descuento_Instalacion_Region_Pct"
+    ),
+    quoteEscalonField: toText(process.env.QUOTE_ESCALON_FIELD || "Escalon_Descuento"),
+    quoteVersionPdfField: toText(process.env.QUOTE_VERSION_PDF_FIELD || "Version_PDF"),
+    quoteItemZonaTarifaField: toText(
+      process.env.QUOTE_ITEM_ZONA_TARIFA_FIELD || "Zona_Tarifa"
+    ),
     quoteMarkingMethodsField: toText(
       process.env.QUOTE_MARKING_METHODS_FIELD || "Metodos_de_Marcaje1"
     ),
