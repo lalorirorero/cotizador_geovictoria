@@ -199,13 +199,63 @@
           return "done";
         }
 
+        // Lee la respuesta como texto y la parsea con tolerancia: si el cuerpo
+        // NO es JSON (p.ej. una pagina de error/timeout de Vercel en un cold
+        // start), devuelve null en vez de reventar el JSON.parse.
+        async function readJsonSafe(res) {
+          var text = await res.text();
+          try {
+            return JSON.parse(text);
+          } catch (e) {
+            return null;
+          }
+        }
+
+        function sleep(ms) {
+          return new Promise(function (r) { window.setTimeout(r, ms); });
+        }
+
         async function fetchStatus() {
           var res = await fetch("/api/payments/status?token=" + encodeURIComponent(token));
-          var data = await res.json();
+          var data = await readJsonSafe(res);
+          if (res.status === 410) {
+            // Sesion expirada: error definitivo, no reintentar.
+            var expired = new Error(
+              (data && data.error) ||
+                "La sesion de pago expiro. Solicita un nuevo enlace a tu ejecutivo comercial."
+            );
+            expired.permanent = true;
+            throw expired;
+          }
+          if (!data) {
+            // Respuesta no-JSON (cold start/timeout de la funcion): transitorio.
+            var nonJson = new Error("Reintentando obtener el estado del pago...");
+            nonJson.transient = true;
+            throw nonJson;
+          }
           if (!res.ok || !data.success) {
-            throw new Error(data.error || "No se pudo obtener el estado del pago.");
+            var err = new Error(data.error || "No se pudo obtener el estado del pago.");
+            if (res.status >= 500) err.transient = true; // 5xx => reintentar
+            throw err;
           }
           return data;
+        }
+
+        // Reintenta fetchStatus ante fallos transitorios (cold start/timeout/5xx)
+        // con backoff, para que la pagina se recupere sola sin recargar a mano.
+        async function fetchStatusWithRetry() {
+          var attempts = 4;
+          var delay = 1200;
+          for (var i = 0; i < attempts; i++) {
+            try {
+              return await fetchStatus();
+            } catch (err) {
+              var canRetry = err && err.transient && !err.permanent && i < attempts - 1;
+              if (!canRetry) throw err;
+              await sleep(delay);
+              delay = Math.round(delay * 1.7);
+            }
+          }
         }
 
         async function startStep(endpoint, label) {
@@ -218,7 +268,13 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ token: token }),
             });
-            var data = await res.json();
+            var data = await readJsonSafe(res);
+            if (!data) {
+              // Respuesta no-JSON (cold start/timeout): pedir reintento manual.
+              throw new Error(
+                "El servicio de pago tardo en responder. Vuelve a intentarlo en unos segundos."
+              );
+            }
             if (!res.ok || !data.success) {
               throw new Error(data.error || "No se pudo iniciar el pago.");
             }
@@ -344,7 +400,10 @@
 
         async function render() {
           try {
-            var state = await fetchStatus();
+            // Mientras resolvemos el estado (con reintentos), mantenemos el
+            // indicador de carga visible para no parpadear hacia un error.
+            loadingEl.classList.remove("hidden");
+            var state = await fetchStatusWithRetry();
             loadingEl.classList.add("hidden");
             contentEl.classList.remove("hidden");
             if (state.quote && state.quote.name) {
