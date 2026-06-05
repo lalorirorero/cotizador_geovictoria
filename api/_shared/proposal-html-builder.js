@@ -143,7 +143,8 @@ const CTA_CURSOR =
 const ONEPAGER_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#fff;margin:0;padding:0;font-family:'Nunito','Segoe UI',sans-serif;color:#4b4b4b}
-.page{width:816px;height:1048px;background:#fff;margin:0 auto;padding:26px 40px 12px;position:relative;display:flex;flex-direction:column;overflow:hidden}
+.page{width:816px;height:1048px;background:#fff;margin:0 auto;position:relative;overflow:hidden}
+.sheet{width:816px;min-height:1048px;padding:26px 40px 12px;display:flex;flex-direction:column;transform-origin:top center}
 .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #FFBB00;padding-bottom:10px}
 .hdr .logo{flex-shrink:0}
 .hdr .org{text-align:right;font-size:9.5px;line-height:1.5;color:#646464}
@@ -345,7 +346,7 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
 <title>Cotización ${cotizNumero} — ${empresa}</title>
 <style>${ONEPAGER_CSS}</style></head>
 <body>
-<div class="page">
+<div class="page"><div class="sheet">
 
   <div class="hdr">
     <div class="logo">${LOGO_ORIGINAL_SVG}</div>
@@ -412,7 +413,23 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
     <div><b>Ejecutivo Comercial:</b> ${ejecutivo} · ${ejecutivoEmail} · ${ejecutivoTelefono}</div>
   </div>
 
-</div>
+</div></div>
+<script>
+/* Auto-ajuste: si el contenido excede la hoja (cotizaciones con muchos ítems),
+   se escala hacia abajo lo justo para caber en una sola página, sin recortar. */
+(function () {
+  var sheet = document.querySelector(".sheet");
+  if (!sheet) return;
+  var avail = 1048; // alto útil de la hoja (px @96dpi)
+  var h = sheet.scrollHeight;
+  if (h > avail) {
+    var k = avail / h;
+    // Escala uniforme desde el centro superior: cabe en una sola hoja, sin
+    // recortar ni distorsionar (deja un margen lateral mínimo y simétrico).
+    sheet.style.transform = "scale(" + k + ")";
+  }
+})();
+</script>
 </body></html>`;
 }
 
