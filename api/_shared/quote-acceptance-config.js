@@ -36,6 +36,9 @@ function getAcceptanceConfig(req) {
       process.env.QUOTE_DISCOUNT_INST_REGION_PCT_FIELD || "Descuento_Instalacion_Region_Pct"
     ),
     quoteEscalonField: toText(process.env.QUOTE_ESCALON_FIELD || "Escalon_Descuento"),
+    quoteEscalonNegociacionField: toText(
+      process.env.QUOTE_ESCALON_NEGOCIACION_FIELD || "Escalon_Negociacion"
+    ),
     quoteVersionPdfField: toText(process.env.QUOTE_VERSION_PDF_FIELD || "Version_PDF"),
     quoteItemZonaTarifaField: toText(
       process.env.QUOTE_ITEM_ZONA_TARIFA_FIELD || "Zona_Tarifa"

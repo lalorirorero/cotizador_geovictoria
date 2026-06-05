@@ -38,6 +38,11 @@ const {
 } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { DISCOUNT_LADDER } = require("../_shared/proposal-constants");
+const {
+  siguienteEscalonAplicable,
+  hayEscalonDespues,
+  descuentosHasta,
+} = require("../_shared/discount-engine");
 const { signAcceptancePayload } = require("../_shared/acceptance-token");
 const { htmlToPdfBuffer } = require("../_shared/pdfshift-client");
 const { uploadPdfToSupabase } = require("../_shared/supabase-pdf-upload");
@@ -60,39 +65,30 @@ function parseBody(req) {
   return typeof req.body === "object" && req.body ? req.body : {};
 }
 
-// Detecta si la cotización tiene ítems de instalación de la zona dada. Lee el
-// subform Detalle_Items_Cotizacion. Si el quote no tiene la zona, ese escalón
-// se salta automáticamente al elegir el siguiente.
-function tieneInstalacionDeZona(quote, config, zona) {
-  const items = quote?.[config.quoteItemsSubformField];
-  if (!Array.isArray(items)) return false;
-  return items.some((row) => {
-    const codigo = String(row?.Codigo_Item || "").toLowerCase();
-    if (codigo !== "instalacion_reloj") return false;
-    const rowZona = String(row?.[config.quoteItemZonaTarifaField] || "")
-      .toLowerCase()
-      .trim();
-    if (zona === "RM") return rowZona === "rm";
-    if (zona === "regiones") return rowZona === "regiones" || rowZona === "region";
-    return false;
-  });
-}
+// Decide hasta qué escalón comitear. En el flujo nuevo, la negociación ocurre
+// vía consultar-siguiente-descuento, que va avanzando Escalon_Negociacion. Al
+// aceptar, comiteamos TODO el nivel negociado de una sola vez (un solo PDF):
+//
+//   - Si hubo negociación (Escalon_Negociacion > Escalon_Descuento), el último
+//     escalón ofrecido es (Escalon_Negociacion - 1); comiteamos hasta ahí.
+//   - Si NO hubo negociación previa (llamada directa al commit), avanzamos un
+//     solo escalón aplicable desde lo comiteado — comportamiento clásico.
+//
+// Devuelve { targetIdx, escalon } o null si no hay más escalones aplicables.
+function elegirNivelACommitear(quote, config) {
+  const commitIdx = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
+  const negocIdx = Math.max(0, Number(quote?.[config.quoteEscalonNegociacionField] || 0));
 
-// Devuelve { siguiente, index } o null si no hay más escalones aplicables.
-// Salta los escalones de instalación cuyo target no exista en la cotización.
-function elegirSiguienteEscalon(quote, config) {
-  const indexActual = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
-  for (let i = indexActual; i < DISCOUNT_LADDER.length; i++) {
-    const escalon = DISCOUNT_LADDER[i];
-    if (escalon.tipo === "instalacion_rm" && !tieneInstalacionDeZona(quote, config, "RM")) {
-      continue;
-    }
-    if (escalon.tipo === "instalacion_region" && !tieneInstalacionDeZona(quote, config, "regiones")) {
-      continue;
-    }
-    return { escalon, index: i + 1 };
+  let targetIdx;
+  if (negocIdx > commitIdx) {
+    // Último escalón ofrecido durante la negociación.
+    targetIdx = negocIdx - 1;
+  } else {
+    // Sin negociación previa: siguiente escalón aplicable desde lo comiteado.
+    targetIdx = siguienteEscalonAplicable(quote, config, commitIdx);
   }
-  return null;
+  if (targetIdx < 0 || targetIdx >= DISCOUNT_LADDER.length) return null;
+  return { targetIdx, escalon: DISCOUNT_LADDER[targetIdx] };
 }
 
 // Carga datos de cliente para regenerar el HTML del PDF. Espejo simplificado
@@ -224,9 +220,9 @@ module.exports = async function handler(req, res) {
       return sendJson(res, 404, { ok: false, error: "Cotizacion no encontrada." });
     }
 
-    // 1. Decidir el escalón a aplicar.
+    // 1. Decidir hasta qué escalón comitear (todo el nivel negociado).
     stage = "elegir_escalon";
-    const eleccion = elegirSiguienteEscalon(quote, config);
+    const eleccion = elegirNivelACommitear(quote, config);
     if (!eleccion) {
       return sendJson(res, 200, {
         ok: false,
@@ -234,21 +230,16 @@ module.exports = async function handler(req, res) {
         tope_alcanzado: true,
       });
     }
-    const { escalon, index: nuevoEscalonIdx } = eleccion;
+    const { targetIdx, escalon } = eleccion;
+    const nuevoEscalonIdx = targetIdx + 1; // forma "siguiente índice" para guardar
 
-    // 2. Calcular los descuentos consolidados resultantes.
+    // 2. Descuentos ACUMULADOS hasta el nivel a comitear (instalación RM/región
+    //    + recurrente conviven). `escalon` es el último efectivamente aplicado.
     stage = "consolidar_descuentos";
-    const descRecActual = Number(quote?.[config.quoteDiscountPctField] || 0);
-    const descRMActual = Number(quote?.[config.quoteDiscountInstRMPctField] || 0);
-    const descRegionActual = Number(quote?.[config.quoteDiscountInstRegionPctField] || 0);
-
-    let descRecNuevo = descRecActual;
-    let descRMNuevo = descRMActual;
-    let descRegionNuevo = descRegionActual;
-
-    if (escalon.tipo === "instalacion_rm") descRMNuevo = escalon.pct;
-    else if (escalon.tipo === "instalacion_region") descRegionNuevo = escalon.pct;
-    else descRecNuevo = escalon.pct; // los escalones recurrente_NN llevan el % directo
+    const { descuentos: descAcum } = descuentosHasta(quote, config, targetIdx);
+    const descRecNuevo = descAcum.recurrentePct;
+    const descRMNuevo = descAcum.instalacionRMPct;
+    const descRegionNuevo = descAcum.instalacionRegionPct;
 
     // 3. Versionar.
     stage = "version_bump";
@@ -313,6 +304,9 @@ module.exports = async function handler(req, res) {
         [config.quoteDiscountInstRegionPctField]: descRegionNuevo,
         [config.quoteDiscountUnlockedField]: true,
         [config.quoteEscalonField]: nuevoEscalonIdx,
+        // Sincronizamos el puntero de negociación con lo comiteado: cualquier
+        // negociación futura arranca desde acá.
+        [config.quoteEscalonNegociacionField]: nuevoEscalonIdx,
         [config.quoteVersionPdfField]: versionNueva,
         [config.quotePdfUrlField]: pdfUrl,
         [config.quoteAcceptanceUrlField]: acceptanceUrl,
@@ -320,7 +314,7 @@ module.exports = async function handler(req, res) {
       true
     );
 
-    const topeAlcanzado = nuevoEscalonIdx >= DISCOUNT_LADDER.length;
+    const topeAlcanzado = !hayEscalonDespues(quote, config, targetIdx);
 
     return sendJson(res, 200, {
       ok: true,

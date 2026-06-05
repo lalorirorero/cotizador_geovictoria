@@ -752,6 +752,7 @@ module.exports = async function handler(req, res) {
       // los actualiza después).
       [config.quoteVersionPdfField]: 1,
       [config.quoteEscalonField]: 0,
+      [config.quoteEscalonNegociacionField]: 0,
       [config.quoteDiscountPctField]: 0,
       [config.quoteDiscountInstRMPctField]: 0,
       [config.quoteDiscountInstRegionPctField]: 0,
