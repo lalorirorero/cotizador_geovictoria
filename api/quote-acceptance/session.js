@@ -61,10 +61,17 @@ function getZonaTarifaLocal(row) {
 
 // descuentos = { recurrentePct, instalacionRMPct, instalacionRegionPct }
 // (acepta también número simple como antes para no romper callers viejos).
+//
+// Devuelve los totales YA con los descuentos aplicados (lo que efectivamente
+// se cobra), más los valores BRUTOS (sin descuento) por separado para que el
+// front pueda mostrar la referencia tachada. Convención idéntica al PDF
+// (proposal-html-builder / quote-pricing):
+//   - El descuento de instalación se aplica por línea (solo a ítems de
+//     instalación según su zona tarifa). Esas líneas son pago único.
+//   - El descuento recurrente se aplica al bucket recurrente (plan mensual +
+//     primer mes). Nunca se solapa con el de instalación.
 function computeTotals(items, descuentos = 0) {
   const rows = Array.isArray(items) ? items : [];
-  const subtotalUf = sumBy(rows, "subtotalUf");
-  const subtotalClp = sumBy(rows, "subtotalClp");
 
   let recRecurrente = typeof descuentos === "number" ? descuentos : descuentos?.recurrentePct;
   let recInstRM = typeof descuentos === "number" ? 0 : descuentos?.instalacionRMPct;
@@ -76,66 +83,91 @@ function computeTotals(items, descuentos = 0) {
   const factorInstRM = 1 - pctInstRM / 100;
   const factorInstRegion = 1 - pctInstRegion / 100;
 
-  let recurrenteUf = 0;
-  let recurrenteClp = 0;
-  let noRecurrenteUf = 0;
-  let noRecurrenteClp = 0;
+  // Brutos (sin ningún descuento), para mostrar como referencia tachada.
+  const subtotalUfBruto = sumBy(rows, "subtotalUf");
+  const subtotalClpBruto = sumBy(rows, "subtotalClp");
+
+  let subtotalNetUf = 0;
+  let subtotalNetClp = 0;
   let ivaUf = 0;
   let ivaClp = 0;
+  let recurrenteUfBruto = 0;
+  let recurrenteClpBruto = 0;
+  let recurrenteUf = 0; // neto (con descuento recurrente)
+  let recurrenteClp = 0;
+  let noRecurrenteUf = 0; // neto (con descuento de instalación por línea)
+  let noRecurrenteClp = 0;
   let ahorroInstalacionUf = 0;
   let ahorroInstalacionClp = 0;
 
   rows.forEach((row) => {
-    const subtotalRowUfBruto = Number(row?.subtotalUf || 0);
-    const subtotalRowClpBruto = Number(row?.subtotalClp || 0);
-    // Descuento por línea (solo instalación).
-    let factorLinea = 1;
+    const brutoUf = Number(row?.subtotalUf || 0);
+    const brutoClp = Number(row?.subtotalClp || 0);
+    const recurrente = isRecurrentModalidad(row?.modalidad);
+
+    // Factor por línea: instalación (pago único) usa el descuento de su zona;
+    // el recurrente usa el descuento global del plan. No se solapan.
+    let factor = 1;
     if (isInstalacionRow(row)) {
       const zona = getZonaTarifaLocal(row);
-      if (zona === "RM") factorLinea = factorInstRM;
-      else if (zona === "regiones") factorLinea = factorInstRegion;
+      if (zona === "RM") factor = factorInstRM;
+      else if (zona === "regiones") factor = factorInstRegion;
+      ahorroInstalacionUf += brutoUf * (1 - factor);
+      ahorroInstalacionClp += brutoClp * (1 - factor);
+    } else if (recurrente) {
+      factor = factorRec;
     }
-    const subtotalRowUf = subtotalRowUfBruto * factorLinea;
-    const subtotalRowClp = subtotalRowClpBruto * factorLinea;
-    ahorroInstalacionUf += subtotalRowUfBruto - subtotalRowUf;
-    ahorroInstalacionClp += subtotalRowClpBruto - subtotalRowClp;
 
-    if (isRecurrentModalidad(row?.modalidad)) {
-      recurrenteUf += subtotalRowUf;
-      recurrenteClp += subtotalRowClp;
-    } else {
-      noRecurrenteUf += subtotalRowUf;
-      noRecurrenteClp += subtotalRowClp;
-    }
+    const netUf = brutoUf * factor;
+    const netClp = brutoClp * factor;
+
+    subtotalNetUf += netUf;
+    subtotalNetClp += netClp;
 
     const afectoIva = row?.afectoIva !== false;
     if (afectoIva) {
-      ivaUf += subtotalRowUf * 0.19;
-      ivaClp += subtotalRowClp * 0.19;
+      ivaUf += netUf * 0.19;
+      ivaClp += netClp * 0.19;
+    }
+
+    if (recurrente) {
+      recurrenteUfBruto += brutoUf;
+      recurrenteClpBruto += brutoClp;
+      recurrenteUf += netUf;
+      recurrenteClp += netClp;
+    } else {
+      noRecurrenteUf += netUf;
+      noRecurrenteClp += netClp;
     }
   });
 
-  const recurrenteUfConDescuento = Number((recurrenteUf * factorRec).toFixed(3));
-  const recurrenteClpConDescuento = Math.round(recurrenteClp * factorRec);
-
   return {
-    subtotalUf: Number(subtotalUf.toFixed(3)),
-    subtotalClp: Math.round(subtotalClp),
+    // Netos (con descuentos aplicados) — lo que efectivamente se cobra.
+    subtotalUf: Number(subtotalNetUf.toFixed(3)),
+    subtotalClp: Math.round(subtotalNetClp),
     ivaUf: Number(ivaUf.toFixed(3)),
     ivaClp: Math.round(ivaClp),
-    totalUf: Number((subtotalUf + ivaUf).toFixed(3)),
-    totalClp: Math.round(subtotalClp + ivaClp),
+    totalUf: Number((subtotalNetUf + ivaUf).toFixed(3)),
+    totalClp: Math.round(subtotalNetClp + ivaClp),
+    // Brutos (sin descuento) — referencia tachada en el front.
+    subtotalUfBruto: Number(subtotalUfBruto.toFixed(3)),
+    subtotalClpBruto: Math.round(subtotalClpBruto),
+    // Recurrente (valor mensual): neto y bruto.
     recurrenteUf: Number(recurrenteUf.toFixed(3)),
     recurrenteClp: Math.round(recurrenteClp),
+    recurrenteUfBruto: Number(recurrenteUfBruto.toFixed(3)),
+    recurrenteClpBruto: Math.round(recurrenteClpBruto),
     noRecurrenteUf: Number(noRecurrenteUf.toFixed(3)),
     noRecurrenteClp: Math.round(noRecurrenteClp),
+    // Porcentajes de descuento vigentes.
     descuentoPct: pctRec,
     descuentoInstalacionRMPct: pctInstRM,
     descuentoInstalacionRegionPct: pctInstRegion,
-    recurrenteUfConDescuento,
-    recurrenteClpConDescuento,
-    descuentoRecurrenteUf: Number((recurrenteUf - recurrenteUfConDescuento).toFixed(3)),
-    descuentoRecurrenteClp: Math.round(recurrenteClp) - recurrenteClpConDescuento,
+    // Alias de compatibilidad (recurrente ya viene neto).
+    recurrenteUfConDescuento: Number(recurrenteUf.toFixed(3)),
+    recurrenteClpConDescuento: Math.round(recurrenteClp),
+    descuentoRecurrenteUf: Number((recurrenteUfBruto - recurrenteUf).toFixed(3)),
+    descuentoRecurrenteClp: Math.round(recurrenteClpBruto - recurrenteClp),
     ahorroInstalacionUf: Number(ahorroInstalacionUf.toFixed(3)),
     ahorroInstalacionClp: Math.round(ahorroInstalacionClp),
   };

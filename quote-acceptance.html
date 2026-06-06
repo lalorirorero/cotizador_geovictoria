@@ -1933,53 +1933,113 @@
 
           const rows = data.items || [];
           const tbody = document.getElementById("itemsRows");
+
+          // Descuentos vigentes (los calcula el servidor; acá solo se muestran).
+          const totals = data.totals || {};
+          const descRecPct = Number(totals.descuentoPct || 0);
+          const descInstRMPct = Number(totals.descuentoInstalacionRMPct || 0);
+          const descInstRegionPct = Number(totals.descuentoInstalacionRegionPct || 0);
+
+          // Descuento por línea: solo aplica a ítems de instalación según su
+          // zona tarifa (mismo criterio que el PDF). El descuento recurrente NO
+          // se muestra por línea: va en el bloque "Valor mensual".
+          function descuentoLineaPct(row) {
+            const codigo = String(row.codigo || "").toLowerCase();
+            if (codigo !== "instalacion_reloj") return 0;
+            const zona = String(row.zonaTarifa || "").toLowerCase().trim();
+            if (zona === "rm") return descInstRMPct;
+            if (zona === "regiones" || zona === "region") return descInstRegionPct;
+            return 0;
+          }
+
+          function itemRowHtml(row) {
+            const dctoPct = descuentoLineaPct(row);
+            const factor = 1 - dctoPct / 100;
+            const stUf = Number(row.subtotalUf || 0);
+            const stClp = Number(row.subtotalClp || 0);
+            let dctoCell = "-";
+            let subUfCell = fmtUF(stUf);
+            let subClpCell = fmtCLP(stClp);
+            if (dctoPct > 0) {
+              dctoCell = "&minus;" + dctoPct + "%";
+              subUfCell =
+                '<span style="text-decoration:line-through;color:#9ca3af">' +
+                fmtUF(stUf) + "</span> " + fmtUF(stUf * factor);
+              subClpCell =
+                '<span style="text-decoration:line-through;color:#9ca3af">' +
+                fmtCLP(stClp) + "</span> " + fmtCLP(stClp * factor);
+            }
+            return (
+              "<tr>" +
+              "<td>" + (row.nombre || "-") + "</td>" +
+              "<td>" + inferItemType(row) + "</td>" +
+              "<td>" + normalizeModalidadLabel(row) + "</td>" +
+              "<td>" + Number(row.cantidad || 0) + "</td>" +
+              "<td>" + formatUnitPriceCell(row) + "</td>" +
+              "<td>" + dctoCell + "</td>" +
+              "<td>" + subUfCell + "</td>" +
+              "<td>" + subClpCell + "</td>" +
+              "</tr>"
+            );
+          }
+
           const itemRowsHtml = rows.length
-            ? rows
-                .map(
-                  (row) =>
-                    "<tr>" +
-                    "<td>" +
-                    (row.nombre || "-") +
-                    "</td>" +
-                    "<td>" +
-                    inferItemType(row) +
-                    "</td>" +
-                    "<td>" +
-                    normalizeModalidadLabel(row) +
-                    "</td>" +
-                    "<td>" +
-                    Number(row.cantidad || 0) +
-                    "</td>" +
-                    "<td>" +
-                    formatUnitPriceCell(row) +
-                    "</td>" +
-                    "<td>-</td>" +
-                    "<td>" +
-                    fmtUF(row.subtotalUf) +
-                    "</td>" +
-                    "<td>" +
-                    fmtCLP(row.subtotalClp) +
-                    "</td>" +
-                    "</tr>"
-                )
-                .join("")
+            ? rows.map(itemRowHtml).join("")
             : '<tr><td colspan="8">Sin datos.</td></tr>';
 
-          var recClp = Number(data.totals?.recurrenteClp || 0);
-          var recUf = Number(data.totals?.recurrenteUf || 0);
+          // Valor mensual: el servidor ya entrega el recurrente NETO (con el
+          // descuento aplicado). Mostramos el bruto tachado cuando hay descuento.
+          var recClp = Number(totals.recurrenteClp || 0);
+          var recUf = Number(totals.recurrenteUf || 0);
+          var recClpBruto = Number(totals.recurrenteClpBruto || recClp);
+          var recUfBruto = Number(totals.recurrenteUfBruto || recUf);
           var mensualClp = Math.round(recClp * 1.19);
           var mensualUf = recUf * 1.19;
+          var mensualClpBruto = Math.round(recClpBruto * 1.19);
+          var mensualUfBruto = recUfBruto * 1.19;
+
           let totalsRowsHtml =
             '<tr class="cost-row-sub"><td colspan="6">Subtotal (sin IVA)</td><td>' +
-            fmtUF(data.totals?.subtotalUf) + "</td><td>" + fmtCLP(data.totals?.subtotalClp) + "</td></tr>" +
+            fmtUF(totals.subtotalUf) + "</td><td>" + fmtCLP(totals.subtotalClp) + "</td></tr>" +
             '<tr class="cost-row-sub"><td colspan="6">IVA (19%)</td><td>' +
-            fmtUF(data.totals?.ivaUf) + "</td><td>" + fmtCLP(data.totals?.ivaClp) + "</td></tr>" +
+            fmtUF(totals.ivaUf) + "</td><td>" + fmtCLP(totals.ivaClp) + "</td></tr>" +
             '<tr class="cost-row-total"><td colspan="6">Pago inicial — a pagar ahora (incluye 1er mes)</td><td>' +
-            fmtUF(data.totals?.totalUf) + "</td><td>" + fmtCLP(data.totals?.totalClp) + "</td></tr>";
+            fmtUF(totals.totalUf) + "</td><td>" + fmtCLP(totals.totalClp) + "</td></tr>";
+          if (recClp > 0) {
+            const mensualUfCell =
+              descRecPct > 0
+                ? '<span style="text-decoration:line-through;color:#9ca3af">' +
+                  fmtUF(mensualUfBruto) + "</span> " + fmtUF(mensualUf)
+                : fmtUF(mensualUf);
+            const mensualClpCell =
+              descRecPct > 0
+                ? '<span style="text-decoration:line-through;color:#9ca3af">' +
+                  fmtCLP(mensualClpBruto) + "</span> " + fmtCLP(mensualClp) + "/mes"
+                : fmtCLP(mensualClp) + "/mes";
+            const mensualLabel =
+              descRecPct > 0
+                ? "Valor mensual del servicio — desde el 2&ordm; mes (referencial, " +
+                  descRecPct + "% dcto.)"
+                : "Valor mensual del servicio — desde el 2&ordm; mes (referencial)";
+            totalsRowsHtml +=
+              '<tr class="cost-row-sub"><td colspan="6">' + mensualLabel + "</td><td>" +
+              mensualUfCell + "</td><td>" + mensualClpCell + "</td></tr>";
+          }
+
+          // Resumen de descuentos aplicados (si los hay).
+          const descAplicados = [];
+          if (descInstRMPct > 0) descAplicados.push(descInstRMPct + "% en instalaci&oacute;n (Regi&oacute;n Metropolitana)");
+          if (descInstRegionPct > 0) descAplicados.push(descInstRegionPct + "% en instalaci&oacute;n (regiones)");
+          if (descRecPct > 0) descAplicados.push(descRecPct + "% en el plan mensual");
+          if (descAplicados.length) {
+            totalsRowsHtml +=
+              '<tr><td colspan="8" style="font-size:12px;color:#047857;padding-top:6px;font-weight:600">' +
+              "Descuentos aplicados: " + descAplicados.join(" &middot; ") +
+              "</td></tr>";
+          }
+
           if (recClp > 0) {
             totalsRowsHtml +=
-              '<tr class="cost-row-sub"><td colspan="6">Valor mensual del servicio — desde el 2&ordm; mes (referencial)</td><td>' +
-              fmtUF(mensualUf) + "</td><td>" + fmtCLP(mensualClp) + "/mes</td></tr>" +
               '<tr><td colspan="8" style="font-size:11px;color:#6b7280;padding-top:6px;line-height:1.5">' +
               "El <b>Pago inicial</b> se cobra al aceptar e incluye los conceptos de pago &uacute;nico y el primer mes de servicio. " +
               "El <b>valor mensual</b> es referencial, seg&uacute;n los usuarios de esta cotizaci&oacute;n y sujeto a mantenerlos; se factura mensualmente desde el segundo mes y la variaci&oacute;n de usuarios activos lo ajusta en la facturaci&oacute;n del per&iacute;odo siguiente." +
