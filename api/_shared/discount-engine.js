@@ -130,7 +130,7 @@ function buildMensajeNegociacion(escalon, amounts) {
     `Con eso tu pago inicial queda en ${pagoInicial} y el plan mensual en ${mensual}/mes (IVA incluido).`,
   ];
   if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
-  partes.push("¿Lo dejamos así o querés que veamos algo más?");
+  partes.push("¿Lo dejamos así o prefieres que veamos algo más?");
   return partes.join(" ");
 }
 

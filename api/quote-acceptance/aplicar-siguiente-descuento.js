@@ -181,7 +181,7 @@ function buildMensajeParaProspecto(escalon, linkPdf) {
   }
   const partes = [cuerpo];
   if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
-  partes.push(`Acá tienes la cotización actualizada: ${linkPdf}`);
+  partes.push(`Aquí tienes la cotización actualizada: ${linkPdf}`);
   return partes.join(" ");
 }
 
