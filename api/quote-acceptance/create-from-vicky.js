@@ -519,6 +519,13 @@ module.exports = async function handler(req, res) {
     // 0 = sin descuento. Si > 0, la cotización nace ya con ese descuento y el
     // PDF v1 refleja el precio acordado (un solo PDF, sin regenerar).
     const escalonDescuento = Math.max(0, Number(body.escalonDescuento || 0));
+    // Modo Borrador: crea/actualiza la cotización en estado "Borrador" con el
+    // escalón negociado y se detiene ANTES de generar PDF, subirlo y enviar el
+    // correo. Lo usa consultar_descuento_referencial para que el escalón viva en
+    // Zoho (con quote_id) durante la negociación del preform. La finalización
+    // (PDF + correo + "Enviada") ocurre después, al llamar sin draft reusando
+    // existing.quoteId/existing.dealId.
+    const draft = body.draft === true;
 
     // Validaciones
     if (!cliente.empresa || !cliente.contacto || !cliente.contactoEmail || !cliente.rutEmpresa) {
@@ -546,7 +553,13 @@ module.exports = async function handler(req, res) {
     const sectorParaZoho = validarSector(cliente.sectorEmpresa);
 
     let accountId, contactId, dealId;
-    const reuse = { accountReused: false, contactReused: false, leadConverted: false };
+    const reuse = {
+      accountReused: false,
+      contactReused: false,
+      leadConverted: false,
+      dealReused: false,
+      quoteReused: false,
+    };
 
     // ── CAMINO A: Convertir Lead existente ──
     if (existing.leadId) {
@@ -712,30 +725,43 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // Deal SIEMPRE se crea nuevo (cada cotización es un Deal distinto)
-      stage = "create_deal";
-      const dealResult = await createRecord("Deals", {
-        Deal_Name: `${cliente.empresa} - Cotización Vicky`,
-        Account_Name: { id: accountId },
-        Contact_Name: { id: contactId },
-        Stage: VICKY_DEAL_STAGE,
-        Pipeline: "Standard (Standard)",
-        Lead_Source: VICKY_LEAD_SOURCE,
-        Amount: cotizacion.totalCLP || undefined,
-        Description: `Deal creado por Vicky para cotización WhatsApp.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP\nSector: ${sectorParaZoho}`,
-        Territorio: VICKY_TERRITORIO,
-        Tombola: VICKY_TOMBOLA,
-        Monda_del_trato: VICKY_MONEDA,
-        Sector: sectorParaZoho,
-        N_Empleados_que_marcan: cliente.userCount,
-        Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
-      }, true);
-      dealId = toText(dealResult?.id);
-      if (!dealId) throw new Error("No se obtuvo dealId");
+      // Deal: reusar el del Borrador en curso (negociación del preform) si ya
+      // existe, o crear uno nuevo. Así un mismo Borrador conserva su Deal entre
+      // turnos, en vez de generar un Deal por cada actualización del escalón.
+      // Si el id resulta inválido, tryReuseRecord cae a crear uno nuevo.
+      if (existing.dealId) {
+        stage = "reuse_existing_deal";
+        const reuseDeal = await tryReuseRecord("Deals", existing.dealId, {});
+        if (reuseDeal.ok) {
+          dealId = reuseDeal.recordId;
+          reuse.dealReused = true;
+        }
+      }
+
+      if (!dealId) {
+        stage = "create_deal";
+        const dealResult = await createRecord("Deals", {
+          Deal_Name: `${cliente.empresa} - Cotización Vicky`,
+          Account_Name: { id: accountId },
+          Contact_Name: { id: contactId },
+          Stage: VICKY_DEAL_STAGE,
+          Pipeline: "Standard (Standard)",
+          Lead_Source: VICKY_LEAD_SOURCE,
+          Amount: cotizacion.totalCLP || undefined,
+          Description: `Deal creado por Vicky para cotización WhatsApp.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP\nSector: ${sectorParaZoho}`,
+          Territorio: VICKY_TERRITORIO,
+          Tombola: VICKY_TOMBOLA,
+          Monda_del_trato: VICKY_MONEDA,
+          Sector: sectorParaZoho,
+          N_Empleados_que_marcan: cliente.userCount,
+          Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
+        }, true);
+        dealId = toText(dealResult?.id);
+        if (!dealId) throw new Error("No se obtuvo dealId");
+      }
     }
 
-    // ── Cotización (siempre nueva) ──
-    stage = "create_quote";
+    // ── Cotización: crear nueva o reusar el Borrador en curso ──
     const ufActual = Number(cotizacion.ufActual || 0);
     const subformItems = buildSubformItems(cotizacion.items, ufActual, config);
 
@@ -751,23 +777,10 @@ module.exports = async function handler(req, res) {
       condicionDiscursivaInicial = acum.lastEscalon ? acum.lastEscalon.condicionDiscursiva : null;
     }
 
-    const quoteFields = {
-      Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
-      [config.quoteDealLookupField]: { id: dealId },
-      [config.quoteContactLookupField]: { id: contactId },
-      Cuenta_Asociada: { id: accountId },
-      [config.quoteDateField]: new Date().toISOString().slice(0, 10),
-      [config.quoteStatusField]: "Borrador",
-      [config.contactEmailField]: cliente.contactoEmail,
-      [config.contactPhoneField]: cliente.contactoTelefono || undefined,
-      [config.companyRutField]: cliente.rutEmpresa,
-      // Subform con el detalle de items. La página de aceptación (session.js)
-      // lee de aquí y calcula los totales en runtime. Si está vacío, todos los
-      // valores se muestran como "-".
-      [config.quoteItemsSubformField]: subformItems,
-      // Estado inicial de descuentos y versionado (aplicar_siguiente_descuento
-      // los actualiza después).
-      [config.quoteVersionPdfField]: 1,
+    // Campos del escalón/descuento. Son los únicos que cambian entre turnos de
+    // la negociación, así que en el reuse del Borrador actualizamos SOLO esto
+    // (no el subform: los ítems no cambian y reenviarlos duplicaría las filas).
+    const quoteDiscountFields = {
       [config.quoteEscalonField]: escalonDescuento,
       [config.quoteEscalonNegociacionField]: escalonDescuento,
       [config.quoteDiscountUnlockedField]: escalonDescuento > 0,
@@ -775,9 +788,66 @@ module.exports = async function handler(req, res) {
       [config.quoteDiscountInstRMPctField]: descIniciales.instalacionRMPct,
       [config.quoteDiscountInstRegionPctField]: descIniciales.instalacionRegionPct,
     };
-    const quoteResult = await createRecord(config.quoteModule, quoteFields, true);
-    const quoteId = toText(quoteResult?.id);
-    if (!quoteId) throw new Error("No se obtuvo quoteId");
+
+    let quoteId;
+    if (existing.quoteId) {
+      // Reusar el Borrador negociado: actualizamos el escalón en sitio. Si el id
+      // resultó inválido (transcripción/registro borrado), caemos a crear nuevo.
+      stage = "update_existing_quote";
+      try {
+        const existingQuote = await getRecord(config.quoteModule, existing.quoteId);
+        if (existingQuote) {
+          await updateRecord(config.quoteModule, existing.quoteId, quoteDiscountFields, true);
+          quoteId = existing.quoteId;
+          reuse.quoteReused = true;
+        }
+      } catch (quoteErr) {
+        if (!isInvalidIdError(quoteErr)) throw quoteErr;
+        console.warn(
+          `[create-from-vicky] Borrador ${existing.quoteId} inválido, se crea cotización nueva. Detalle: ${quoteErr.message?.slice(0, 150)}`,
+        );
+      }
+    }
+
+    if (!quoteId) {
+      stage = "create_quote";
+      const quoteFields = {
+        Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
+        [config.quoteDealLookupField]: { id: dealId },
+        [config.quoteContactLookupField]: { id: contactId },
+        Cuenta_Asociada: { id: accountId },
+        [config.quoteDateField]: new Date().toISOString().slice(0, 10),
+        [config.quoteStatusField]: "Borrador",
+        [config.contactEmailField]: cliente.contactoEmail,
+        [config.contactPhoneField]: cliente.contactoTelefono || undefined,
+        [config.companyRutField]: cliente.rutEmpresa,
+        // Subform con el detalle de items. La página de aceptación (session.js)
+        // lee de aquí y calcula los totales en runtime. Si está vacío, todos los
+        // valores se muestran como "-".
+        [config.quoteItemsSubformField]: subformItems,
+        // Estado inicial de descuentos y versionado (aplicar_siguiente_descuento
+        // los actualiza después).
+        [config.quoteVersionPdfField]: 1,
+        ...quoteDiscountFields,
+      };
+      const quoteResult = await createRecord(config.quoteModule, quoteFields, true);
+      quoteId = toText(quoteResult?.id);
+      if (!quoteId) throw new Error("No se obtuvo quoteId");
+    }
+
+    // ── Modo Borrador: detenerse aquí (sin PDF/correo) ──
+    // El escalón ya quedó en Zoho con su quote_id. La finalización ocurre
+    // después, en la llamada de generar_link_cotizadora (sin draft), reusando
+    // este quoteId/dealId.
+    if (draft) {
+      return sendJson(res, 200, {
+        ok: true,
+        draft: true,
+        quoteId, dealId, accountId, contactId,
+        sectorAplicado: sectorParaZoho,
+        reuse,
+      });
+    }
 
     // ── acceptanceUrl ──
     stage = "build_acceptance_url";
