@@ -131,7 +131,11 @@ module.exports = async function handler(req, res) {
       // Para la próxima consulta (si el cliente pide más rebaja).
       escalon_actual: i + 1,
       tope_alcanzado: !hayEscalonDespues(pseudoQuote, config, i),
-      mensaje_para_prospecto: buildMensajeNegociacion(escalon, amounts),
+      mensaje_para_prospecto: buildMensajeNegociacion(
+        escalon,
+        amounts,
+        !hayEscalonDespues(pseudoQuote, config, i),
+      ),
     });
   } catch (error) {
     console.error(`[consultar-descuento-referencial] ERROR en stage=${stage}:`, error);

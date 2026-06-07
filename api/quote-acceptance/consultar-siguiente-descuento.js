@@ -133,7 +133,11 @@ module.exports = async function handler(req, res) {
         descuentos,
       },
       tope_alcanzado: !hayEscalonDespues(quote, config, i),
-      mensaje_para_prospecto: buildMensajeNegociacion(escalon, amounts),
+      mensaje_para_prospecto: buildMensajeNegociacion(
+        escalon,
+        amounts,
+        !hayEscalonDespues(quote, config, i),
+      ),
     });
   } catch (error) {
     console.error(`[consultar-siguiente-descuento] ERROR en stage=${stage}:`, error);

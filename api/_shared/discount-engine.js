@@ -112,7 +112,7 @@ function fmtCLP(n) {
 // Mensaje que Vicky copia tal cual para ofrecer el descuento en la
 // conversación (negociación), con el precio recalculado. Mismo formato en el
 // flujo referencial (preform) y en el post-cotización.
-function buildMensajeNegociacion(escalon, amounts) {
+function buildMensajeNegociacion(escalon, amounts, esUltimo = false) {
   const pagoInicial = fmtCLP(amounts.oneShotClp);
   const mensual = fmtCLP(amounts.recurringClp);
 
@@ -125,12 +125,26 @@ function buildMensajeNegociacion(escalon, amounts) {
     oferta = `Puedo ofrecerte un ${escalon.pct}% de descuento sobre el plan mensual.`;
   }
 
+  // El pago inicial incluye el primer mes cuando se calculó con
+  // includeFirstMonth (lo aclaramos para que el cliente no lo lea como un
+  // cobro mensual aparte del inicial).
+  const inicialDetalle =
+    amounts.firstMonthClp > 0
+      ? `${pagoInicial} (incluye el primer mes)`
+      : pagoInicial;
+
   const partes = [
     oferta,
-    `Con eso tu pago inicial queda en ${pagoInicial} y el plan mensual en ${mensual}/mes (IVA incluido).`,
+    `Con eso tu pago inicial queda en ${inicialDetalle} y el plan mensual en ${mensual}/mes (IVA incluido).`,
   ];
   if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
-  partes.push("¿Lo dejamos así o prefieres que veamos algo más?");
+  // En el último escalón no invitamos a seguir pidiendo rebaja: es el mejor
+  // precio posible, así que cerramos hacia la decisión.
+  partes.push(
+    esUltimo
+      ? "Es el mejor precio que puedo ofrecerte. ¿Lo tomamos?"
+      : "¿Lo dejamos así o prefieres que veamos algo más?",
+  );
   return partes.join(" ");
 }
 
