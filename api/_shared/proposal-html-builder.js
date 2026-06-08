@@ -306,26 +306,34 @@ function buildProposalHtml({ cliente, cotizacion, acceptanceUrl, cotizacionId, v
   // ── Caja de totales (oculta el grupo cuyo neto es 0) ──
   const grpRec = recUF > 0;
   const grpUni = uniUF > 0;
+  // ── Caja de totales: "Pago inicial (ahora)" vs "Valor mensual (referencial)" ──
+  const iniIva = uniIva + recIva;
+  const iniTot = uniTot + recTot;
+  const iniTotUF = uniTotUF + recTotUF;
   let totHtml = "";
+  if (grpUni || grpRec) {
+    totHtml += `<div class="tot-h">Pago inicial — al aceptar</div>`;
+    if (grpUni) {
+      totHtml += `<div class="tr"><span>Pago único (equipos, instalación, servicios)</span><span>${formatCLP(uniNetoCLP)}<span class="uf-ref">${formatUF(uniUF)} UF</span></span></div>`;
+    }
+    if (grpRec) {
+      totHtml += `<div class="tr"><span>Primer mes de servicio</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
+    }
+    totHtml += `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(iniIva)}</span></div>`;
+    totHtml += `<div class="tr grand"><span>Total a pagar ahora</span><span>${formatCLP(iniTot)}<span class="uf-ref">${formatUF(iniTotUF)} UF</span></span></div>`;
+  } else {
+    totHtml += `<div class="tot-h">Total</div><div class="tr grand"><span>Total</span><span>${formatCLP(0)}</span></div>`;
+  }
   if (grpRec) {
-    const recClass = grpUni ? "tot-st" : "grand";
+    totHtml += `<div class="tot-h" style="margin-top:6px">Valor mensual del servicio — desde el 2&ordm; mes</div>`;
+    totHtml += `<div class="tr"><span>Neto</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
+    totHtml += `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(recIva)}</span></div>`;
+    totHtml += `<div class="tr grand"><span>Total mensual (referencial)</span><span>${formatCLP(recTot)}/mes<span class="uf-ref">${formatUF(recTotUF)} UF</span></span></div>`;
     totHtml +=
-      `<div class="tot-h">Pago mensual (recurrente)</div>` +
-      `<div class="tr"><span>Neto</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>` +
-      `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(recIva)}</span></div>` +
-      `<div class="tr ${recClass}"><span>Total mensual</span><span>${formatCLP(recTot)}/mes<span class="uf-ref">${formatUF(recTotUF)} UF</span></span></div>`;
-  }
-  if (grpUni) {
-    totHtml +=
-      `<div class="tot-h">Pago único</div>` +
-      `<div class="tr"><span>Neto</span><span>${formatCLP(uniNetoCLP)}<span class="uf-ref">${formatUF(uniUF)} UF</span></span></div>` +
-      `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(uniIva)}</span></div>` +
-      `<div class="tr grand"><span>Total único</span><span>${formatCLP(uniTot)}<span class="uf-ref">${formatUF(uniTotUF)} UF</span></span></div>`;
-  }
-  if (!grpRec && !grpUni) {
-    totHtml +=
-      `<div class="tot-h">Total</div>` +
-      `<div class="tr grand"><span>Total</span><span>${formatCLP(0)}</span></div>`;
+      `<div style="margin-top:8px;font-size:8px;line-height:1.4;color:#646464">` +
+      `El <b>Pago inicial</b> es lo que se cobra al aceptar e incluye los conceptos de pago &uacute;nico y el primer mes de servicio. ` +
+      `El <b>Valor mensual</b> es referencial, calculado sobre la cantidad de usuarios de esta cotizaci&oacute;n y sujeto a mantenerla: se factura mensualmente desde el segundo mes, y la variaci&oacute;n de usuarios activos lo ajusta en la facturaci&oacute;n del per&iacute;odo siguiente.` +
+      `</div>`;
   }
 
   const ctaHref = escapeHtml(acceptanceUrl || "#");

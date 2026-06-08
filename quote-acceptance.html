@@ -245,7 +245,7 @@
         display: grid;
         gap: 12px;
       }
-      #sectionSummary {
+      #sectionCosts {
         order: 1;
       }
       #sectionAbout {
@@ -256,9 +256,6 @@
       }
       #sectionPricing {
         order: 4;
-      }
-      #sectionCosts {
-        order: 5;
       }
       #sectionIncluded {
         order: 6;
@@ -884,6 +881,15 @@
             <p class="hero-sub">
               Revisa la propuesta, acepta terminos, valida tu correo y continua al auto-onboarding.
             </p>
+            <div style="margin-top:8px;font-size:14px;color:#374151;display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+              <strong id="qName" style="font-weight:700">-</strong>
+              <span style="color:#9ca3af">·</span>
+              <span>Vigencia: <span id="qExpiry">-</span></span>
+              <a id="pdfLink" class="pdf-link" target="_blank" rel="noopener noreferrer" style="margin-left:4px">Ver PDF de cotizacion</a>
+            </div>
+            <p class="info-help" style="margin-top:8px">
+              Si detectas diferencias en items o precios, no aceptes aun. Contacta a tu ejecutivo comercial.
+            </p>
           </div>
           <div id="status" class="status">Cargando...</div>
         </div>
@@ -959,64 +965,6 @@
                     <h3 class="benefit-title">Soporte y capacitacion</h3>
                     <p class="benefit-desc">Acompanamiento comercial y tecnico durante todo el rollout.</p>
                   </article>
-                </div>
-              </div>
-            </section>
-
-            <section id="sectionSummary" class="brand-band acc-section">
-              <button type="button" class="brand-band-h acc-toggle" aria-expanded="true">
-                <span>Resumen de la Propuesta</span>
-                <span class="acc-chevron" aria-hidden="true">▾</span>
-              </button>
-              <div class="brand-band-b acc-body">
-                <div class="grid">
-                  <div class="item">
-                    <div class="k">Cotizacion</div>
-                    <div id="qName" class="v">-</div>
-                  </div>
-                  <div class="item">
-                    <div class="k">Vigencia</div>
-                    <div id="qExpiry" class="v">-</div>
-                  </div>
-                  <div class="item">
-                    <div class="k">Estado</div>
-                    <div id="qStatus" class="v">-</div>
-                  </div>
-                  <div class="item">
-                    <div class="k">Subtotal referencia</div>
-                    <div id="qSubtotal" class="v">-</div>
-                  </div>
-                  <div class="item">
-                    <div class="k">IVA (19%)</div>
-                    <div id="qIva" class="v">-</div>
-                  </div>
-                  <div class="item">
-                    <div class="k">Total con IVA</div>
-                    <div id="qTotal" class="v">-</div>
-                  </div>
-                  <div class="item">
-                    <div class="k">Recurrente mensual</div>
-                    <div id="qRecurring" class="v">-</div>
-                  </div>
-                  <div class="item" id="qDiscountRow" style="display: none">
-                    <div class="k">Descuento por aceptacion online</div>
-                    <div id="qDiscount" class="v">-</div>
-                  </div>
-                  <div class="item" id="qRecurringFinalRow" style="display: none">
-                    <div class="k">Total mensual a pagar</div>
-                    <div id="qRecurringFinal" class="v">-</div>
-                  </div>
-                  <div class="item">
-                    <div class="k">No recurrente</div>
-                    <div id="qNonRecurring" class="v">-</div>
-                  </div>
-                </div>
-                <div class="info-help">
-                  Si detectas diferencias en items o precios, no aceptes aun. Contacta a tu ejecutivo comercial para ajustar
-                  la propuesta.
-                </div>
-                <div style="margin-top: 10px">
-                  <a id="pdfLink" class="pdf-link" target="_blank" rel="noopener noreferrer">Ver PDF de cotizacion</a>
                 </div>
               </div>
             </section>
@@ -1113,6 +1061,8 @@
                   Revisa estas condiciones y acepta para continuar al paso de facturacion.
                 </p>
                 <ol class="terms terms-summary">
+                  <li>El pago inicial incluye los conceptos de pago unico (equipos, instalacion y servicios iniciales) y el primer mes de servicio de la plataforma, cobrado por adelantado.</li>
+                  <li>El valor mensual es referencial, calculado sobre la cantidad de usuarios de esta cotizacion, y esta sujeto a mantener dicha cantidad: la variacion de usuarios activos modifica el cobro mensual en la facturacion del periodo siguiente.</li>
                   <li>Vigencia comercial: 30 dias corridos desde la emision de la cotizacion.</li>
                   <li>Implementacion estimada: 2 a 3 semanas desde recepcion de planilla validada.</li>
                   <li>Atencion comercial y soporte en horario habil de lunes a viernes.</li>
@@ -1222,8 +1172,12 @@
               interrupciones por factores externos. Disponibilidad objetivo anual 99,5%.
             </li>
             <li>
-              <strong>Tarifas y pago.</strong> Segun propuesta comercial. Facturacion normalmente mensual y calculada por
-              usuario activo. Reajuste anual segun IPC/UF cuando aplique.
+              <strong>Tarifas y pago.</strong> Segun propuesta comercial. El pago inicial —al aceptar esta cotizacion—
+              incluye los conceptos de pago unico (equipos, instalacion y servicios iniciales) y el primer mes de servicio
+              de la plataforma, cobrado por adelantado. El valor mensual indicado es referencial, calculado sobre la cantidad
+              de usuarios de esta cotizacion, y esta sujeto a mantener dicha cantidad: cualquier variacion en el numero de
+              usuarios activos modifica el cobro mensual, ajuste que se refleja en la facturacion del periodo siguiente.
+              Facturacion mensual segun usuarios activos. Reajuste anual segun IPC/UF cuando aplique.
             </li>
             <li>
               <strong>Servicios adicionales.</strong> Desarrollos, hardware u otros requerimientos fuera del servicio base
@@ -1411,7 +1365,15 @@
         onboardingUrl: "",
         redirectPending: false,
         pendingConfirmAfterVerification: false,
+        paymentsEnabled: false,
       };
+
+      // Texto del CTA segun si el flujo incluye pago antes del onboarding.
+      function confirmCtaLabel() {
+        return flowState.paymentsEnabled
+          ? "Aceptar y continuar al pago"
+          : "Aceptar cotizacion y continuar";
+      }
 
       function normalizeEmail(value) {
         return String(value || "").trim().toLowerCase();
@@ -1651,10 +1613,12 @@
 
         if (stage === 2) {
           if (verified) {
-            journeyHintEl.textContent = "Correo validado. Puedes aceptar la cotizacion y continuar al onboarding.";
+            journeyHintEl.textContent = flowState.paymentsEnabled
+              ? "Correo validado. Puedes aceptar la cotizacion y continuar al pago."
+              : "Correo validado. Puedes aceptar la cotizacion y continuar al onboarding.";
           } else if (!flowState.pendingConfirmAfterVerification) {
             journeyHintEl.textContent =
-              "Cuando presiones Aceptar cotizacion y continuar, te pediremos validar el correo de contacto.";
+              "Cuando presiones " + confirmCtaLabel() + ", te pediremos validar el correo de contacto.";
           } else if (remaining > 0) {
             journeyHintEl.textContent = "Codigo enviado. Ingresalo para validar y habilitar la confirmacion.";
           } else if (verificationState.challengeToken) {
@@ -1936,33 +1900,7 @@
 
           const q = data.quote || {};
           document.getElementById("qName").textContent = q.name || q.id || "-";
-          document.getElementById("qStatus").textContent = q.status || "-";
           document.getElementById("qExpiry").textContent = q.expiresAt ? new Date(q.expiresAt).toLocaleString("es-CL") : "-";
-          document.getElementById("qSubtotal").textContent =
-            fmtUF(data.totals?.subtotalUf) + " / " + fmtCLP(data.totals?.subtotalClp);
-          document.getElementById("qIva").textContent =
-            fmtUF(data.totals?.ivaUf) + " / " + fmtCLP(data.totals?.ivaClp);
-          document.getElementById("qTotal").textContent =
-            fmtUF(data.totals?.totalUf) + " / " + fmtCLP(data.totals?.totalClp);
-          document.getElementById("qRecurring").textContent =
-            fmtUF(data.totals?.recurrenteUf) + " / " + fmtCLP(data.totals?.recurrenteClp);
-          document.getElementById("qNonRecurring").textContent =
-            fmtUF(data.totals?.noRecurrenteUf) + " / " + fmtCLP(data.totals?.noRecurrenteClp);
-          // Descuento (solo recurrente). Se muestra unicamente si hay un % aplicado.
-          var dctoPct = Number(data.totals?.descuentoPct || 0);
-          var discountRow = document.getElementById("qDiscountRow");
-          var recurringFinalRow = document.getElementById("qRecurringFinalRow");
-          if (dctoPct > 0) {
-            document.getElementById("qDiscount").textContent =
-              "-" + dctoPct + "%  (-" + fmtCLP(data.totals?.descuentoRecurrenteClp) + ")";
-            document.getElementById("qRecurringFinal").textContent =
-              fmtUF(data.totals?.recurrenteUfConDescuento) + " / " + fmtCLP(data.totals?.recurrenteClpConDescuento);
-            discountRow.style.display = "";
-            recurringFinalRow.style.display = "";
-          } else {
-            discountRow.style.display = "none";
-            recurringFinalRow.style.display = "none";
-          }
           const pdfLink = document.getElementById("pdfLink");
           pdfLink.href = q.pdfUrl || "#";
           if (q.pdfUrl) {
@@ -1986,6 +1924,11 @@
           flowState.acceptedAt = q.acceptedAt || "";
           flowState.onboardingUrl = q.onboardingUrl || "";
           flowState.pendingConfirmAfterVerification = false;
+          flowState.paymentsEnabled = data.paymentsEnabled === true;
+          if (!flowState.acceptedLocked) {
+            const cb = document.getElementById("confirmBtn");
+            if (cb) cb.textContent = confirmCtaLabel();
+          }
           setVerifyPromptVisible(false);
 
           const rows = data.items || [];
@@ -2022,34 +1965,26 @@
                 .join("")
             : '<tr><td colspan="8">Sin datos.</td></tr>';
 
-          const totalsRowsHtml =
-            '<tr class="cost-row-sub">' +
-            '<td colspan="6">Subtotal (sin IVA)</td>' +
-            "<td>" +
-            fmtUF(data.totals?.subtotalUf) +
-            "</td>" +
-            "<td>" +
-            fmtCLP(data.totals?.subtotalClp) +
-            "</td>" +
-            "</tr>" +
-            '<tr class="cost-row-sub">' +
-            '<td colspan="6">IVA (19%)</td>' +
-            "<td>" +
-            fmtUF(data.totals?.ivaUf) +
-            "</td>" +
-            "<td>" +
-            fmtCLP(data.totals?.ivaClp) +
-            "</td>" +
-            "</tr>" +
-            '<tr class="cost-row-total">' +
-            '<td colspan="6">Total con IVA</td>' +
-            "<td>" +
-            fmtUF(data.totals?.totalUf) +
-            "</td>" +
-            "<td>" +
-            fmtCLP(data.totals?.totalClp) +
-            "</td>" +
-            "</tr>";
+          var recClp = Number(data.totals?.recurrenteClp || 0);
+          var recUf = Number(data.totals?.recurrenteUf || 0);
+          var mensualClp = Math.round(recClp * 1.19);
+          var mensualUf = recUf * 1.19;
+          let totalsRowsHtml =
+            '<tr class="cost-row-sub"><td colspan="6">Subtotal (sin IVA)</td><td>' +
+            fmtUF(data.totals?.subtotalUf) + "</td><td>" + fmtCLP(data.totals?.subtotalClp) + "</td></tr>" +
+            '<tr class="cost-row-sub"><td colspan="6">IVA (19%)</td><td>' +
+            fmtUF(data.totals?.ivaUf) + "</td><td>" + fmtCLP(data.totals?.ivaClp) + "</td></tr>" +
+            '<tr class="cost-row-total"><td colspan="6">Pago inicial — a pagar ahora (incluye 1er mes)</td><td>' +
+            fmtUF(data.totals?.totalUf) + "</td><td>" + fmtCLP(data.totals?.totalClp) + "</td></tr>";
+          if (recClp > 0) {
+            totalsRowsHtml +=
+              '<tr class="cost-row-sub"><td colspan="6">Valor mensual del servicio — desde el 2&ordm; mes (referencial)</td><td>' +
+              fmtUF(mensualUf) + "</td><td>" + fmtCLP(mensualClp) + "/mes</td></tr>" +
+              '<tr><td colspan="8" style="font-size:11px;color:#6b7280;padding-top:6px;line-height:1.5">' +
+              "El <b>Pago inicial</b> se cobra al aceptar e incluye los conceptos de pago &uacute;nico y el primer mes de servicio. " +
+              "El <b>valor mensual</b> es referencial, seg&uacute;n los usuarios de esta cotizaci&oacute;n y sujeto a mantenerlos; se factura mensualmente desde el segundo mes y la variaci&oacute;n de usuarios activos lo ajusta en la facturaci&oacute;n del per&iacute;odo siguiente." +
+              "</td></tr>";
+          }
 
           tbody.innerHTML = itemRowsHtml + totalsRowsHtml;
 
@@ -2336,6 +2271,18 @@
           const data = await res.json();
           if (!res.ok || !data.success) {
             throw new Error(data.error || "No se pudo confirmar aceptacion.");
+          }
+
+          if (data.requiresPayment && data.paymentUrl) {
+            flowState.acceptedAt = data.acceptedAt || flowState.acceptedAt;
+            setMessage("Cotizacion aceptada. Te llevamos a la pasarela de pago...", "ok");
+            startOnboardingRedirect(data.paymentUrl, {
+              title: "Estamos preparando tu pago",
+              detail:
+                "Tu cotizacion fue aceptada. Ahora te llevamos a Mercado Pago para completar el pago inicial y activar tu suscripcion.",
+              delayMs: 1500,
+            });
+            return;
           }
 
           if (data.alreadyAccepted) {

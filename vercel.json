@@ -1,4 +1,10 @@
 {
+  "functions": {
+    "api/quote-acceptance/create-from-vicky.js": {
+      "memory": 1536,
+      "maxDuration": 60
+    }
+  },
   "routes": [
     {
       "src": "^/pdf/([^/]+)/([^/]+)$",

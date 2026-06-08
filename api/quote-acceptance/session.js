@@ -1,6 +1,7 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
 const { getRecord, getRecordWithFields, getUserById, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
+const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -203,8 +204,11 @@ export default async function handler(req, res) {
     const items = sanitizeItems(quote?.[config.quoteItemsSubformField], fieldMap);
     const descuentoPct = clampDescuentoPct(quote?.[config.quoteDiscountPctField]);
 
+    const mpConfig = getMercadoPagoConfig(req);
+
     sendJson(res, 200, {
       success: true,
+      paymentsEnabled: mpConfig.enabled,
       quote: {
         id: payload.quoteId,
         dealId: payload.dealId,

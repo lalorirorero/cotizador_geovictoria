@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Pago y activacion · GeoVictoria</title>
+    <style>
+      :root {
+        --azul: #2eaae2;
+        --amarillo: #fabb0c;
+        --texto: #1f2937;
+        --suave: #6b7280;
+        --borde: #e5e7eb;
+        --ok: #16a34a;
+        --error: #dc2626;
+        --bg: #f4f7fb;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--texto);
+        min-height: 100vh;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 32px 16px;
+      }
+      .card {
+        background: #fff;
+        width: 100%;
+        max-width: 560px;
+        border-radius: 16px;
+        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+      }
+      .header {
+        background: linear-gradient(135deg, var(--azul), #1d8dc0);
+        color: #fff;
+        padding: 28px 28px 22px;
+      }
+      .header h1 { margin: 0 0 6px; font-size: 20px; }
+      .header p { margin: 0; opacity: 0.92; font-size: 14px; }
+      .body { padding: 24px 28px 28px; }
+      .steps { display: flex; gap: 8px; margin-bottom: 22px; }
+      .step-pill {
+        flex: 1;
+        border: 1px solid var(--borde);
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--suave);
+        background: #fafafa;
+      }
+      .step-pill.active { border-color: var(--azul); color: var(--azul); font-weight: 600; background: #eef8fd; }
+      .step-pill.done { border-color: var(--ok); color: var(--ok); background: #f0fdf4; }
+      .amount-box {
+        border: 1px solid var(--borde);
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 18px;
+      }
+      .amount-row { display: flex; justify-content: space-between; align-items: baseline; margin: 6px 0; }
+      .amount-row .label { color: var(--suave); font-size: 14px; }
+      .amount-row .value { font-size: 18px; font-weight: 700; }
+      .amount-row .value small { font-size: 12px; font-weight: 500; color: var(--suave); }
+      h2 { font-size: 17px; margin: 0 0 8px; }
+      p.lead { color: var(--suave); font-size: 14px; line-height: 1.5; margin: 0 0 18px; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        border: none;
+        border-radius: 10px;
+        padding: 14px 18px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--azul);
+        color: #fff;
+        transition: opacity 0.15s ease;
+      }
+      .btn:hover { opacity: 0.92; }
+      .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+      .btn.secondary { background: #fff; color: var(--azul); border: 1px solid var(--azul); margin-top: 10px; }
+      .btn.success { background: var(--ok); }
+      .msg { margin-top: 14px; font-size: 14px; min-height: 20px; }
+      .msg.ok { color: var(--ok); }
+      .msg.error { color: var(--error); }
+      .spinner {
+        width: 34px; height: 34px; border-radius: 50%;
+        border: 3px solid #e5e7eb; border-top-color: var(--azul);
+        animation: spin 0.9s linear infinite; margin: 8px auto 16px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .center { text-align: center; }
+      .hidden { display: none !important; }
+      .foot { margin-top: 18px; font-size: 12px; color: var(--suave); text-align: center; }
+      .badge-test {
+        display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 600;
+        background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 999px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="header">
+        <h1>Activa tu servicio GeoVictoria</h1>
+        <p id="quoteName">Completa el pago para iniciar tu onboarding.</p>
+      </div>
+      <div class="body">
+        <div class="steps" id="stepsBar">
+          <div class="step-pill" data-step="oneshot">1 · Pago inicial</div>
+          <div class="step-pill" data-step="sub">2 · Suscripcion</div>
+          <div class="step-pill" data-step="done">3 · Onboarding</div>
+        </div>
+
+        <div id="loading" class="center">
+          <div class="spinner"></div>
+          <p class="lead">Cargando el estado de tu pago...</p>
+        </div>
+
+        <div id="content" class="hidden"></div>
+
+        <div id="msg" class="msg" role="status" aria-live="polite"></div>
+        <div class="foot" id="foot"></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var token = new URLSearchParams(window.location.search).get("token") || "";
+        // El back_url del preapproval no puede llevar el token (limite de longitud
+        // de Mercado Pago), por lo que al volver de la suscripcion la URL no lo trae.
+        // Lo persistimos al cargar y lo recuperamos desde localStorage si falta.
+        try {
+          if (token) {
+            window.localStorage.setItem("gv_mp_token", token);
+          } else {
+            token = window.localStorage.getItem("gv_mp_token") || "";
+          }
+        } catch (e) {}
+        var loadingEl = document.getElementById("loading");
+        var contentEl = document.getElementById("content");
+        var msgEl = document.getElementById("msg");
+        var footEl = document.getElementById("foot");
+        var quoteNameEl = document.getElementById("quoteName");
+        var stepsBar = document.getElementById("stepsBar");
+
+        var pollTimer = null;
+        var busy = false;
+
+        function fmtCLP(value) {
+          try {
+            return new Intl.NumberFormat("es-CL", {
+              style: "currency",
+              currency: "CLP",
+              maximumFractionDigits: 0,
+            }).format(Number(value || 0));
+          } catch (e) {
+            return "$" + Number(value || 0).toLocaleString("es-CL");
+          }
+        }
+
+        function setMessage(text, kind) {
+          msgEl.textContent = text || "";
+          msgEl.className = "msg" + (kind ? " " + kind : "");
+        }
+
+        function setSteps(currentStep, state) {
+          // Si la suscripcion no aplica, ocultamos su paso y renumeramos.
+          var subActive = state.subscription.required;
+          var pills = stepsBar.querySelectorAll(".step-pill");
+          pills.forEach(function (pill) {
+            var step = pill.getAttribute("data-step");
+            pill.classList.remove("active", "done");
+            if (step === "sub") {
+              pill.style.display = subActive ? "" : "none";
+              if (!state.subscription.required || state.subscription.authorized) pill.classList.add("done");
+            } else if (step === "oneshot") {
+              if (!state.oneShot.required || state.oneShot.approved) pill.classList.add("done");
+            } else if (step === "done") {
+              pill.textContent = (subActive ? "3" : "2") + " · Onboarding";
+              if (state.onboarding.ready) pill.classList.add("done");
+            }
+            if (step === currentStep) pill.classList.add("active");
+          });
+        }
+
+        function currentStepOf(state) {
+          if (state.onboarding.ready) return "done";
+          if (state.oneShot.required && !state.oneShot.approved) return "oneshot";
+          if (state.subscription.required && !state.subscription.authorized) return "sub";
+          return "done";
+        }
+
+        async function fetchStatus() {
+          var res = await fetch("/api/payments/status?token=" + encodeURIComponent(token));
+          var data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || "No se pudo obtener el estado del pago.");
+          }
+          return data;
+        }
+
+        async function startStep(endpoint, label) {
+          if (busy) return;
+          busy = true;
+          setMessage(label, "");
+          try {
+            var res = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: token }),
+            });
+            var data = await res.json();
+            if (!res.ok || !data.success) {
+              throw new Error(data.error || "No se pudo iniciar el pago.");
+            }
+            if (data.skipped) {
+              // Este tramo no aplica para esta cotizacion: refrescamos y avanzamos.
+              busy = false;
+              await render();
+              return;
+            }
+            if (data.initPoint) {
+              window.location.href = data.initPoint;
+              return;
+            }
+            throw new Error("Mercado Pago no devolvio un enlace de pago.");
+          } catch (err) {
+            busy = false;
+            setMessage((err && err.message) || "Error al iniciar el pago.", "error");
+          }
+        }
+
+        function amountRow(label, value) {
+          return '<div class="amount-row"><span class="label">' + label +
+            '</span><span class="value">' + value + "</span></div>";
+        }
+
+        function renderOneShot(state) {
+          var a = state.amounts;
+          var hasFirstMonth = Number(a.firstMonthClp || 0) > 0;
+          var rows = "";
+          if (hasFirstMonth && Number(a.oneShotItemsClp || 0) > 0) {
+            rows += amountRow("Servicios iniciales", fmtCLP(a.oneShotItemsClp));
+            rows += amountRow("Primer mes de servicio", fmtCLP(a.firstMonthClp));
+          }
+          rows += amountRow(
+            "Pago inicial total",
+            "<strong>" + fmtCLP(a.oneShotClp) + "</strong>"
+          );
+          if (state.subscription.required) {
+            rows += amountRow("Suscripcion mensual", fmtCLP(a.recurringClp) + " <small>/mes</small>");
+          }
+          var lead = hasFirstMonth
+            ? "Realiza el pago inicial, que incluye los servicios iniciales y el primer mes de servicio. Seras redirigido a Mercado Pago para completarlo de forma segura."
+            : "Realiza el pago unico de los servicios iniciales. Seras redirigido a Mercado Pago para completarlo de forma segura.";
+          var monthlyNote = hasFirstMonth
+            ? '<p style="font-size:12px;color:var(--suave);margin:-4px 0 14px">' +
+              "El valor mensual del servicio se factura por separado a partir del 2&ordm; mes y es referencial: " +
+              "se calcula sobre los usuarios de la cotizacion y varia segun los usuarios activos de cada periodo." +
+              "</p>"
+            : "";
+          contentEl.innerHTML =
+            '<div class="amount-box">' + rows + "</div>" +
+            monthlyNote +
+            "<h2>Paso 1: Pago inicial</h2>" +
+            '<p class="lead">' + lead + "</p>" +
+            '<button class="btn" id="payBtn">Pagar ' + fmtCLP(a.oneShotClp) + "</button>";
+          document.getElementById("payBtn").addEventListener("click", function () {
+            startStep("/api/payments/create-preference", "Conectando con Mercado Pago...");
+          });
+        }
+
+        function renderSubscription(state) {
+          contentEl.innerHTML =
+            '<div class="amount-box">' +
+            (state.oneShot.required
+              ? '<div class="amount-row"><span class="label">Pago inicial</span>' +
+                '<span class="value" style="color:var(--ok)">Pagado ✓</span></div>'
+              : "") +
+            '<div class="amount-row"><span class="label">Suscripcion mensual</span>' +
+            '<span class="value">' + fmtCLP(state.amounts.recurringClp) +
+            ' <small>/mes</small></span></div>' +
+            "</div>" +
+            "<h2>Paso 2: Activa tu suscripcion</h2>" +
+            '<p class="lead">Autoriza el cobro mensual recurrente en Mercado Pago. ' +
+            "No ingresaras datos de tarjeta en este sitio: todo lo gestiona Mercado Pago.</p>" +
+            '<button class="btn" id="subBtn">Activar suscripcion mensual</button>';
+          document.getElementById("subBtn").addEventListener("click", function () {
+            startStep("/api/payments/create-subscription", "Conectando con Mercado Pago...");
+          });
+        }
+
+        function renderDone(state) {
+          if (state.onboarding.ready && state.onboarding.url) {
+            contentEl.innerHTML =
+              '<div class="center">' +
+              '<h2>¡Pago confirmado!</h2>' +
+              '<p class="lead">Tu pago y suscripcion estan activos. ' +
+              "Ya puedes comenzar tu onboarding con GeoVictoria.</p>" +
+              '<button class="btn success" id="goOnboarding">Ir a mi onboarding</button>' +
+              "</div>";
+            document.getElementById("goOnboarding").addEventListener("click", function () {
+              window.location.href = state.onboarding.url;
+            });
+            setMessage("Te redirigiremos automaticamente en unos segundos...", "ok");
+            window.setTimeout(function () {
+              window.location.href = state.onboarding.url;
+            }, 2500);
+          } else {
+            contentEl.innerHTML =
+              '<div class="center">' +
+              '<div class="spinner"></div>' +
+              '<h2>Confirmando tu pago</h2>' +
+              '<p class="lead">Estamos validando tu pago y suscripcion con Mercado Pago. ' +
+              "Esto puede tardar unos segundos...</p>" +
+              "</div>";
+            if (state.finalizeError) {
+              setMessage(
+                "Tu pago fue recibido. Estamos generando tu onboarding; si demora, contacta a tu ejecutivo comercial.",
+                "ok"
+              );
+            }
+          }
+        }
+
+        function schedulePoll(state) {
+          if (pollTimer) window.clearTimeout(pollTimer);
+          var step = currentStepOf(state);
+          // Mientras esperamos confirmacion del webhook/finalizacion, refrescamos solo.
+          var needsPoll = step === "done" && !state.onboarding.ready;
+          if (needsPoll) {
+            pollTimer = window.setTimeout(render, 4000);
+          }
+        }
+
+        async function render() {
+          try {
+            var state = await fetchStatus();
+            loadingEl.classList.add("hidden");
+            contentEl.classList.remove("hidden");
+            if (state.quote && state.quote.name) {
+              quoteNameEl.textContent = "Cotizacion: " + state.quote.name;
+            }
+
+            var step = currentStepOf(state);
+            setSteps(step, state);
+
+            if (step === "oneshot") {
+              renderOneShot(state);
+              setMessage("", "");
+            } else if (step === "sub") {
+              renderSubscription(state);
+              setMessage("", "");
+            } else {
+              renderDone(state);
+            }
+
+            footEl.innerHTML =
+              "Pagos procesados por Mercado Pago." +
+              (state.includeIva ? " Montos con IVA incluido." : "");
+
+            schedulePoll(state);
+          } catch (err) {
+            loadingEl.classList.add("hidden");
+            contentEl.classList.remove("hidden");
+            contentEl.innerHTML =
+              '<div class="center"><h2>No pudimos cargar tu pago</h2>' +
+              '<p class="lead">' +
+              ((err && err.message) || "Intenta nuevamente o contacta a tu ejecutivo comercial.") +
+              "</p></div>";
+          }
+        }
+
+        if (!token) {
+          loadingEl.classList.add("hidden");
+          contentEl.classList.remove("hidden");
+          contentEl.innerHTML =
+            '<div class="center"><h2>Enlace invalido</h2>' +
+            '<p class="lead">Falta el token de pago. Solicita un nuevo enlace a tu ejecutivo comercial.</p></div>';
+        } else {
+          render();
+        }
+      })();
+    </script>
+  </body>
+</html>

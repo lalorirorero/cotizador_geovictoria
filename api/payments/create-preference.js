@@ -1,0 +1,130 @@
+const { toText } = require("../_shared/zoho-crm");
+const { resolvePaymentSession } = require("../_shared/payment-session");
+const { pickInitPoint } = require("../_shared/mercadopago-config");
+const { createPreference, buildExternalReference } = require("../_shared/mercadopago-client");
+
+function sendJson(res, status, payload) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(payload));
+}
+
+async function parseBody(req) {
+  if (req?.body && typeof req.body === "object") return req.body;
+  if (typeof req?.body === "string") {
+    try {
+      return JSON.parse(req.body || "{}");
+    } catch (_error) {
+      return {};
+    }
+  }
+  if (!req || typeof req.on !== "function") return {};
+  const chunks = [];
+  await new Promise((resolve) => {
+    req.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    req.on("end", resolve);
+    req.on("error", resolve);
+  });
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch (_error) {
+    return {};
+  }
+}
+
+function landingUrl(mpConfig, token, extraParams) {
+  const params = new URLSearchParams({ token, ...(extraParams || {}) });
+  return `${mpConfig.landingUrl}?${params.toString()}`;
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { success: false, error: "Metodo no permitido." });
+    return;
+  }
+
+  try {
+    const body = await parseBody(req);
+    const token = toText(body?.token);
+    if (!token) {
+      sendJson(res, 400, { success: false, error: "Falta token." });
+      return;
+    }
+
+    const session = await resolvePaymentSession(req, token);
+    const { mpConfig, quoteId, dealId, billingEmail, quoteName, amounts } = session;
+
+    if (!mpConfig.enabled) {
+      sendJson(res, 409, { success: false, error: "Pagos con Mercado Pago no habilitados." });
+      return;
+    }
+
+    if (amounts.oneShotClp <= 0) {
+      sendJson(res, 200, { success: true, skipped: true, reason: "no_one_shot" });
+      return;
+    }
+
+    const externalReference = buildExternalReference(quoteId, "oneshot");
+
+    // Lineas del checkout: servicios iniciales (una vez) + primer mes de
+    // servicio prepagado (si corresponde). El total = amounts.oneShotClp.
+    const items = [];
+    if (amounts.oneShotItemsClp > 0) {
+      items.push({
+        id: `qa-${quoteId}-oneshot`,
+        title: mpConfig.oneShotTitle,
+        description: quoteName || `Cotizacion ${quoteId}`,
+        quantity: 1,
+        unit_price: amounts.oneShotItemsClp,
+        currency_id: mpConfig.currencyId,
+      });
+    }
+    if (amounts.firstMonthClp > 0) {
+      items.push({
+        id: `qa-${quoteId}-firstmonth`,
+        title: "Primer mes de servicio (adelantado)",
+        description: quoteName || `Cotizacion ${quoteId}`,
+        quantity: 1,
+        unit_price: amounts.firstMonthClp,
+        currency_id: mpConfig.currencyId,
+      });
+    }
+
+    const preference = {
+      items,
+      payer: billingEmail ? { email: billingEmail } : undefined,
+      back_urls: {
+        success: landingUrl(mpConfig, token, { oneshot: "success" }),
+        pending: landingUrl(mpConfig, token, { oneshot: "pending" }),
+        failure: landingUrl(mpConfig, token, { oneshot: "failure" }),
+      },
+      auto_return: "approved",
+      notification_url: mpConfig.notificationUrl,
+      external_reference: externalReference,
+      statement_descriptor: mpConfig.statementDescriptor,
+      metadata: { quote_id: quoteId, deal_id: dealId, kind: "oneshot" },
+    };
+
+    const created = await createPreference(mpConfig, preference);
+    sendJson(res, 200, {
+      success: true,
+      skipped: false,
+      preferenceId: toText(created?.id),
+      initPoint: pickInitPoint(created, mpConfig),
+      amountClp: amounts.oneShotClp,
+      currencyId: mpConfig.currencyId,
+    });
+  } catch (error) {
+    const isExpired = toText(error?.code) === "TOKEN_EXPIRED";
+    sendJson(res, isExpired ? 410 : 500, {
+      success: false,
+      error: isExpired
+        ? "La sesion de pago expiro. Solicita un nuevo enlace a tu ejecutivo comercial."
+        : "No se pudo crear el pago unico.",
+      detail: toText(error?.message || error),
+    });
+  }
+}
+
