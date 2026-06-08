@@ -797,7 +797,28 @@ module.exports = async function handler(req, res) {
       try {
         const existingQuote = await getRecord(config.quoteModule, existing.quoteId);
         if (existingQuote) {
-          await updateRecord(config.quoteModule, existing.quoteId, quoteDiscountFields, true);
+          // Monotonicidad: el escalón del Borrador NUNCA retrocede. Si esta
+          // llamada llega con un escalón menor al ya guardado (modelo reiniciado
+          // tras un loop), conservamos el mayor — así un 30% aceptado no queda
+          // pisado por un 20% viejo.
+          const escalonExistente = Math.max(0, Number(existingQuote[config.quoteEscalonField] || 0));
+          let fieldsToUpdate = quoteDiscountFields;
+          if (escalonExistente > escalonDescuento) {
+            const pseudoQuote = { [config.quoteItemsSubformField]: subformItems };
+            const acum = descuentosHasta(pseudoQuote, config, escalonExistente - 1);
+            fieldsToUpdate = {
+              [config.quoteEscalonField]: escalonExistente,
+              [config.quoteEscalonNegociacionField]: escalonExistente,
+              [config.quoteDiscountUnlockedField]: escalonExistente > 0,
+              [config.quoteDiscountPctField]: acum.descuentos.recurrentePct,
+              [config.quoteDiscountInstRMPctField]: acum.descuentos.instalacionRMPct,
+              [config.quoteDiscountInstRegionPctField]: acum.descuentos.instalacionRegionPct,
+            };
+            console.warn(
+              `[create-from-vicky] Monotonicidad escalón: Borrador ${existing.quoteId} ya estaba en ${escalonExistente}, llegó ${escalonDescuento}; se conserva ${escalonExistente}.`,
+            );
+          }
+          await updateRecord(config.quoteModule, existing.quoteId, fieldsToUpdate, true);
           quoteId = existing.quoteId;
           reuse.quoteReused = true;
         }

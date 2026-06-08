@@ -102,7 +102,7 @@ module.exports = async function handler(req, res) {
     // Puntero de negociación traído por la conversación.
     stage = "elegir_escalon";
     const start = Math.max(0, Number(body.escalonActual || 0));
-    const i = siguienteEscalonAplicable(pseudoQuote, config, start);
+    let i = siguienteEscalonAplicable(pseudoQuote, config, start);
     if (i < 0) {
       return sendJson(res, 200, {
         ok: false,
@@ -110,6 +110,26 @@ module.exports = async function handler(req, res) {
         tope_alcanzado: true,
       });
     }
+
+    // Si el cliente pidió un % de plan mensual específico (pctObjetivo), trepamos
+    // la escalera del lado servidor —en UNA sola llamada— hasta el primer escalón
+    // recurrente que alcance/supere ese %, o hasta el tope. Esto vuelve
+    // determinista el "me dejas un 20%?" en vez de depender de que el modelo
+    // vuelva a llamar la tool escalón por escalón.
+    const pctObjetivo = Math.max(0, Number(body.pctObjetivo || 0));
+    if (pctObjetivo > 0) {
+      const esRecurrente = (e) =>
+        e && e.tipo !== "instalacion_rm" && e.tipo !== "instalacion_region";
+      const cubreObjetivo = (idx) =>
+        esRecurrente(DISCOUNT_LADDER[idx]) && Number(DISCOUNT_LADDER[idx].pct) >= pctObjetivo;
+      let guard = 0;
+      while (guard++ < 20 && !cubreObjetivo(i) && hayEscalonDespues(pseudoQuote, config, i)) {
+        const next = siguienteEscalonAplicable(pseudoQuote, config, i + 1);
+        if (next < 0) break;
+        i = next;
+      }
+    }
+
     const escalon = DISCOUNT_LADDER[i];
 
     stage = "preview";
