@@ -119,7 +119,7 @@ function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
   const chargeTable = Array.isArray(ndvRecord.Tabla_de_Cobro) ? ndvRecord.Tabla_de_Cobro : [];
 
   return {
-    ID_Formulario: toNumber(ndvId),
+    ID_Formulario: ndvId,
     Servicio_Recurrente: serviceName,
     N_Empleados_Compometidos: employees,
     Cantidad_de_Usuarios: employees,
@@ -142,7 +142,7 @@ function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
 
 function buildFinalizarFormularioRecord({ ndvId, ndvRecord }) {
   return {
-    ID_Formulario: toNumber(ndvId),
+    ID_Formulario: ndvId,
     Empresa: "Creada en Plataforma",
     Identificador_Tributario_Empresa: toText(ndvRecord.Identificador_Tributario_Empresa),
     country: toText(ndvRecord.Pa_s_Facturaci_n) || "Chile",
@@ -159,14 +159,13 @@ function buildFinalizarFormularioRecord({ ndvId, ndvRecord }) {
 }
 
 function buildFormOrderRow({ productType, productName, formId, ndvId }) {
-  const id = toNumber(formId);
   return {
     Number: 0,
     Product_Type: productType,
     Product_Name: productName,
-    Form_ID: id,
+    Form_ID: formId,
     Selected: true,
-    Form_ID_NDV: id,
+    Form_ID_NDV: formId,
     FormName: productType === "Ultimo Paso" ? "Finalizar_Formulario" : "Servicio_Recurrente",
     DuplicationIdReference: 0,
   };
