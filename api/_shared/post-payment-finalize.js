@@ -14,6 +14,7 @@
 const { getRecord, updateRecordBestEffort, toText } = require("./zoho-crm");
 const { runOnboardingHandoff } = require("./onboarding-handoff");
 const { runNdvHandoff } = require("./ndv-handoff");
+const { runNdvSubformSetup } = require("./ndv-subforms");
 const { normalizeEmail } = require("./verification-token");
 const { sanitizeItems, clampDescuentoPct, computePaymentAmounts } = require("./quote-pricing");
 const {
@@ -111,7 +112,15 @@ async function finalizeAfterPayment({ config, quoteId, dealId }) {
       if (ndvId) {
         await persistNdvReferences(config, quoteId, ndvId);
       }
-      ndv = { status: "ok", ndvId, reconciled: ndvResult?.reconciled === true };
+      let subformSetup = null;
+      if (ndvId) {
+        try {
+          subformSetup = await runNdvSubformSetup({ ndvId, ndvRecord: ndvResult?.ndvRecord || {} });
+        } catch (subformError) {
+          subformSetup = { errors: [String(subformError?.message || subformError)] };
+        }
+      }
+      ndv = { status: "ok", ndvId, reconciled: ndvResult?.reconciled === true, subformSetup };
     } catch (error) {
       ndv = { status: "error", error: toText(error?.message || error) };
     }

@@ -948,6 +948,7 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     schemaVersion: NDV_CANONICAL_SCHEMA_VERSION,
     createPayload,
     updatePayload,
+    ndvRecord,
     usedIds: {
       accountId: toText(ndvRecord.CRM_Account),
       contactId: toText(contactId),

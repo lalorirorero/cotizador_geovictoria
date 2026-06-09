@@ -4,6 +4,7 @@ const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
 const { runOnboardingHandoff } = require("../_shared/onboarding-handoff");
 const { runNdvHandoff } = require("../_shared/ndv-handoff");
+const { runNdvSubformSetup } = require("../_shared/ndv-subforms");
 const {
   verifyVerificationToken,
   signVerificationPayload,
@@ -234,10 +235,20 @@ async function triggerNdvIfEnabled(config, payload) {
       await persistNdvReferences(config, payload.quoteId, ndvId);
     }
 
+    let subformSetup = null;
+    if (ndvId) {
+      try {
+        subformSetup = await runNdvSubformSetup({ ndvId, ndvRecord: ndvResult?.ndvRecord || {} });
+      } catch (subformError) {
+        subformSetup = { errors: [String(subformError?.message || subformError)] };
+      }
+    }
+
     return {
       status: "ok",
       ndvId,
       reconciled: ndvResult?.reconciled === true,
+      subformSetup,
     };
   } catch (error) {
     const message = toText(error?.message || error) || "Error desconocido en handoff NDV.";
