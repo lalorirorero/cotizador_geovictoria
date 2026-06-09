@@ -1,6 +1,7 @@
 const { toText, updateRecordBestEffort } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { runNdvHandoffFromDraft, NdvBusinessError, normalizeCreatorBusinessError } = require("../_shared/ndv-handoff");
+const { runNdvSubformSetup } = require("../_shared/ndv-subforms");
 
 function setCors(req, res) {
   const origin = req.headers.origin || "";
@@ -136,10 +137,20 @@ export default async function handler(req, res) {
       await persistNdvReferences(config, quoteId, ndvId);
     }
 
+    let subformResult = null;
+    if (ndvId) {
+      try {
+        subformResult = await runNdvSubformSetup({ ndvId, ndvRecord: result?.ndvRecord || {} });
+      } catch (subformError) {
+        subformResult = { errors: [String(subformError?.message || subformError)] };
+      }
+    }
+
     sendJson(res, 200, {
       success: true,
       ndvId,
       reconciled: result?.reconciled === true,
+      subformSetup: subformResult,
       message: ndvId
         ? "NDV creada correctamente en Creator."
         : "NDV creada, pero Creator no devolvio ID.",

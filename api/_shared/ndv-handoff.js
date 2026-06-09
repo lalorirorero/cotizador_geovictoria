@@ -1248,6 +1248,7 @@ async function runNdvHandoffFromDraft({
     schemaVersion: NDV_CANONICAL_SCHEMA_VERSION,
     usedFormLinkName: createAttempt.usedFormLinkName,
     createPayload,
+    ndvRecord,
   };
 }
 
