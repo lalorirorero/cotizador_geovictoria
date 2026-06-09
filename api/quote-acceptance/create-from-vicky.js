@@ -152,8 +152,7 @@ function buildEmailHtml({ contacto, empresa, acceptanceUrl, pdfUrl, ejecutivo })
     </a>
   </p>
   <p style="font-size:13px;color:#718096;">
-    También puedes descargar el PDF directamente:<br>
-    <a href="${pdfUrl}" style="color:#1a73e8;">${pdfUrl}</a>
+    También puedes <a href="${pdfUrl}" style="color:#1a73e8;">descargar el PDF directamente</a>.
   </p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0;">
   <p style="font-size:13px;color:#718096;">
