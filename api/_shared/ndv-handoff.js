@@ -814,6 +814,7 @@ function buildNdvRecord({
       ? { Servicio_No_Recurrente_Configurado: servicios.servicioNoRecurrenteConfigurado }
       : {}),
     Fecha_de_creaci_n: formatCreatorDate(),
+    fecha_uf_usd: formatCreatorDate(),
     Email_de_Facturacion:
       normalizeEmail(acceptanceData?.billingEmail || quote?.Email_Facturacion || quote?.Email_de_Facturacion) ||
       undefined,
