@@ -79,10 +79,6 @@ function buildFormPath(config, formLinkName) {
   return `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/form/${encodeURIComponent(formLinkName)}`;
 }
 
-function buildRecordPath(config, reportLinkName, recordId) {
-  return `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/report/${encodeURIComponent(reportLinkName)}/${encodeURIComponent(String(recordId))}`;
-}
-
 async function createSubformRecord(creatorConfig, formLinkName, record) {
   const path = buildFormPath(creatorConfig, formLinkName);
   const response = await creatorApiFetch(path, {
@@ -96,21 +92,6 @@ async function createSubformRecord(creatorConfig, formLinkName, record) {
     throw new Error(`Creator ${formLinkName} create failed (${response.status}): ${detail}`);
   }
   return resolveCreatedId(payload);
-}
-
-async function patchNdvRecord(creatorConfig, ndvId, fields) {
-  const path = buildRecordPath(creatorConfig, "ALL_DATA", ndvId);
-  const response = await creatorApiFetch(path, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: fields }),
-  });
-  const payload = await readJsonSafe(response);
-  if (!response.ok || isCreatorError(payload)) {
-    const detail = JSON.stringify(payload).slice(0, 300);
-    throw new Error(`Creator PATCH NDV failed (${response.status}): ${detail}`);
-  }
-  return payload;
 }
 
 function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
@@ -128,7 +109,7 @@ function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
     Moneda: toText(ndvRecord.Moneda) || "UF",
     Periodicidad_de_Servicio: "Mensual",
     Hito_de_Facturaci_n: hito,
-    Plantilla_Tabla_de_Cobro: "Sin Plantilla",
+    Plantilla_Tabla_de_Cobro: "No hay Plantillas",
     Descuento_Ejecutivo: 0,
     Fecha_de_Inicio: formatCreatorDate(),
     Linea_de_Negocio: "Telemarketing",
@@ -158,19 +139,6 @@ function buildFinalizarFormularioRecord({ ndvId, ndvRecord }) {
   };
 }
 
-function buildFormOrderRow({ productType, productName, formId, ndvId }) {
-  return {
-    Number: 0,
-    Product_Type: productType,
-    Product_Name: productName,
-    Form_ID: formId,
-    Selected: true,
-    Form_ID_NDV: formId,
-    FormName: productType === "Ultimo Paso" ? "Finalizar_Formulario" : "Servicio_Recurrente",
-    DuplicationIdReference: 0,
-  };
-}
-
 /**
  * Orquesta la creación de sub-formularios para un NDV recién creado.
  *
@@ -192,46 +160,27 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
 
   console.log(`[ndv-subforms] ndvId=${ndvId} servicios=${JSON.stringify(recurringServices)}`);
 
-  // 1. Crear un Servicio_Recurrente por cada servicio recurrente
-  //    Creator dispara UpdatePdfJson1 automáticamente → construye JsonPdf
-  const serviceRows = [];
+  // 1. Crear un Servicio_Recurrente por cada servicio recurrente.
+  //    Creator dispara UpdatePdfJson1 (→ JsonPdf) y CreateGoToNextStep
+  //    (→ UpdateFormOrderId en el NDV) automáticamente.
+  let serviceCount = 0;
   for (const serviceName of recurringServices) {
     try {
       const record = buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord });
       const serviceId = await createSubformRecord(creatorConfig, "Servicio_Recurrente", record);
       console.log(`[ndv-subforms] Servicio_Recurrente(${serviceName}) → id=${serviceId}`);
-      if (serviceId) {
-        serviceRows.push(
-          buildFormOrderRow({ productType: "Recurrente", productName: serviceName, formId: serviceId, ndvId })
-        );
-      }
+      if (serviceId) serviceCount++;
     } catch (err) {
       console.warn(`[ndv-subforms] Servicio_Recurrente(${serviceName}) ERROR: ${err.message}`);
       errors.push(`Servicio_Recurrente(${serviceName}): ${err.message}`);
     }
   }
 
-  // Fila placeholder para Ultimo Paso (sin ID todavía)
-  const ultimoPasoPlaceholder = buildFormOrderRow({
-    productType: "Ultimo Paso",
-    productName: "Ultimo Paso",
-    formId: 0,
-    ndvId,
-  });
-  const formOrderWithPlaceholder = [...serviceRows, ultimoPasoPlaceholder];
-
-  // 2. PATCH Form_Order en el NDV ANTES de crear Finalizar_Formulario
-  //    Así cuando GeneratePDF dispare, Form_Order ya tiene los servicios
-  try {
-    await patchNdvRecord(creatorConfig, ndvId, { Form_Order: formOrderWithPlaceholder });
-    console.log(`[ndv-subforms] Form_Order PATCH (pre-finalizar) OK, rows=${formOrderWithPlaceholder.length}`);
-  } catch (err) {
-    console.warn(`[ndv-subforms] Form_Order PATCH (pre-finalizar) ERROR: ${err.message}`);
-    errors.push(`Form_Order patch (pre-finalizar): ${err.message}`);
-  }
-
-  // 3. Crear Finalizar_Formulario
-  //    Creator dispara GeneratePDF → RegeneratePdfJson → PDF API → guarda PDF_STRING en el NDV
+  // 2. Crear Finalizar_Formulario.
+  //    Creator dispara FinalizeForm (→ FORM_STATUS=CREATED en NDV) y
+  //    GeneratePDF (→ RegeneratePdfJson → PDF_STRING en NDV) automáticamente.
+  //    NO hacemos PATCH manual del Form_Order: las reglas del NDV bloquean
+  //    ediciones externas; Creator lo actualiza internamente vía sus workflows.
   let finalizarId = "";
   try {
     const finalizarRecord = buildFinalizarFormularioRecord({ ndvId, ndvRecord });
@@ -242,24 +191,9 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
     errors.push(`Finalizar_Formulario: ${err.message}`);
   }
 
-  // 4. Actualizar Form_Order con el ID real de Finalizar_Formulario
-  if (finalizarId) {
-    try {
-      const finalRows = [
-        ...serviceRows,
-        buildFormOrderRow({ productType: "Ultimo Paso", productName: "Ultimo Paso", formId: finalizarId, ndvId }),
-      ];
-      await patchNdvRecord(creatorConfig, ndvId, { Form_Order: finalRows });
-      console.log(`[ndv-subforms] Form_Order PATCH (post-finalizar) OK`);
-    } catch (err) {
-      console.warn(`[ndv-subforms] Form_Order PATCH (post-finalizar) ERROR: ${err.message}`);
-      errors.push(`Form_Order patch (post-finalizar): ${err.message}`);
-    }
-  }
-
-  console.log(`[ndv-subforms] done serviceCount=${serviceRows.length} finalizarId=${finalizarId} errors=${JSON.stringify(errors)}`);
+  console.log(`[ndv-subforms] done serviceCount=${serviceCount} finalizarId=${finalizarId} errors=${JSON.stringify(errors)}`);
   return {
-    serviceCount: serviceRows.length,
+    serviceCount,
     finalizarId,
     errors,
   };
