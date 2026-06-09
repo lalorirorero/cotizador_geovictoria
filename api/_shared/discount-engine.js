@@ -142,8 +142,8 @@ function buildMensajeNegociacion(escalon, amounts, esUltimo = false) {
   // precio posible, así que cerramos hacia la decisión.
   partes.push(
     esUltimo
-      ? "Es el mejor precio que puedo ofrecerte. ¿Lo tomamos?"
-      : "¿Lo dejamos así o prefieres que veamos algo más?",
+      ? "De verdad es el mejor precio que te puedo dejar. ¿Lo cerramos?"
+      : "¿Lo cerramos?",
   );
   return partes.join(" ");
 }
