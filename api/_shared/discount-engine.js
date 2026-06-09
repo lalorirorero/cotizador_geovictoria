@@ -135,7 +135,7 @@ function buildMensajeNegociacion(escalon, amounts, esUltimo = false) {
 
   const partes = [
     oferta,
-    `Con eso tu pago inicial queda en ${inicialDetalle} y el plan mensual en ${mensual}/mes (IVA incluido).`,
+    `Con eso tu pago inicial queda en ${inicialDetalle} y, desde el 2º mes, el plan mensual recurrente en ${mensual}/mes (IVA incluido).`,
   ];
   if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
   // En el último escalón no invitamos a seguir pidiendo rebaja: es el mejor
