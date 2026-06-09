@@ -207,7 +207,7 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
         );
       }
     } catch (err) {
-      console.error(`[ndv-subforms] Servicio_Recurrente(${serviceName}) ERROR: ${err.message}`);
+      console.warn(`[ndv-subforms] Servicio_Recurrente(${serviceName}) ERROR: ${err.message}`);
       errors.push(`Servicio_Recurrente(${serviceName}): ${err.message}`);
     }
   }
@@ -227,7 +227,7 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
     await patchNdvRecord(creatorConfig, ndvId, { Form_Order: formOrderWithPlaceholder });
     console.log(`[ndv-subforms] Form_Order PATCH (pre-finalizar) OK, rows=${formOrderWithPlaceholder.length}`);
   } catch (err) {
-    console.error(`[ndv-subforms] Form_Order PATCH (pre-finalizar) ERROR: ${err.message}`);
+    console.warn(`[ndv-subforms] Form_Order PATCH (pre-finalizar) ERROR: ${err.message}`);
     errors.push(`Form_Order patch (pre-finalizar): ${err.message}`);
   }
 
@@ -239,7 +239,7 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
     finalizarId = await createSubformRecord(creatorConfig, "Finalizar_Formulario", finalizarRecord);
     console.log(`[ndv-subforms] Finalizar_Formulario → id=${finalizarId}`);
   } catch (err) {
-    console.error(`[ndv-subforms] Finalizar_Formulario ERROR: ${err.message}`);
+    console.warn(`[ndv-subforms] Finalizar_Formulario ERROR: ${err.message}`);
     errors.push(`Finalizar_Formulario: ${err.message}`);
   }
 
@@ -253,7 +253,7 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
       await patchNdvRecord(creatorConfig, ndvId, { Form_Order: finalRows });
       console.log(`[ndv-subforms] Form_Order PATCH (post-finalizar) OK`);
     } catch (err) {
-      console.error(`[ndv-subforms] Form_Order PATCH (post-finalizar) ERROR: ${err.message}`);
+      console.warn(`[ndv-subforms] Form_Order PATCH (post-finalizar) ERROR: ${err.message}`);
       errors.push(`Form_Order patch (post-finalizar): ${err.message}`);
     }
   }

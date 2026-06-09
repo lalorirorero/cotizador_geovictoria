@@ -30,7 +30,7 @@
     },
     "api/payments/status.js": {
       "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/payments/create-preference.js": {
       "memory": 1024,
