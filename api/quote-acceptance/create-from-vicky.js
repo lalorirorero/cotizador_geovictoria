@@ -307,12 +307,21 @@ async function executeCoqlQuery(selectQuery) {
   }
 }
 
-async function findAccountIdByRut(rutEmpresa) {
+async function findAccountIdByRut(rutEmpresa, empresaName) {
   const variants = getRutVariants(rutEmpresa);
   if (variants.length === 0) return null;
   const escaped = variants.map((v) => `'${v.replace(/'/g, "''")}'`).join(",");
-  const query = `select id from Accounts where RUT_Empresa in (${escaped}) limit 1`;
+  const query = `select id, Account_Name from Accounts where RUT_Empresa in (${escaped}) limit 10`;
   const rows = await executeCoqlQuery(query);
+  if (!rows.length) return null;
+  // Si el RUT está en varias cuentas (dato sucio / colisión), preferimos la que
+  // coincide con el nombre cotizado, para no asociar a otra empresa distinta.
+  if (empresaName) {
+    const norm = (s) => String(s || "").trim().toLowerCase();
+    const target = norm(empresaName);
+    const byName = rows.find((r) => norm(r.Account_Name) === target);
+    if (byName) return toText(byName.id);
+  }
   return toText(rows[0]?.id) || null;
 }
 
@@ -649,7 +658,7 @@ module.exports = async function handler(req, res) {
             `[create-from-vicky] Capa 3 Account: createRecord falló por duplicate data. Buscando Account existente con RUT="${cliente.rutEmpresa}"...`,
           );
           stage = "dedupe_account_by_rut";
-          const existingAccountId = await findAccountIdByRut(cliente.rutEmpresa);
+          const existingAccountId = await findAccountIdByRut(cliente.rutEmpresa, cliente.empresa);
           if (!existingAccountId) {
             throw new Error(
               `Zoho reportó duplicate data pero no se encontró Account con RUT ${cliente.rutEmpresa} (posible inconsistencia o validación distinta)`,
@@ -661,8 +670,10 @@ module.exports = async function handler(req, res) {
           const fullPayload = buildAccountFullPayload(cliente, sectorParaZoho);
           const reuseResult = await tryReuseRecord("Accounts", existingAccountId, fullPayload);
           if (!reuseResult.ok) {
-            throw new Error(
-              `Capa 3: Account duplicado encontrado (id=${existingAccountId}) pero tryReuseRecord falló`,
+            // No tirar 500: ya tenemos un accountId válido por RUT. Seguimos sin
+            // el update conservador (solo se omiten campos; la cuenta es correcta).
+            console.warn(
+              `[create-from-vicky] Capa 3 Account: tryReuseRecord falló para id=${existingAccountId}; se usa la cuenta sin actualizar campos.`,
             );
           }
           accountId = existingAccountId;
@@ -720,8 +731,8 @@ module.exports = async function handler(req, res) {
           const fullPayload = buildContactFullPayload(cliente);
           const reuseResult = await tryReuseRecord("Contacts", existingContactId, fullPayload);
           if (!reuseResult.ok) {
-            throw new Error(
-              `Capa 3: Contact duplicado encontrado (id=${existingContactId}) pero tryReuseRecord falló`,
+            console.warn(
+              `[create-from-vicky] Capa 3 Contact: tryReuseRecord falló para id=${existingContactId}; se usa el contacto sin actualizar campos.`,
             );
           }
           contactId = existingContactId;
