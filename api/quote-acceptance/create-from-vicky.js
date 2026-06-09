@@ -273,12 +273,17 @@ function getRutVariants(rut) {
   const cuerpo = compact.slice(0, -1);
   const dv = compact.slice(-1);
   const cuerpoConPuntos = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return Array.from(new Set([
+  const variantes = [
     raw,
     compact,
     `${cuerpo}-${dv}`,
     `${cuerpoConPuntos}-${dv}`,
-  ])).filter(Boolean);
+  ];
+  // DV "K": agrega variantes en minúscula por si quedó guardado como "k".
+  if (dv === "K") {
+    variantes.push(`${cuerpo}k`, `${cuerpo}-k`, `${cuerpoConPuntos}-k`);
+  }
+  return Array.from(new Set(variantes)).filter(Boolean);
 }
 
 // ── Búsqueda en Zoho (sólo para Capa 3, no para flujo normal) ──
