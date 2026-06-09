@@ -191,6 +191,8 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
     : []
   ).filter(Boolean);
 
+  console.log(`[ndv-subforms] ndvId=${ndvId} servicios=${JSON.stringify(recurringServices)}`);
+
   // 1. Crear un Servicio_Recurrente por cada servicio recurrente
   //    Creator dispara UpdatePdfJson1 automáticamente → construye JsonPdf
   const serviceRows = [];
@@ -198,12 +200,14 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
     try {
       const record = buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord });
       const serviceId = await createSubformRecord(creatorConfig, "Servicio_Recurrente", record);
+      console.log(`[ndv-subforms] Servicio_Recurrente(${serviceName}) → id=${serviceId}`);
       if (serviceId) {
         serviceRows.push(
           buildFormOrderRow({ productType: "Recurrente", productName: serviceName, formId: serviceId, ndvId })
         );
       }
     } catch (err) {
+      console.error(`[ndv-subforms] Servicio_Recurrente(${serviceName}) ERROR: ${err.message}`);
       errors.push(`Servicio_Recurrente(${serviceName}): ${err.message}`);
     }
   }
@@ -221,7 +225,9 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
   //    Así cuando GeneratePDF dispare, Form_Order ya tiene los servicios
   try {
     await patchNdvRecord(creatorConfig, ndvId, { Form_Order: formOrderWithPlaceholder });
+    console.log(`[ndv-subforms] Form_Order PATCH (pre-finalizar) OK, rows=${formOrderWithPlaceholder.length}`);
   } catch (err) {
+    console.error(`[ndv-subforms] Form_Order PATCH (pre-finalizar) ERROR: ${err.message}`);
     errors.push(`Form_Order patch (pre-finalizar): ${err.message}`);
   }
 
@@ -231,7 +237,9 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
   try {
     const finalizarRecord = buildFinalizarFormularioRecord({ ndvId, ndvRecord });
     finalizarId = await createSubformRecord(creatorConfig, "Finalizar_Formulario", finalizarRecord);
+    console.log(`[ndv-subforms] Finalizar_Formulario → id=${finalizarId}`);
   } catch (err) {
+    console.error(`[ndv-subforms] Finalizar_Formulario ERROR: ${err.message}`);
     errors.push(`Finalizar_Formulario: ${err.message}`);
   }
 
@@ -243,11 +251,14 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
         buildFormOrderRow({ productType: "Ultimo Paso", productName: "Ultimo Paso", formId: finalizarId, ndvId }),
       ];
       await patchNdvRecord(creatorConfig, ndvId, { Form_Order: finalRows });
+      console.log(`[ndv-subforms] Form_Order PATCH (post-finalizar) OK`);
     } catch (err) {
+      console.error(`[ndv-subforms] Form_Order PATCH (post-finalizar) ERROR: ${err.message}`);
       errors.push(`Form_Order patch (post-finalizar): ${err.message}`);
     }
   }
 
+  console.log(`[ndv-subforms] done serviceCount=${serviceRows.length} finalizarId=${finalizarId} errors=${JSON.stringify(errors)}`);
   return {
     serviceCount: serviceRows.length,
     finalizarId,
