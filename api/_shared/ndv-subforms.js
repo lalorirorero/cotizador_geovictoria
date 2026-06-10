@@ -5,32 +5,12 @@
  * Flujo:
  *  1. Por cada servicio recurrente → POST Servicio_Recurrente
  *     (Creator auto-dispara UpdatePdfJson1 → construye JsonPdf en el registro)
- *  2. PATCH NDV.Form_Order con las filas de servicios + placeholder Ultimo Paso
- *  3. POST Finalizar_Formulario
+ *  2. POST Finalizar_Formulario
  *     (Creator auto-dispara GeneratePDF → llama RegeneratePdfJson → llama PDF API → guarda PDF_STRING)
- *  4. PATCH NDV.Form_Order para actualizar fila Ultimo Paso con ID real
  */
 
 const { getCreatorConfig, creatorApiFetch } = require("./zoho-creator-auth");
 const { toText } = require("./zoho-crm");
-
-// Services where Telemarketing billing milestone = "Adelantado"
-const ADELANTADO_SERVICES = new Set([
-  "Control de Asistencia",
-  "Control de Acceso",
-  "Servicio de Comedor",
-  "Dashboard BI",
-  "Vacaciones",
-  "Gestión Documental",
-  "Calendario Inteligente",
-  "SSO",
-  "Alertas",
-  "Arriendo de Equipos Asistencia",
-  "Arriendo de Chip de Datos",
-  "Venta de Equipos Asistencia",
-  "Venta de Kit de Acceso",
-  "Venta de Equipos Comedor",
-]);
 
 function toNumber(value) {
   const n = Number(value);
@@ -58,9 +38,13 @@ async function readJsonSafe(response) {
 
 function isCreatorError(payload) {
   if (!payload || typeof payload !== "object") return false;
-  if (payload.error && typeof payload.error === "object" && Object.keys(payload.error).length > 0) return true;
   const code = Number.parseInt(toText(payload.code), 10);
-  if (Number.isFinite(code) && code !== 3000) return true;
+  // code 3000 = success; a non-empty error array alongside 3000 contains Creator
+  // internal workflow errors (e.g. EditNextStep), not record-creation failures.
+  // Only treat as error when the HTTP response code is non-3000.
+  if (Number.isFinite(code)) return code !== 3000;
+  // No numeric code → fall back to checking for an error object (not array)
+  if (payload.error && !Array.isArray(payload.error) && typeof payload.error === "object" && Object.keys(payload.error).length > 0) return true;
   return false;
 }
 
@@ -79,13 +63,28 @@ function buildFormPath(config, formLinkName) {
   return `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/form/${encodeURIComponent(formLinkName)}`;
 }
 
-async function createSubformRecord(creatorConfig, formLinkName, record) {
+async function createSubformRecord(creatorConfig, formLinkName, record, timeoutMs = 30000) {
   const path = buildFormPath(creatorConfig, formLinkName);
-  const response = await creatorApiFetch(path, {
+  const fetchPromise = creatorApiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: record }),
   });
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`CREATOR_TIMEOUT_${formLinkName}`)), timeoutMs)
+  );
+
+  let response;
+  try {
+    response = await Promise.race([fetchPromise, timeoutPromise]);
+  } catch (err) {
+    if (err.message && err.message.startsWith("CREATOR_TIMEOUT_")) {
+      // Creator received the request; GeneratePDF workflows run in background.
+      console.warn(`[ndv-subforms] ${formLinkName} timed out after ${timeoutMs}ms — Creator processes in background`);
+      return "";
+    }
+    throw err;
+  }
   const payload = await readJsonSafe(response);
   if (!response.ok || isCreatorError(payload)) {
     const detail = JSON.stringify(payload).slice(0, 300);
@@ -96,7 +95,6 @@ async function createSubformRecord(creatorConfig, formLinkName, record) {
 
 function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
   const employees = toNumber(ndvRecord.N_Empleados_Compometidos) || 1;
-  const hito = ADELANTADO_SERVICES.has(serviceName) ? "Adelantado" : "Otro";
   const chargeTable = Array.isArray(ndvRecord.Tabla_de_Cobro) ? ndvRecord.Tabla_de_Cobro : [];
 
   return {
@@ -108,7 +106,9 @@ function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
     Tabla_de_Cobro: chargeTable,
     Moneda: toText(ndvRecord.Moneda) || "UF",
     Periodicidad_de_Servicio: "Mensual",
-    Hito_de_Facturaci_n: hito,
+    // Hito_de_Facturaci_n is a dynamic picklist (static values = {"Cargando..."} only).
+    // Creator populates the real value via its onUserInput workflow; API must use the static value.
+    Hito_de_Facturaci_n: "Cargando...",
     Plantilla_Tabla_de_Cobro: "No hay Plantillas",
     Descuento_Ejecutivo: 0,
     Fecha_de_Inicio: formatCreatorDate(),
