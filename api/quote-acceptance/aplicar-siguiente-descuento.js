@@ -224,6 +224,28 @@ module.exports = async function handler(req, res) {
     stage = "elegir_escalon";
     const eleccion = elegirNivelACommitear(quote, config);
     if (!eleccion) {
+      // No hay nada nuevo que comitear. Si el cliente está ACEPTANDO un descuento
+      // que ya quedó aplicado (re-aceptar el tope), NO es un error: devolvemos el
+      // PDF vigente para que Vicky lo re-entregue (idempotente). Antes esto caía
+      // en TOPE_ALCANZADO → el guardrail lo mostraba como "tuve un problema".
+      const pdfVigente = toText(quote?.[config.quotePdfUrlField]);
+      const commitIdx = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
+      const escalonComiteado = commitIdx > 0 ? DISCOUNT_LADDER[commitIdx - 1] : null;
+      if (pdfVigente && escalonComiteado) {
+        return sendJson(res, 200, {
+          ok: true,
+          version: Math.max(1, Number(quote?.[config.quoteVersionPdfField] || 1)),
+          link_pdf: pdfVigente,
+          ultimo_escalon: {
+            tipo: escalonComiteado.tipo,
+            pct: escalonComiteado.pct,
+            condicion_discursiva: escalonComiteado.condicionDiscursiva,
+          },
+          tope_alcanzado: true,
+          ya_comiteado: true,
+          mensaje_para_prospecto: `Ese es el mejor precio que te puedo dejar. Aquí tienes tu cotización: ${pdfVigente}`,
+        });
+      }
       return sendJson(res, 200, {
         ok: false,
         error: "TOPE_ALCANZADO",
