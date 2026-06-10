@@ -1,9 +1,5 @@
 {
   "functions": {
-    "api/dev/preview-quote-email.js": {
-      "memory": 1536,
-      "maxDuration": 60
-    },
     "api/creator/create-draft-from-widget.js": {
       "memory": 1024,
       "maxDuration": 60
