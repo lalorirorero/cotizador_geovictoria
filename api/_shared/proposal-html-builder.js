@@ -65,6 +65,23 @@ function formatFechaCorta(date) {
   return `${dd}/${mm}/${date.getFullYear()}`;
 }
 
+// Fecha + hora en horario de Chile (America/Santiago, maneja DST). Se usa en el
+// campo "Fecha" de la cotización para que cada versión (v2, v3…) quede con su
+// fecha y hora exactas de emisión.
+function formatFechaHora(date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Santiago",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (t) => (parts.find((p) => p.type === t) || {}).value || "";
+  return `${get("day")}/${get("month")}/${get("year")} ${get("hour")}:${get("minute")} hrs`;
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Adaptador Vicky → listas tipadas
 //   tipo "modulo"   → servicios (suscripción mensual)
@@ -275,6 +292,7 @@ function buildProposalHtml({
   // ── Fechas ──
   const hoy = new Date();
   const fecha = formatFechaCorta(hoy);
+  const fechaHora = formatFechaHora(hoy);
   // "Válida hasta": idealmente la expiración real del enlace de aceptación
   // (create-from-vicky calcula expMs = ahora + config.validityDays y lo guarda
   // como expiresAt). Si no se entrega, se usa el fallback de VALIDEZ_DIAS.
@@ -483,7 +501,7 @@ function buildProposalHtml({
       <div class="row"><span class="l">Contacto:</span><span>${contacto}</span></div>
     </div>
     <div>
-      <div class="row"><span class="l">Fecha:</span><span>${fecha}</span></div>
+      <div class="row"><span class="l">Fecha:</span><span>${fechaHora}</span></div>
       <div class="row"><span class="l">Válida hasta:</span><span>${vence}</span></div>
       <div class="row"><span class="l">Ejecutivo:</span><span>${ejecutivo}</span></div>
       <div class="row"><span class="l">E-mail:</span><span>${ejecutivoEmail}</span></div>
