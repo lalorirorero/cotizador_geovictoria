@@ -21,7 +21,7 @@
  * índice N produce el set acumulado de descuentos vigente en ese nivel.
  */
 
-const { DISCOUNT_LADDER } = require("./proposal-constants");
+const { DISCOUNT_LADDER, MESES_DESCUENTO_PLAN } = require("./proposal-constants");
 const { sanitizeItems, computePaymentAmounts } = require("./quote-pricing");
 
 // Detecta si la cotización tiene ítems de instalación de la zona dada, leyendo
@@ -137,6 +137,13 @@ function buildMensajeNegociacion(escalon, amounts, esUltimo = false) {
     oferta,
     `Con eso tu pago inicial queda en ${inicialDetalle} y, desde el 2º mes, el plan mensual recurrente en ${mensual}/mes (IVA incluido).`,
   ];
+  // Si hay descuento sobre el PLAN, aclarar que aplica solo los primeros N meses.
+  const tieneDescPlan = Number(amounts?.descuentos?.recurrentePct || 0) > 0;
+  if (tieneDescPlan) {
+    partes.push(
+      `Ese precio con descuento en el plan aplica los primeros ${MESES_DESCUENTO_PLAN} meses; desde el mes ${MESES_DESCUENTO_PLAN + 1} el plan vuelve a su tarifa normal.`,
+    );
+  }
   if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
   // En el último escalón no invitamos a seguir pidiendo rebaja: es el mejor
   // precio posible, así que cerramos hacia la decisión.

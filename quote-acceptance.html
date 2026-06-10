@@ -1063,7 +1063,7 @@
                 <ol class="terms terms-summary">
                   <li>El pago inicial incluye los conceptos de pago unico (equipos, instalacion y servicios iniciales) y el primer mes de servicio de la plataforma, cobrado por adelantado.</li>
                   <li>El valor mensual es referencial, calculado sobre la cantidad de usuarios de esta cotizacion, y esta sujeto a mantener dicha cantidad: la variacion de usuarios activos modifica el cobro mensual en la facturacion del periodo siguiente.</li>
-                  <li>El descuento acordado sobre el plan mensual se mantiene de forma permanente mientras conserves el servicio activo; ante variaciones de usuarios, facturacion recalcula el valor mensual sobre la tarifa por usuario vigente, conservando ese descuento.</li>
+                  <li>El descuento acordado sobre el plan mensual aplica durante los primeros 6 meses de servicio; a partir del septimo mes, el plan mensual vuelve a su tarifa normal (sin descuento). El descuento de instalacion, por ser un cobro unico, no tiene esta limitacion. Ante variaciones de usuarios, la facturacion recalcula el valor mensual sobre la tarifa por usuario vigente.</li>
                   <li>Vigencia comercial: 30 dias corridos desde la emision de la cotizacion.</li>
                   <li>Implementacion estimada: 2 a 3 semanas desde recepcion de planilla validada.</li>
                   <li>Atencion comercial y soporte en horario habil de lunes a viernes.</li>
@@ -1179,9 +1179,10 @@
               de usuarios de esta cotizacion, y esta sujeto a mantener dicha cantidad: cualquier variacion en el numero de
               usuarios activos modifica el cobro mensual, ajuste que se refleja en la facturacion del periodo siguiente.
               Facturacion mensual segun usuarios activos. Reajuste anual segun IPC/UF cuando aplique.
-              El descuento acordado sobre el plan mensual se mantiene de forma permanente mientras conserves el servicio
-              activo; ante variaciones de usuarios, facturacion recalcula el valor mensual sobre la tarifa por usuario
-              vigente, conservando ese descuento.
+              El descuento acordado sobre el plan mensual aplica durante los primeros 6 meses de servicio; a partir del
+              septimo mes, el plan mensual vuelve a su tarifa normal (sin descuento). El descuento de instalacion, por
+              ser un cobro unico, no tiene esta limitacion. Ante variaciones de usuarios, la facturacion recalcula el
+              valor mensual sobre la tarifa por usuario vigente.
             </li>
             <li>
               <strong>Servicios adicionales.</strong> Desarrollos, hardware u otros requerimientos fuera del servicio base
@@ -2034,11 +2035,17 @@
           const descAplicados = [];
           if (descInstRMPct > 0) descAplicados.push(descInstRMPct + "% en instalaci&oacute;n (Regi&oacute;n Metropolitana)");
           if (descInstRegionPct > 0) descAplicados.push(descInstRegionPct + "% en instalaci&oacute;n (regiones)");
-          if (descRecPct > 0) descAplicados.push(descRecPct + "% en el plan mensual");
+          if (descRecPct > 0) descAplicados.push(descRecPct + "% en el plan mensual (primeros 6 meses)");
           if (descAplicados.length) {
             totalsRowsHtml +=
               '<tr><td colspan="8" style="font-size:12px;color:#047857;padding-top:6px;font-weight:600">' +
               "Descuentos aplicados: " + descAplicados.join(" &middot; ") +
+              "</td></tr>";
+          }
+          if (descRecPct > 0) {
+            totalsRowsHtml +=
+              '<tr><td colspan="8" style="font-size:11px;color:#6b7280;padding-top:4px;line-height:1.5">' +
+              "El descuento sobre el plan mensual aplica los primeros 6 meses; desde el mes 7 el plan vuelve a su tarifa normal. El descuento de instalaci&oacute;n, por ser cobro &uacute;nico, no tiene esta limitaci&oacute;n." +
               "</td></tr>";
           }
 

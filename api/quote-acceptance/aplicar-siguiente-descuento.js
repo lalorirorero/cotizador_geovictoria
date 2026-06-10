@@ -37,7 +37,7 @@ const {
   toText,
 } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
-const { DISCOUNT_LADDER } = require("../_shared/proposal-constants");
+const { DISCOUNT_LADDER, MESES_DESCUENTO_PLAN } = require("../_shared/proposal-constants");
 const {
   siguienteEscalonAplicable,
   hayEscalonDespues,
@@ -189,6 +189,14 @@ function buildMensajeParaProspecto(escalon, linkPdf) {
     cuerpo = `Puedo aplicarte un ${escalon.pct}% de descuento sobre el plan mensual.`;
   }
   const partes = [cuerpo];
+  // Descuento de plan (recurrente): aclarar que aplica solo los primeros N meses.
+  const esDescuentoPlan =
+    escalon.tipo !== "instalacion_rm" && escalon.tipo !== "instalacion_region";
+  if (esDescuentoPlan) {
+    partes.push(
+      `Aplica los primeros ${MESES_DESCUENTO_PLAN} meses; desde el mes ${MESES_DESCUENTO_PLAN + 1} el plan vuelve a su tarifa normal.`,
+    );
+  }
   if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
   partes.push(`Aquí tienes la cotización actualizada: ${linkPdf}`);
   return partes.join(" ");

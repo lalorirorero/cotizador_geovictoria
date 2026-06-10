@@ -26,7 +26,7 @@
  *   - Línea fija de Capacitación online sin costo en TODAS las cotizaciones.
  */
 
-const { LOGO_ORIGINAL_SVG } = require("./proposal-constants");
+const { LOGO_ORIGINAL_SVG, MESES_DESCUENTO_PLAN } = require("./proposal-constants");
 
 // Ventana de validez de la cotización (días).
 const VALIDEZ_DIAS = 30;
@@ -443,7 +443,7 @@ function buildProposalHtml({
     if (descRecPct > 0) {
       const recBrutoCLP = toCLP(recUFBruto);
       totHtml += `<div class="tr"><span>Neto sin descuento</span><span><span class="line-old">${formatCLP(recBrutoCLP)}</span></span></div>`;
-      totHtml += `<div class="tr"><span>Descuento aplicado</span><span><span class="line-disc">−${descRecPct}%</span></span></div>`;
+      totHtml += `<div class="tr"><span>Descuento aplicado (primeros ${MESES_DESCUENTO_PLAN} meses)</span><span><span class="line-disc">−${descRecPct}%</span></span></div>`;
     }
     totHtml += `<div class="tr"><span>Neto</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
     totHtml += `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(recIva)}</span></div>`;
@@ -460,8 +460,11 @@ function buildProposalHtml({
     const items = [];
     if (descInstRMPct > 0) items.push(`${descInstRMPct}% en instalación (Región Metropolitana)`);
     if (descInstRegionPct > 0) items.push(`${descInstRegionPct}% en instalación (regiones)`);
-    if (descRecPct > 0) items.push(`${descRecPct}% en el plan mensual`);
+    if (descRecPct > 0) items.push(`${descRecPct}% en el plan mensual (primeros ${MESES_DESCUENTO_PLAN} meses)`);
     totHtml += `<div class="disc-applied"><b>Descuentos aplicados:</b> ${escapeHtml(items.join(" · "))}</div>`;
+    if (descRecPct > 0) {
+      totHtml += `<div style="margin-top:4px;font-size:8px;line-height:1.4;color:#646464">El descuento sobre el plan mensual aplica durante los primeros ${MESES_DESCUENTO_PLAN} meses; desde el mes ${MESES_DESCUENTO_PLAN + 1} el plan vuelve a su tarifa normal. El descuento de instalación, por ser cobro único, no tiene esta limitación.</div>`;
+    }
   }
   // Condición discursiva (ej. "paga en 24h"). No tiene enforcement técnico.
   if (condicionDiscursiva) {
