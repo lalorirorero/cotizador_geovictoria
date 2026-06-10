@@ -74,7 +74,8 @@ const ISO_ORIGINAL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1
 //   - Los escalones de instalación se aplican solo si la cotización tiene
 //     ítems de instalación con la zona correspondiente. Si no aplica, se
 //     saltan automáticamente al siguiente.
-//   - Los escalones de recurrente se aplican secuencialmente hasta 30 %.
+//   - Los escalones de recurrente se aplican secuencialmente: 10 → 20 → 30 →
+//     35 → 40 %, cada uno con una ventana de contratación más corta.
 //   - Los descuentos son acumulativos sobre líneas distintas (instalación y
 //     recurrente conviven en el mismo PDF).
 //   - condicionDiscursiva es texto que Vicky comunica al cliente; no tiene
@@ -100,12 +101,6 @@ const DISCOUNT_LADDER = [
     label: "10 % de descuento sobre el plan mensual",
   },
   {
-    tipo: "recurrente_15",
-    pct: 15,
-    condicionDiscursiva: null,
-    label: "15 % de descuento sobre el plan mensual",
-  },
-  {
     tipo: "recurrente_20",
     pct: 20,
     condicionDiscursiva:
@@ -113,18 +108,25 @@ const DISCOUNT_LADDER = [
     label: "20 % de descuento sobre el plan mensual",
   },
   {
-    tipo: "recurrente_25",
-    pct: 25,
-    condicionDiscursiva:
-      "Este descuento aplica si aceptas y pagas dentro de las próximas 24 horas.",
-    label: "25 % de descuento sobre el plan mensual",
-  },
-  {
     tipo: "recurrente_30",
     pct: 30,
     condicionDiscursiva:
-      "Este descuento aplica si aceptas y pagas dentro de la próxima hora.",
+      "Este descuento aplica si aceptas y pagas dentro de las próximas 12 horas.",
     label: "30 % de descuento sobre el plan mensual",
+  },
+  {
+    tipo: "recurrente_35",
+    pct: 35,
+    condicionDiscursiva:
+      "Este descuento aplica si aceptas y pagas dentro de las próximas 2 horas.",
+    label: "35 % de descuento sobre el plan mensual",
+  },
+  {
+    tipo: "recurrente_40",
+    pct: 40,
+    condicionDiscursiva:
+      "Este descuento aplica si aceptas y pagas dentro de la próxima hora.",
+    label: "40 % de descuento sobre el plan mensual",
   },
 ];
 

@@ -100,8 +100,8 @@ module.exports = async function handler(req, res) {
     const pseudoQuote = { [config.quoteItemsSubformField]: subform };
 
     // Puntero de negociación traído por la conversación. Avanzamos UN solo
-    // escalón por llamada: el descuento se gana de tramo en tramo (10 → 15 → 20
-    // → 25 → 30), una objeción a la vez. NO se salta al % que pida el cliente.
+    // escalón por llamada: el descuento se gana de tramo en tramo (10 → 20 → 30
+    // → 35 → 40), una objeción a la vez. NO se salta al % que pida el cliente.
     stage = "elegir_escalon";
     const start = Math.max(0, Number(body.escalonActual || 0));
     const i = siguienteEscalonAplicable(pseudoQuote, config, start);
