@@ -10,26 +10,41 @@
  * SE BORRA después de validar el diseño. No forma parte del flujo de producción.
  */
 
+const { zohoApiFetch } = require("../_shared/zoho-auth");
+
 const PREVIEW_TOKEN = "gv-preview-7h3k9q2";
 const FIXED_RECIPIENT = "egomez@geovictoria.com";
+const FROM_EMAIL = String(process.env.VICKY_FROM_EMAIL || "").trim() || "vicky@geovictoria.com";
+// Cotización existente usada SOLO como contexto del send_mail de Zoho (el correo
+// se envía a FIXED_RECIPIENT, no al contacto de esta cotización).
+const CONTEXT_MODULE = "Cotizaciones_GeoVictoria";
+const CONTEXT_QUOTE_ID = "3525045000633953269";
 
-// Envío directo vía Resend (misma llave que usa el flujo de verificación en
-// Vercel). Se inlinea para no tocar el módulo compartido.
-async function sendViaResend({ toEmail, subject, html, text }) {
-  const apiKey = String(process.env.RESEND_API_KEY || "").trim();
-  if (!apiKey) return null;
-  const fromEmail = String(process.env.RESEND_FROM_EMAIL || "").trim();
-  if (!fromEmail) throw new Error("Falta RESEND_FROM_EMAIL en Vercel.");
-  const response = await fetch("https://api.resend.com/emails", {
+// Envío vía Zoho send_mail, el mismo mecanismo que usan los correos reales de
+// cotización (no requiere variables nuevas).
+async function sendViaZoho({ toEmail, subject, html }) {
+  const path = `/crm/v3/${encodeURIComponent(CONTEXT_MODULE)}/${encodeURIComponent(CONTEXT_QUOTE_ID)}/actions/send_mail`;
+  const body = {
+    data: [
+      {
+        from: { email: FROM_EMAIL },
+        to: [{ user_name: "Eduardo Gómez", email: toEmail }],
+        subject,
+        content: html,
+        mail_format: "html",
+      },
+    ],
+  };
+  const response = await zohoApiFetch(path, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: fromEmail, to: [toEmail], subject, html, text }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
-  const payload = await response.json().catch(() => ({}));
+  const text = await response.text();
   if (!response.ok) {
-    throw new Error(`Resend ${response.status}: ${(payload && (payload.message || payload.error)) || ""}`);
+    throw new Error(`Zoho send_mail ${response.status}: ${text.slice(0, 250)}`);
   }
-  return { provider: "resend", id: payload && payload.id };
+  return { provider: "zoho", detail: text.slice(0, 120) };
 }
 
 function buildPreviewHtml() {
@@ -110,19 +125,13 @@ module.exports = async function handler(req, res) {
     return;
   }
   try {
-    const result = await sendViaResend({
+    const result = await sendViaZoho({
       toEmail: FIXED_RECIPIENT,
       subject: "Tu cotización GeoVictoria — Prueba Brian (PREVIEW v1)",
       html: buildPreviewHtml(),
-      text: "Propuesta de correo de cotización (preview). Abre la versión HTML.",
     });
-    if (!result) {
-      res.statusCode = 500;
-      res.end(JSON.stringify({ ok: false, error: "Resend no configurado (RESEND_API_KEY ausente)" }));
-      return;
-    }
     res.statusCode = 200;
-    res.end(JSON.stringify({ ok: true, sentTo: FIXED_RECIPIENT, provider: result.provider, id: result.id }));
+    res.end(JSON.stringify({ ok: true, sentTo: FIXED_RECIPIENT, provider: result.provider }));
   } catch (err) {
     res.statusCode = 500;
     res.end(JSON.stringify({ ok: false, error: String(err && err.message || err).slice(0, 300) }));
