@@ -170,6 +170,13 @@ async function getUFActualSafe() {
   }
 }
 
+// Número de cotización para el PDF: correlativo de Zoho sin el prefijo "COT".
+function numeroParaPdf(numeroCotizacion, quoteId) {
+  const sinPrefijo = String(numeroCotizacion || "").replace(/^\s*COT[\s_-]*/i, "").trim();
+  if (sinPrefijo) return sinPrefijo;
+  return String(quoteId || "").slice(-8).toUpperCase();
+}
+
 function buildMensajeParaProspecto(escalon, linkPdf) {
   let cuerpo;
   if (escalon.tipo === "instalacion_rm") {
@@ -295,7 +302,7 @@ module.exports = async function handler(req, res) {
       cliente,
       cotizacion: { items, ufActual },
       acceptanceUrl,
-      cotizacionId: quoteId.slice(-8).toUpperCase(),
+      cotizacionId: numeroParaPdf(quote && quote.Numero_Cotizacion, quoteId),
       validezHasta: new Date(expMs).toISOString(),
       version: versionNueva,
       descuentos: {

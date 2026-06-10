@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { signAcceptancePayload } = require("../_shared/acceptance-token");
-const { createRecord, updateRecord, getRecord, toText } = require("../_shared/zoho-crm");
+const { createRecord, updateRecord, getRecord, getRecordWithFields, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { zohoApiFetch } = require("../_shared/zoho-auth");
 const { htmlToPdfBuffer } = require("../_shared/pdfshift-client");
@@ -136,6 +136,15 @@ async function sendQuoteEmailViaZoho({
     throw new Error(`Zoho send_mail failed (${response.status}): ${text.slice(0, 200)}`);
   }
   return text;
+}
+
+// Número de cotización a mostrar en el PDF: el correlativo de Zoho
+// (Numero_Cotizacion, ej. "COT151") SIN el prefijo "COT" → "151". Si por algún
+// motivo no está disponible, cae a los últimos 8 dígitos del id interno.
+function numeroParaPdf(numeroCotizacion, quoteId) {
+  const sinPrefijo = String(numeroCotizacion || "").replace(/^\s*COT[\s_-]*/i, "").trim();
+  if (sinPrefijo) return sinPrefijo;
+  return String(quoteId || "").slice(-8).toUpperCase();
 }
 
 function buildEmailHtml({ contacto, empresa, acceptanceUrl, pdfUrl, ejecutivo }) {
@@ -898,11 +907,16 @@ module.exports = async function handler(req, res) {
 
     // ── PDF ──
     stage = "render_pdf";
+    // El correlativo Numero_Cotizacion (auto-número de Zoho) se genera al crear
+    // el registro; lo leemos para mostrarlo en el PDF (sin el prefijo "COT").
+    const numeroCotizacion = await getRecordWithFields(config.quoteModule, quoteId, ["Numero_Cotizacion"])
+      .then((r) => toText(r?.Numero_Cotizacion))
+      .catch(() => "");
     const html = buildProposalHtml({
       cliente: { ...cliente, ejecutivo: VICKY_EJECUTIVO_NAME },
       cotizacion,
       acceptanceUrl,
-      cotizacionId: quoteId.slice(-8).toUpperCase(),
+      cotizacionId: numeroParaPdf(numeroCotizacion, quoteId),
       validezHasta: new Date(expMs).toISOString(),
       descuentos: descIniciales,
       condicionDiscursiva: condicionDiscursivaInicial,
