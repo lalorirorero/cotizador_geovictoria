@@ -64,7 +64,8 @@ function isRecurrentModalidad(value) {
 function clampDescuentoPct(value) {
   const n = Math.round(toNumber(value));
   if (!Number.isFinite(n) || n <= 0) return 0;
-  return Math.max(0, Math.min(30, Math.round(n / 5) * 5));
+  // Tope del descuento recurrente del plan: 40% (escalera 10→20→30→35→40).
+  return Math.max(0, Math.min(40, Math.round(n / 5) * 5));
 }
 
 function sanitizeItems(items, fieldMap = DEFAULT_FIELD_MAP) {

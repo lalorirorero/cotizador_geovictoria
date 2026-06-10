@@ -106,14 +106,22 @@ module.exports = async function handler(req, res) {
     const escalon = DISCOUNT_LADDER[i];
 
     // Avanzar SOLO el puntero de negociación. No tocamos descuento comiteado,
-    // PDF ni versión.
+    // PDF ni versión. BEST-EFFORT: si el update falla, NO tumbamos la negociación
+    // (devolvemos igual la oferta); el puntero se reintenta en la próxima vuelta.
     stage = "avanzar_puntero";
-    await updateRecord(
-      config.quoteModule,
-      quoteId,
-      { [config.quoteEscalonNegociacionField]: i + 1 },
-      false,
-    );
+    try {
+      await updateRecord(
+        config.quoteModule,
+        quoteId,
+        { [config.quoteEscalonNegociacionField]: i + 1 },
+        false,
+      );
+    } catch (updErr) {
+      console.error(
+        `[consultar-siguiente-descuento] avanzar_puntero FALLÓ (best-effort) quote=${quoteId} negoc=${i + 1}:`,
+        String(updErr?.message || updErr).slice(0, 300),
+      );
+    }
 
     // Preview de precio con el descuento ACUMULADO hasta este escalón.
     stage = "preview";
