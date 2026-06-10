@@ -38,9 +38,13 @@ async function readJsonSafe(response) {
 
 function isCreatorError(payload) {
   if (!payload || typeof payload !== "object") return false;
-  if (payload.error && typeof payload.error === "object" && Object.keys(payload.error).length > 0) return true;
   const code = Number.parseInt(toText(payload.code), 10);
-  if (Number.isFinite(code) && code !== 3000) return true;
+  // code 3000 = success; a non-empty error array alongside 3000 contains Creator
+  // internal workflow errors (e.g. EditNextStep), not record-creation failures.
+  // Only treat as error when the HTTP response code is non-3000.
+  if (Number.isFinite(code)) return code !== 3000;
+  // No numeric code → fall back to checking for an error object (not array)
+  if (payload.error && !Array.isArray(payload.error) && typeof payload.error === "object" && Object.keys(payload.error).length > 0) return true;
   return false;
 }
 
@@ -59,13 +63,28 @@ function buildFormPath(config, formLinkName) {
   return `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/form/${encodeURIComponent(formLinkName)}`;
 }
 
-async function createSubformRecord(creatorConfig, formLinkName, record) {
+async function createSubformRecord(creatorConfig, formLinkName, record, timeoutMs = 30000) {
   const path = buildFormPath(creatorConfig, formLinkName);
-  const response = await creatorApiFetch(path, {
+  const fetchPromise = creatorApiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: record }),
   });
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`CREATOR_TIMEOUT_${formLinkName}`)), timeoutMs)
+  );
+
+  let response;
+  try {
+    response = await Promise.race([fetchPromise, timeoutPromise]);
+  } catch (err) {
+    if (err.message && err.message.startsWith("CREATOR_TIMEOUT_")) {
+      // Creator received the request; GeneratePDF workflows run in background.
+      console.warn(`[ndv-subforms] ${formLinkName} timed out after ${timeoutMs}ms — Creator processes in background`);
+      return "";
+    }
+    throw err;
+  }
   const payload = await readJsonSafe(response);
   if (!response.ok || isCreatorError(payload)) {
     const detail = JSON.stringify(payload).slice(0, 300);
