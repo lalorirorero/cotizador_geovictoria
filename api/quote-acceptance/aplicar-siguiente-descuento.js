@@ -120,7 +120,9 @@ async function buildClienteParaHtml(quote, config) {
     contacto: contactoFullName || "",
     contactoEmail: toText(quote?.[config.contactEmailField]),
     rutEmpresa: toText(quote?.[config.companyRutField]) || toText(account?.RUT_Empresa),
-    ejecutivo: "Eddyluz Mujica",
+    ejecutivo: "Anderson Díaz",
+    ejecutivoEmail: "adiazg@geovictoria.com",
+    ejecutivoTelefono: "+56 9 3937 2058",
   };
 }
 

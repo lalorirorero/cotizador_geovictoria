@@ -21,6 +21,24 @@ const VICKY_PRODUCTO_DEFAULT = toText(process.env.VICKY_PRODUCTO_DEFAULT) || "Co
 const VICKY_SECTOR_FALLBACK = toText(process.env.VICKY_SECTOR_FALLBACK) || "19. Servicios";
 const VICKY_EXPANSION_REGIONAL = toText(process.env.VICKY_EXPANSION_REGIONAL) || "No";
 
+// ── Ejecutivo comercial asignado a las cotizaciones de Vicky ──
+// Aparece en el correo y en el PDF, es el reply-to/CC del correo, y queda como
+// Owner de los registros (Account/Contact/Deal/Quote) en Zoho. Verificado:
+// usuario activo id 3525045000426432190.
+const EJEC_NOMBRE = "Anderson Díaz";
+const EJEC_CARGO = "Ejecutivo Comercial";
+const EJEC_EMAIL = "adiazg@geovictoria.com";
+const EJEC_TELEFONO = "+56 9 3937 2058";
+const EJEC_WHATSAPP = "56939372058";
+const EJEC_OWNER_ID = "3525045000426432190";
+const EJEC_OWNER = { id: EJEC_OWNER_ID };
+
+// Documentos hosteados (URLs permanentes en Supabase) que van como botones de
+// descarga en el correo de la cotización.
+const DOC_CERTIFICACION = "https://cotizacion.geovictoria.com/pdf/assets/certificacion-dt.pdf";
+const DOC_FICHA_RELOJ = "https://cotizacion.geovictoria.com/pdf/assets/ficha-reloj-senseface.pdf";
+const DOC_PRESENTACION = "https://cotizacion.geovictoria.com/pdf/assets/presentacion-comercial.pdf";
+
 const SECTORES_VALIDOS = new Set([
   "1. Agrícola", "2. Condominio", "3. Construcción", "4. Inmobilaria",
   "5. Consultoria", "6. Banca y Finanzas", "7. Educación", "8. Municipio",
@@ -112,7 +130,7 @@ async function convertLead(leadId, dealData) {
 
 // ── Helper: enviar email via Zoho CRM send_mail ──
 async function sendQuoteEmailViaZoho({
-  quoteModule, quoteId, fromEmail, replyToEmail, toEmail, toName, subject, htmlBody,
+  quoteModule, quoteId, fromEmail, replyToEmail, toEmail, toName, subject, htmlBody, ccEmail,
 }) {
   const path = `/crm/v3/${encodeURIComponent(quoteModule)}/${encodeURIComponent(quoteId)}/actions/send_mail`;
   const dataPayload = {
@@ -124,6 +142,9 @@ async function sendQuoteEmailViaZoho({
   };
   if (replyToEmail && replyToEmail !== fromEmail) {
     dataPayload.reply_to = { email: replyToEmail };
+  }
+  if (ccEmail && ccEmail !== toEmail) {
+    dataPayload.cc = [{ email: ccEmail }];
   }
   const body = { data: [dataPayload] };
   const response = await zohoApiFetch(path, {
@@ -147,27 +168,71 @@ function numeroParaPdf(numeroCotizacion, quoteId) {
   return String(quoteId || "").slice(-8).toUpperCase();
 }
 
-function buildEmailHtml({ contacto, empresa, acceptanceUrl, pdfUrl, ejecutivo }) {
+function buildDocFila(href, label, nota) {
+  const notaHtml = nota ? ` <span style="color:#a0aec0;font-size:12px;">${nota}</span>` : "";
+  return `<tr><td style="padding:11px 16px;background:#f7f9fc;border:1px solid #e2e8f0;border-radius:8px;">
+    <a href="${href}" style="color:#1a73e8;text-decoration:none;font-size:14px;font-weight:600;">${label}</a>${notaHtml}
+  </td></tr><tr><td style="height:8px;"></td></tr>`;
+}
+
+// Correo de la cotización (estilo cálido/comercial). El botón principal va al
+// PDF de la cotización (desde ahí se llega a la aceptación online); los
+// documentos van como botones de descarga a archivos hosteados. La ficha del
+// reloj solo se incluye si la cotización tiene hardware.
+function buildEmailHtml({ contacto, empresa, pdfUrl, tieneReloj }) {
+  const primerNombre = String(contacto || "").trim().split(/\s+/)[0] || "";
+  const saludo = primerNombre ? `Hola ${primerNombre} 👋` : "Hola 👋";
+  const fichaFila = tieneReloj
+    ? buildDocFila(DOC_FICHA_RELOJ, "🕐 Ficha Técnica del Reloj", "(tu cotización lleva reloj)")
+    : "";
   return `<!DOCTYPE html>
-<html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#2d3748;">
-  <h2 style="color:#0d47a1;">Hola ${contacto},</h2>
-  <p>Te dejamos lista tu cotización personalizada para <strong>${empresa}</strong>.</p>
-  <p>Puedes revisarla y aceptarla desde cualquier dispositivo haciendo clic en el botón:</p>
-  <p style="text-align:center;margin:30px 0;">
-    <a href="${acceptanceUrl}"
-       style="display:inline-block;background:#1a73e8;color:#fff;padding:14px 28px;
-              text-decoration:none;border-radius:6px;font-weight:bold;">
-      Revisar y aceptar cotización
-    </a>
-  </p>
-  <p style="font-size:13px;color:#718096;">
-    También puedes <a href="${pdfUrl}" style="color:#1a73e8;">descargar el PDF directamente</a>.
-  </p>
-  <hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0;">
-  <p style="font-size:13px;color:#718096;">
-    Tu ejecutivo asignado es <strong>${ejecutivo}</strong>. Cualquier consulta, responde a este correo.
-  </p>
-  <p style="font-size:13px;color:#a0aec0;">GeoVictoria — geovictoria.com</p>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Tu cotización GeoVictoria</title></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;color:#2d3748;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:24px 0;"><tr><td align="center">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 14px rgba(13,71,161,0.08);">
+    <tr><td style="background:linear-gradient(135deg,#0d47a1 0%,#1a73e8 100%);padding:28px 32px;">
+      <table role="presentation" width="100%"><tr><td style="color:#ffffff;font-size:22px;font-weight:700;">GeoVictoria</td><td align="right" style="color:#bbdefb;font-size:12px;">Control de Asistencia</td></tr></table>
+    </td></tr>
+    <tr><td style="padding:36px 32px 8px 32px;">
+      <p style="margin:0 0 6px 0;font-size:14px;color:#1a73e8;font-weight:600;">${saludo}</p>
+      <h1 style="margin:0 0 12px 0;font-size:24px;line-height:1.3;color:#1a202c;">Tu cotización para <span style="color:#0d47a1;">${empresa}</span> está lista</h1>
+      <p style="margin:0;font-size:15px;line-height:1.6;color:#4a5568;">Preparé tu propuesta de Control de Asistencia. Ábrela en el PDF y, desde ahí mismo, puedes aceptarla en línea cuando quieras.</p>
+    </td></tr>
+    <tr><td align="center" style="padding:28px 32px 8px 32px;">
+      <a href="${pdfUrl}" style="display:inline-block;background:#1a73e8;color:#ffffff;padding:14px 30px;text-decoration:none;border-radius:8px;font-weight:700;font-size:16px;">📄 Ver tu cotización (PDF)</a>
+      <p style="margin:12px 0 0 0;font-size:12px;color:#a0aec0;">Dentro del PDF encuentras el botón para aceptarla en línea.</p>
+    </td></tr>
+    <tr><td style="padding:28px 32px 0 32px;">
+      <h3 style="margin:0 0 14px 0;font-size:15px;color:#1a202c;">Cómo seguimos 🚀</h3>
+      <table role="presentation" width="100%">
+        <tr><td width="32" valign="top" style="font-size:15px;font-weight:700;color:#1a73e8;">1.</td><td style="font-size:14px;color:#4a5568;line-height:1.55;padding-bottom:10px;">Abres el PDF y revisas tu cotización.</td></tr>
+        <tr><td width="32" valign="top" style="font-size:15px;font-weight:700;color:#1a73e8;">2.</td><td style="font-size:14px;color:#4a5568;line-height:1.55;padding-bottom:10px;">Desde el mismo PDF la aceptas en línea y pagas el primer mes de forma segura.</td></tr>
+        <tr><td width="32" valign="top" style="font-size:15px;font-weight:700;color:#1a73e8;">3.</td><td style="font-size:14px;color:#4a5568;line-height:1.55;">Coordinamos la instalación e iniciamos tu onboarding en 24 horas hábiles.</td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="padding:28px 32px 0 32px;">
+      <h3 style="margin:0 0 12px 0;font-size:15px;color:#1a202c;">Documentos para ti 📎</h3>
+      <table role="presentation" width="100%">
+        ${buildDocFila(DOC_CERTIFICACION, "📄 Certificación Dirección del Trabajo", "")}
+        ${fichaFila}
+        ${buildDocFila(DOC_PRESENTACION, "📊 Presentación Comercial GeoVictoria", "")}
+      </table>
+    </td></tr>
+    <tr><td style="padding:28px 32px 0 32px;">
+      <h3 style="margin:0 0 8px 0;font-size:15px;color:#1a202c;">Te presento a tu ejecutivo 🤝</h3>
+      <p style="margin:0 0 16px 0;font-size:14px;color:#4a5568;line-height:1.6;">De aquí en adelante, <strong>${EJEC_NOMBRE}</strong> te acompaña en todo el proceso. Cualquier duda o ajuste que necesites, <strong>responde este correo</strong> o escríbele directo por WhatsApp — está para ayudarte. 😊</p>
+      <table role="presentation" width="100%" style="background:#f7f9fc;border:1px solid #e2e8f0;border-radius:10px;"><tr><td style="padding:16px 20px;">
+        <p style="margin:0 0 4px 0;font-size:14px;color:#1a202c;font-weight:600;">${EJEC_NOMBRE}</p>
+        <p style="margin:0 0 8px 0;font-size:13px;color:#718096;">${EJEC_CARGO} · GeoVictoria</p>
+        <p style="margin:0;font-size:13px;color:#718096;">✉️ <a href="mailto:${EJEC_EMAIL}" style="color:#1a73e8;text-decoration:none;">${EJEC_EMAIL}</a> &nbsp;·&nbsp; 📱 <a href="https://wa.me/${EJEC_WHATSAPP}" style="color:#1a73e8;text-decoration:none;">${EJEC_TELEFONO}</a></p>
+      </td></tr></table>
+    </td></tr>
+    <tr><td style="padding:28px 32px 30px 32px;">
+      <p style="margin:0;font-size:11px;color:#a0aec0;line-height:1.5;">GeoVictoria — Especialistas en Control de Asistencia y Accesos, presentes en 40+ países.<br><a href="https://geovictoria.com" style="color:#a0aec0;">geovictoria.com</a></p>
+    </td></tr>
+  </table>
+  <p style="font-size:11px;color:#b8c0cc;margin:16px 0 0 0;">Este es un correo automático de tu cotización. Si no la solicitaste, ignóralo.</p>
+</td></tr></table>
 </body></html>`;
 }
 
@@ -653,6 +718,7 @@ module.exports = async function handler(req, res) {
           Territorio: VICKY_TERRITORIO,
           N_Empleados_dependientes: cliente.userCount,
           Tiene_potencial_de_expansi_n_Regional: VICKY_EXPANSION_REGIONAL,
+          Owner: EJEC_OWNER,
         };
         try {
           const accountResult = await createRecord("Accounts", createAccountPayload, true);
@@ -716,6 +782,7 @@ module.exports = async function handler(req, res) {
           Account_Name: { id: accountId },
           Lead_Source: VICKY_LEAD_SOURCE,
           Territorio: VICKY_TERRITORIO,
+          Owner: EJEC_OWNER,
         };
         try {
           const contactResult = await createRecord("Contacts", createContactPayload, true);
@@ -779,6 +846,7 @@ module.exports = async function handler(req, res) {
           Sector: sectorParaZoho,
           N_Empleados_que_marcan: cliente.userCount,
           Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
+          Owner: EJEC_OWNER,
         }, true);
         dealId = toText(dealResult?.id);
         if (!dealId) throw new Error("No se obtuvo dealId");
@@ -858,6 +926,7 @@ module.exports = async function handler(req, res) {
       stage = "create_quote";
       const quoteFields = {
         Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
+        Owner: EJEC_OWNER,
         [config.quoteDealLookupField]: { id: dealId },
         [config.quoteContactLookupField]: { id: contactId },
         Cuenta_Asociada: { id: accountId },
@@ -913,7 +982,12 @@ module.exports = async function handler(req, res) {
       .then((r) => toText(r?.Numero_Cotizacion))
       .catch(() => "");
     const html = buildProposalHtml({
-      cliente: { ...cliente, ejecutivo: VICKY_EJECUTIVO_NAME },
+      cliente: {
+        ...cliente,
+        ejecutivo: EJEC_NOMBRE,
+        ejecutivoEmail: EJEC_EMAIL,
+        ejecutivoTelefono: EJEC_TELEFONO,
+      },
       cotizacion,
       acceptanceUrl,
       cotizacionId: numeroParaPdf(numeroCotizacion, quoteId),
@@ -943,20 +1017,23 @@ module.exports = async function handler(req, res) {
     // Email (no bloqueante)
     stage = "send_email";
     try {
+      const tieneReloj = (cotizacion.items || []).some(
+        (it) => it && it.tipo === "hardware",
+      );
       await sendQuoteEmailViaZoho({
         quoteModule: config.quoteModule,
         quoteId,
         fromEmail: VICKY_FROM_EMAIL,
-        replyToEmail: VICKY_REPLY_TO_EMAIL,
+        replyToEmail: EJEC_EMAIL,
+        ccEmail: EJEC_EMAIL,
         toEmail: cliente.contactoEmail,
         toName: cliente.contacto,
         subject: `Tu cotización GeoVictoria — ${cliente.empresa}`,
         htmlBody: buildEmailHtml({
           contacto: cliente.contacto,
           empresa: cliente.empresa,
-          acceptanceUrl,
           pdfUrl,
-          ejecutivo: VICKY_EJECUTIVO_NAME,
+          tieneReloj,
         }),
       });
     } catch (emailErr) {
@@ -987,3 +1064,7 @@ module.exports = async function handler(req, res) {
 // MISMA construcción de subform (así el preview del preform y la cotización
 // formal usan idéntica conversión de modalidad/zona → mismos números).
 module.exports.buildSubformItems = buildSubformItems;
+
+// Exponemos buildEmailHtml para que el preview reuse EXACTAMENTE el mismo correo
+// que producción (sin mantener dos copias del diseño).
+module.exports.buildEmailHtml = buildEmailHtml;
