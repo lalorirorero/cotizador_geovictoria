@@ -11,3 +11,4 @@ zoho-widget/**/*.pem
 zoho-widget/**/*.zip
 
 .env*.local
+.mcp.json
