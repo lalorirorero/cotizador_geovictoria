@@ -266,13 +266,12 @@ function buildProposalHtml({
   cotizacion = cotizacion || {};
 
   // Descuentos por línea / global. Sanear acá para que sea robusto al caller.
-  const descRecPct = clampPctLocal(descuentos?.recurrentePct, 30);
+  const descRecPct = clampPctLocal(descuentos?.recurrentePct, 40);
   const descInstRMPct = clampPctLocal(descuentos?.instalacionRMPct, 50);
   const descInstRegionPct = clampPctLocal(descuentos?.instalacionRegionPct, 50);
   const factorRec = 1 - descRecPct / 100;
   const factorInstRM = 1 - descInstRMPct / 100;
   const factorInstRegion = 1 - descInstRegionPct / 100;
-  const hayDescuento = descRecPct > 0 || descInstRMPct > 0 || descInstRegionPct > 0;
 
   const versionNum = Number(version) > 1 ? Number(version) : 1;
 
@@ -333,16 +332,20 @@ function buildProposalHtml({
     });
   };
 
+  // El descuento del plan mensual (recurrente) se aplica POR LÍNEA en los items
+  // recurrentes (igual que el de instalación), para que el desglose sea la única
+  // fuente del descuento y los totales muestren solo el precio final.
+  const optRec = descRecPct > 0 ? { factorLinea: factorRec, descLineaPct: descRecPct } : {};
   servicios.forEach((s) =>
-    pushFila(s.nombre, "Pago mensual", descServicio(s), s.precioUnit, s.cantidad, s.subtotalUF, true),
+    pushFila(s.nombre, "Pago mensual", descServicio(s), s.precioUnit, s.cantidad, s.subtotalUF, true, optRec),
   );
   equipos.forEach((e) => {
     const rec = e.tipo === "Arriendo";
-    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", DESC_EQUIPO, e.precioUnit, e.cantidad, e.subtotalUF, rec);
+    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", DESC_EQUIPO, e.precioUnit, e.cantidad, e.subtotalUF, rec, rec ? optRec : {});
   });
   accesorios.forEach((a) => {
     const rec = a.tipo === "Arriendo";
-    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", DESC_EQUIPO, a.precioUnit, a.cantidad, a.subtotalUF, rec);
+    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", DESC_EQUIPO, a.precioUnit, a.cantidad, a.subtotalUF, rec, rec ? optRec : {});
   });
   serviciosAsoc.forEach((s) => {
     const nombre = s.zona ? `${s.nombre} (${s.zona})` : s.nombre;
@@ -372,8 +375,8 @@ function buildProposalHtml({
   // Sobre los recurrentes aplica el descuento global del recurrente.
   // Sobre los no recurrentes ya quedaron aplicados los descuentos por línea.
   const sumUF = (arr) => arr.reduce((acc, f) => acc + f.totalUF, 0);
-  const recUFBruto = sumUF(filas.filter((f) => f.recurrente));
-  const recUF = recUFBruto * factorRec;
+  // Los items recurrentes ya traen el descuento del plan aplicado por línea.
+  const recUF = sumUF(filas.filter((f) => f.recurrente));
   const uniUF = sumUF(filas.filter((f) => !f.recurrente));
   const netoUF = recUF + uniUF;
   const netoCLP = toCLP(netoUF);
@@ -440,11 +443,6 @@ function buildProposalHtml({
   }
   if (grpRec) {
     totHtml += `<div class="tot-h" style="margin-top:6px">Valor mensual del servicio — desde el 2&ordm; mes</div>`;
-    if (descRecPct > 0) {
-      const recBrutoCLP = toCLP(recUFBruto);
-      totHtml += `<div class="tr"><span>Neto sin descuento</span><span><span class="line-old">${formatCLP(recBrutoCLP)}</span></span></div>`;
-      totHtml += `<div class="tr"><span>Descuento aplicado (primeros ${MESES_DESCUENTO_PLAN} meses)</span><span><span class="line-disc">−${descRecPct}%</span></span></div>`;
-    }
     totHtml += `<div class="tr"><span>Neto</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
     totHtml += `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(recIva)}</span></div>`;
     totHtml += `<div class="tr grand"><span>Total mensual (referencial)</span><span>${formatCLP(recTot)}/mes<span class="uf-ref">${formatUF(recTotUF)} UF</span></span></div>`;
@@ -455,16 +453,11 @@ function buildProposalHtml({
       `</div>`;
   }
 
-  // Resumen de descuentos vigentes (si los hay).
-  if (hayDescuento) {
-    const items = [];
-    if (descInstRMPct > 0) items.push(`${descInstRMPct}% en instalación (Región Metropolitana)`);
-    if (descInstRegionPct > 0) items.push(`${descInstRegionPct}% en instalación (regiones)`);
-    if (descRecPct > 0) items.push(`${descRecPct}% en el plan mensual (primeros ${MESES_DESCUENTO_PLAN} meses)`);
-    totHtml += `<div class="disc-applied"><b>Descuentos aplicados:</b> ${escapeHtml(items.join(" · "))}</div>`;
-    if (descRecPct > 0) {
-      totHtml += `<div style="margin-top:4px;font-size:8px;line-height:1.4;color:#646464">El descuento sobre el plan mensual aplica durante los primeros ${MESES_DESCUENTO_PLAN} meses; desde el mes ${MESES_DESCUENTO_PLAN + 1} el plan vuelve a su tarifa normal. El descuento de instalación, por ser cobro único, no tiene esta limitación.</div>`;
-    }
+  // Los porcentajes de descuento se muestran SOLO en el desglose por línea de los
+  // items (arriba). En los totales no se repiten: solo el precio final. Se mantiene
+  // la condición temporal del descuento del plan como disclosure (sin repetir %).
+  if (descRecPct > 0) {
+    totHtml += `<div style="margin-top:6px;font-size:8px;line-height:1.4;color:#646464">El descuento sobre el plan mensual aplica durante los primeros ${MESES_DESCUENTO_PLAN} meses; desde el mes ${MESES_DESCUENTO_PLAN + 1} el plan vuelve a su tarifa normal. El descuento de instalación, por ser cobro único, no tiene esta limitación.</div>`;
   }
   // Condición discursiva (ej. "paga en 24h"). No tiene enforcement técnico.
   if (condicionDiscursiva) {
