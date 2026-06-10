@@ -17,9 +17,7 @@
 const fs = require("fs");
 const path = require("path");
 const { zohoApiFetch } = require("../_shared/zoho-auth");
-const { signAcceptancePayload } = require("../_shared/acceptance-token");
-const { htmlToPdfBuffer } = require("../_shared/pdfshift-client");
-const { buildProposalHtml } = require("../_shared/proposal-html-builder");
+const { getRecord, toText } = require("../_shared/zoho-crm");
 
 const PREVIEW_TOKEN = "gv-preview-7h3k9q2";
 const FIXED_RECIPIENT = "egomez@geovictoria.com";
@@ -30,58 +28,16 @@ const CONTEXT_DEAL_ID = "3525045000633963241";
 
 const ASSET_DIR = path.join(__dirname, "..", "_shared", "assets");
 
-async function getUFActualSafe() {
-  try {
-    const res = await fetch("https://mindicador.cl/api/uf", { cache: "no-store" });
-    if (!res.ok) return 40763;
-    const data = await res.json();
-    return data?.serie?.[0]?.valor || 40763;
-  } catch {
-    return 40763;
-  }
-}
-
-// Cotización de ejemplo: 25 usuarios + 1 reloj + instalación Las Condes (RM),
-// con 30% en el plan y 50% en instalación. Mismo shape que usa el builder real.
-function sampleItems() {
-  return [
-    { tipo: "modulo", id: "asistencia", nombre: "Control de Asistencia", modalidad: "Por usuario", cantidad: 25, precioUnitarioUF: 0.08, subtotalUF: 2, zonaTarifa: "" },
-    { tipo: "hardware", id: "senseface_2a", nombre: "Reloj control físico", modalidad: "Arriendo mensual", cantidad: 1, precioUnitarioUF: 0.35, subtotalUF: 0.35, zonaTarifa: "" },
-    { tipo: "servicio", id: "instalacion_reloj", nombre: "Instalación de reloj (Las Condes)", modalidad: "Cobro único", cantidad: 1, precioUnitarioUF: 2, subtotalUF: 2, zonaTarifa: "RM" },
-  ];
-}
-
-async function generarCotizacionPdf() {
-  const ufActual = await getUFActualSafe();
-  const expMs = Date.now() + 15 * 24 * 60 * 60 * 1000;
-  const acceptanceToken = signAcceptancePayload({
-    quoteId: CONTEXT_QUOTE_ID,
-    dealId: CONTEXT_DEAL_ID,
-    iat: Date.now(),
-    exp: expMs,
-    nonce: "preview000000000",
-    v: 1,
-  });
-  const acceptanceUrl = `https://cotizacion.geovictoria.com/quote-acceptance.html?token=${encodeURIComponent(acceptanceToken)}`;
-  const html = buildProposalHtml({
-    cliente: {
-      empresa: "Prueba Brian",
-      contacto: "Brayan Camacho",
-      contactoEmail: FIXED_RECIPIENT,
-      rutEmpresa: "26.126.891-4",
-      ejecutivo: "Anderson Díaz",
-      ejecutivoEmail: "adiazg@geovictoria.com",
-      ejecutivoTelefono: "+56 9 3937 2058",
-    },
-    cotizacion: { items: sampleItems(), ufActual },
-    acceptanceUrl,
-    cotizacionId: CONTEXT_QUOTE_ID.slice(-8).toUpperCase(),
-    validezHasta: new Date(expMs).toISOString(),
-    version: 1,
-    descuentos: { recurrentePct: 30, instalacionRMPct: 50, instalacionRegionPct: 0 },
-    condicionDiscursiva: "Este descuento aplica si aceptas y pagas dentro de las próximas 12 horas.",
-  });
-  return htmlToPdfBuffer(html, { format: "Letter", margin: "0" });
+// Reusa el PDF de la cotización YA generado (no se rerenderiza): lee el PDF_URL
+// del registro y descarga sus bytes. Rápido y sin Chromium.
+async function descargarCotizacionPdf() {
+  const quote = await getRecord(CONTEXT_MODULE, CONTEXT_QUOTE_ID);
+  const pdfUrl = toText(quote && quote.PDF_URL);
+  if (!pdfUrl) throw new Error("La cotización de contexto no tiene PDF_URL.");
+  const res = await fetch(pdfUrl, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Descarga PDF cotización ${res.status}`);
+  const arr = await res.arrayBuffer();
+  return Buffer.from(arr);
 }
 
 // Sube un buffer PDF como Attachment al registro de contexto. Devuelve el id.
@@ -205,7 +161,7 @@ module.exports = async function handler(req, res) {
   try {
     // 1. PDF de la cotización (fresco) y lectura de estáticos, en paralelo.
     const [cotizacionPdf, certPdf, fichaPdf, presPdf] = await Promise.all([
-      generarCotizacionPdf(),
+      descargarCotizacionPdf(),
       fs.promises.readFile(path.join(ASSET_DIR, "certificacion-dt.pdf")),
       fs.promises.readFile(path.join(ASSET_DIR, "ficha-reloj-senseface.pdf")),
       fs.promises.readFile(path.join(ASSET_DIR, "presentacion-comercial.pdf")),
