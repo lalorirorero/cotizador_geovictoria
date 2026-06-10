@@ -40,30 +40,19 @@ async function descargarCotizacionPdf() {
   return Buffer.from(arr);
 }
 
-// Sube un buffer PDF como Attachment al registro de contexto. Devuelve el id.
+// Sube un buffer al File Upload API de Zoho (/crm/v3/files) y devuelve el id de
+// archivo, que es el que send_mail referencia en attachments.
 async function subirAdjunto(buffer, filename) {
   const form = new FormData();
   form.append("file", new Blob([buffer], { type: "application/pdf" }), filename);
-  const resp = await zohoApiFetch(
-    `/crm/v3/${encodeURIComponent(CONTEXT_MODULE)}/${encodeURIComponent(CONTEXT_QUOTE_ID)}/Attachments`,
-    { method: "POST", body: form }
-  );
+  const resp = await zohoApiFetch("/crm/v3/files", { method: "POST", body: form });
   const text = await resp.text();
-  if (!resp.ok) throw new Error(`Attachment ${filename} ${resp.status}: ${text.slice(0, 200)}`);
+  if (!resp.ok) throw new Error(`files ${filename} ${resp.status}: ${text.slice(0, 200)}`);
   let json = {};
   try { json = JSON.parse(text); } catch { /* noop */ }
   const id = json?.data?.[0]?.details?.id;
-  if (!id) throw new Error(`Attachment ${filename}: sin id (${text.slice(0, 150)})`);
+  if (!id) throw new Error(`files ${filename}: sin id (${text.slice(0, 150)})`);
   return id;
-}
-
-async function borrarAdjunto(attId) {
-  try {
-    await zohoApiFetch(
-      `/crm/v3/${encodeURIComponent(CONTEXT_MODULE)}/${encodeURIComponent(CONTEXT_QUOTE_ID)}/Attachments/${encodeURIComponent(attId)}`,
-      { method: "DELETE" }
-    );
-  } catch { /* best-effort */ }
 }
 
 function buildEmailHtml() {
