@@ -5,32 +5,12 @@
  * Flujo:
  *  1. Por cada servicio recurrente → POST Servicio_Recurrente
  *     (Creator auto-dispara UpdatePdfJson1 → construye JsonPdf en el registro)
- *  2. PATCH NDV.Form_Order con las filas de servicios + placeholder Ultimo Paso
- *  3. POST Finalizar_Formulario
+ *  2. POST Finalizar_Formulario
  *     (Creator auto-dispara GeneratePDF → llama RegeneratePdfJson → llama PDF API → guarda PDF_STRING)
- *  4. PATCH NDV.Form_Order para actualizar fila Ultimo Paso con ID real
  */
 
 const { getCreatorConfig, creatorApiFetch } = require("./zoho-creator-auth");
 const { toText } = require("./zoho-crm");
-
-// Services where Telemarketing billing milestone = "Adelantado"
-const ADELANTADO_SERVICES = new Set([
-  "Control de Asistencia",
-  "Control de Acceso",
-  "Servicio de Comedor",
-  "Dashboard BI",
-  "Vacaciones",
-  "Gestión Documental",
-  "Calendario Inteligente",
-  "SSO",
-  "Alertas",
-  "Arriendo de Equipos Asistencia",
-  "Arriendo de Chip de Datos",
-  "Venta de Equipos Asistencia",
-  "Venta de Kit de Acceso",
-  "Venta de Equipos Comedor",
-]);
 
 function toNumber(value) {
   const n = Number(value);
@@ -96,7 +76,6 @@ async function createSubformRecord(creatorConfig, formLinkName, record) {
 
 function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
   const employees = toNumber(ndvRecord.N_Empleados_Compometidos) || 1;
-  const hito = ADELANTADO_SERVICES.has(serviceName) ? "Adelantado" : "Otro";
   const chargeTable = Array.isArray(ndvRecord.Tabla_de_Cobro) ? ndvRecord.Tabla_de_Cobro : [];
 
   return {
@@ -108,7 +87,9 @@ function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
     Tabla_de_Cobro: chargeTable,
     Moneda: toText(ndvRecord.Moneda) || "UF",
     Periodicidad_de_Servicio: "Mensual",
-    Hito_de_Facturaci_n: hito,
+    // Hito_de_Facturaci_n is a dynamic picklist (static values = {"Cargando..."} only).
+    // Creator populates the real value via its onUserInput workflow; API must use the static value.
+    Hito_de_Facturaci_n: "Cargando...",
     Plantilla_Tabla_de_Cobro: "No hay Plantillas",
     Descuento_Ejecutivo: 0,
     Fecha_de_Inicio: formatCreatorDate(),
