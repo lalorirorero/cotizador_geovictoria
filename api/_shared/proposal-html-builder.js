@@ -162,7 +162,7 @@ const DESC_EQUIPO =
 const DESC_SERVICIO_ASOC =
   "Instalación en terreno y puesta en marcha del equipo, con carga inicial de trabajadores.";
 const DESC_CAPACITACION =
-  "Capacitación online al equipo administrador en el uso de la plataforma: configuración, marcaje, turnos, vacaciones y reportería. Incluida sin costo.";
+  "Capacitación online al equipo administrador en el uso de la plataforma: configuración, marcaje, turnos, vacaciones y reportería. Valorizada en 1 UF, incluida con 100% de descuento.";
 
 // Datos fijos de la empresa (cabecera superior derecha).
 const ORG = {
@@ -369,7 +369,11 @@ function buildProposalHtml({
     });
   });
   // Línea fija: capacitación online sin costo, en TODAS las cotizaciones.
-  pushFila("Capacitación online", "Sin costo", DESC_CAPACITACION, 0, 1, 0, false);
+  // Capacitación: valorizada en 1 UF con 100% de descuento (neto 0, no suma al total).
+  pushFila("Capacitación online", "Pago único", DESC_CAPACITACION, 1, 1, 1, false, {
+    factorLinea: 0,
+    descLineaPct: 100,
+  });
 
   // ── Totales separados (recurrente vs único) ──
   // Sobre los recurrentes aplica el descuento global del recurrente.
