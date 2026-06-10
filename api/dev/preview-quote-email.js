@@ -202,30 +202,29 @@ module.exports = async function handler(req, res) {
     res.end(JSON.stringify({ ok: false, error: "token inválido" }));
     return;
   }
-  const subidos = [];
   try {
-    // 1. PDF de la cotización (fresco) + los 3 PDFs estáticos.
-    const cotizacionPdf = await generarCotizacionPdf();
-    const certPdf = fs.readFileSync(path.join(ASSET_DIR, "certificacion-dt.pdf"));
-    const fichaPdf = fs.readFileSync(path.join(ASSET_DIR, "ficha-reloj-senseface.pdf"));
-    const presPdf = fs.readFileSync(path.join(ASSET_DIR, "presentacion-comercial.pdf"));
+    // 1. PDF de la cotización (fresco) y lectura de estáticos, en paralelo.
+    const [cotizacionPdf, certPdf, fichaPdf, presPdf] = await Promise.all([
+      generarCotizacionPdf(),
+      fs.promises.readFile(path.join(ASSET_DIR, "certificacion-dt.pdf")),
+      fs.promises.readFile(path.join(ASSET_DIR, "ficha-reloj-senseface.pdf")),
+      fs.promises.readFile(path.join(ASSET_DIR, "presentacion-comercial.pdf")),
+    ]);
 
-    // 2. Subir como adjuntos al registro de contexto.
-    subidos.push(await subirAdjunto(cotizacionPdf, "Cotización GeoVictoria.pdf"));
-    subidos.push(await subirAdjunto(certPdf, "Certificación Dirección del Trabajo.pdf"));
-    subidos.push(await subirAdjunto(fichaPdf, "Ficha Técnica Reloj.pdf"));
-    subidos.push(await subirAdjunto(presPdf, "Presentación Comercial GeoVictoria.pdf"));
+    // 2. Subir los 4 adjuntos en paralelo (orden preservado).
+    const subidos = await Promise.all([
+      subirAdjunto(cotizacionPdf, "Cotización GeoVictoria.pdf"),
+      subirAdjunto(certPdf, "Certificación Dirección del Trabajo.pdf"),
+      subirAdjunto(fichaPdf, "Ficha Técnica Reloj.pdf"),
+      subirAdjunto(presPdf, "Presentación Comercial GeoVictoria.pdf"),
+    ]);
 
-    // 3. Enviar.
+    // 3. Enviar con los adjuntos referenciados.
     const detail = await enviarConAdjuntos({ html: buildEmailHtml(), attachmentIds: subidos });
-
-    // 4. Limpiar adjuntos del registro de contexto (no ensuciar la cotización).
-    for (const id of subidos) await borrarAdjunto(id);
 
     res.statusCode = 200;
     res.end(JSON.stringify({ ok: true, sentTo: FIXED_RECIPIENT, adjuntos: subidos.length, detail }));
   } catch (err) {
-    for (const id of subidos) await borrarAdjunto(id);
     res.statusCode = 500;
     res.end(JSON.stringify({ ok: false, error: String((err && err.message) || err).slice(0, 350) }));
   }
