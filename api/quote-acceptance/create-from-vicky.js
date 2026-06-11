@@ -258,6 +258,9 @@ function buildAccountFullPayload(cliente, sectorParaZoho) {
     N_Empleados_dependientes: cliente.userCount,
     Tiene_potencial_de_expansi_n_Regional: VICKY_EXPANSION_REGIONAL,
     RUT_Empresa: cliente.rutEmpresa,
+    Billing_Street: cliente.direccionEmpresa || undefined,
+    Billing_City: cliente.comunaEmpresa || undefined,
+    Billing_State: cliente.regionEmpresa || undefined,
   };
 }
 
@@ -713,6 +716,9 @@ module.exports = async function handler(req, res) {
           Account_Name: cliente.empresa,
           RUT_Empresa: cliente.rutEmpresa,
           Phone: cliente.contactoTelefono || undefined,
+          Billing_Street: cliente.direccionEmpresa || undefined,
+          Billing_City: cliente.comunaEmpresa || undefined,
+          Billing_State: cliente.regionEmpresa || undefined,
           Description: `Cuenta creada por Vicky (WhatsApp). RUT: ${cliente.rutEmpresa}`,
           Industry: sectorParaZoho,
           Territorio: VICKY_TERRITORIO,
