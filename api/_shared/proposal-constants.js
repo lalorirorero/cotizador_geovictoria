@@ -34,11 +34,13 @@ const PROPOSAL_TYC = [
 
 // Cláusulas que aplican SOLO cuando la cotización incluye al menos un reloj en
 // modalidad arriendo. Se anexan a las T&C (PDF y página de aceptación) solo en
-// ese caso; en una cotización de pura compra no se muestran.
+// Cláusulas de arriendo. Se incluyen SIEMPRE en las T&C (PDF y página de
+// aceptación), redactadas como condición ("Para los relojes en modalidad
+// arriendo…"), de modo que apliquen solo a quien arrienda sin necesidad de
+// lógica de render que las muestre u oculte.
 const PROPOSAL_TYC_ARRIENDO = [
-  'El servicio de arriendo de equipos incluye mantención y reposición por falla técnica.',
-  'Los equipos en modalidad arriendo son propiedad de GeoVictoria. Al término del servicio, el cliente debe devolverlos en condiciones estándar, despachándolos por su cuenta y costo a Avenida Los Leones 2061, Providencia, Santiago.',
-  'Si al término del servicio el cliente mantiene relojes en arriendo con menos de 6 mensualidades de arriendo pagadas, deberá pagar una multa de 6 UF + IVA por cada reloj arrendado en esa condición.',
+  'Para los relojes en modalidad arriendo: el servicio incluye mantención y reposición por falla técnica; los equipos son propiedad de GeoVictoria y, al término del servicio, el cliente debe devolverlos en condiciones estándar, despachándolos por su cuenta y costo a Avenida Los Leones 2061, Providencia, Santiago.',
+  'Para los relojes en modalidad arriendo: si al término del servicio el cliente mantiene equipos con menos de 6 mensualidades de arriendo pagadas, deberá pagar una multa de 6 UF + IVA por cada reloj en esa condición.',
 ];
 
 const SERVICIOS_GRATIS = [

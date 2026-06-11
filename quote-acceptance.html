@@ -1145,9 +1145,8 @@
                   <li>Vigencia comercial: 30 dias corridos desde la emision de la cotizacion.</li>
                   <li>Implementacion estimada: 2 a 3 semanas desde recepcion de planilla validada.</li>
                   <li>Atencion comercial y soporte en horario habil de lunes a viernes.</li>
-                  <li class="hidden terms-arriendo">El servicio de arriendo de equipos incluye mantencion y reposicion por falla tecnica; los equipos son propiedad de GeoVictoria.</li>
-                  <li class="hidden terms-arriendo">Al termino del servicio, los relojes en arriendo se devuelven en condiciones estandar, despachados por cuenta y costo del cliente a Avenida Los Leones 2061, Providencia, Santiago.</li>
-                  <li class="hidden terms-arriendo">Si al cortar el servicio hay relojes en arriendo con menos de 6 mensualidades de arriendo pagadas, se cobra una multa de 6 UF + IVA por cada reloj arrendado en esa condicion.</li>
+                  <li>Para los relojes en modalidad arriendo: el servicio incluye mantencion y reposicion por falla tecnica; los equipos son propiedad de GeoVictoria y, al termino del servicio, el cliente debe devolverlos en condiciones estandar, despachandolos por su cuenta y costo a Avenida Los Leones 2061, Providencia, Santiago.</li>
+                  <li>Para los relojes en modalidad arriendo: si al termino del servicio el cliente mantiene equipos con menos de 6 mensualidades de arriendo pagadas, debera pagar una multa de 6 UF + IVA por cada reloj en esa condicion.</li>
                 </ol>
                 <div class="terms-actions">
                   <button id="openTermsModalBtn" type="button" class="btn secondary">Ver terminos completos</button>
@@ -1312,13 +1311,13 @@
               <strong>Acuerdo completo y variacion.</strong> Este texto reemplaza acuerdos previos sobre esta materia.
               GeoVictoria puede modificar terminos con aviso previo.
             </li>
-            <li class="hidden terms-arriendo">
-              <strong>Equipos en arriendo.</strong> El servicio de arriendo de equipos incluye mantencion y reposicion por
-              falla tecnica. Los equipos en modalidad arriendo son propiedad de GeoVictoria. Al termino del servicio, el
-              cliente debe devolverlos en condiciones estandar, despachandolos por su cuenta y costo a Avenida Los Leones
-              2061, Providencia, Santiago. Si al termino del servicio el cliente mantiene relojes en arriendo con menos de
-              6 mensualidades de arriendo pagadas, debera pagar una multa de 6 UF + IVA por cada reloj arrendado en esa
-              condicion.
+            <li>
+              <strong>Relojes en modalidad arriendo.</strong> Para los relojes en modalidad arriendo: el servicio incluye
+              mantencion y reposicion por falla tecnica. Los equipos en modalidad arriendo son propiedad de GeoVictoria.
+              Al termino del servicio, el cliente debe devolverlos en condiciones estandar, despachandolos por su cuenta y
+              costo a Avenida Los Leones 2061, Providencia, Santiago. Si al termino del servicio el cliente mantiene
+              equipos con menos de 6 mensualidades de arriendo pagadas, debera pagar una multa de 6 UF + IVA por cada reloj
+              en esa condicion.
             </li>
           </ol>
         </div>
@@ -2022,16 +2021,6 @@
 
           const rows = data.items || [];
           const tbody = document.getElementById("itemsRows");
-
-          // Clausulas de arriendo (devolucion con despacho a costo del cliente +
-          // multa por termino anticipado): se muestran solo si hay algun reloj en
-          // modalidad arriendo en esta cotizacion.
-          const hayArriendo = rows.some((r) =>
-            String((r && r.modalidad) || "").toLowerCase().includes("arriendo")
-          );
-          document.querySelectorAll(".terms-arriendo").forEach((el) => {
-            el.classList.toggle("hidden", !hayArriendo);
-          });
 
           // Descuentos vigentes (los calcula el servidor; acá solo se muestran).
           const totals = data.totals || {};

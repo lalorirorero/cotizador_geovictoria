@@ -309,12 +309,11 @@ function buildProposalHtml({
   const { servicios, equipos, accesorios, serviciosAsoc } = adaptarItemsVicky(
     cotizacion.items || [],
   );
-  // Las cláusulas de arriendo (devolución con despacho a costo del cliente +
-  // multa por término anticipado) solo se muestran si hay reloj en arriendo.
-  const hayArriendo = equipos.some((e) => e.tipo === "Arriendo");
-  const tycArriendoHtml = hayArriendo
-    ? PROPOSAL_TYC_ARRIENDO.map((t) => `<li>${escapeHtml(t)}</li>`).join("")
-    : "";
+  // Cláusulas de arriendo: van SIEMPRE en las T&C, redactadas como condición
+  // ("Para los relojes en modalidad arriendo…"), sin lógica de mostrar/ocultar.
+  const tycArriendoHtml = PROPOSAL_TYC_ARRIENDO.map(
+    (t) => `<li>${escapeHtml(t)}</li>`,
+  ).join("");
 
   const filas = [];
   const pushFila = (nombre, modalidad, desc, precioUnitUF, cant, subtotalUF, recurrente, opts = {}) => {
