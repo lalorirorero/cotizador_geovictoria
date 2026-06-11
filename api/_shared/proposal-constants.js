@@ -24,14 +24,21 @@ const PROPOSAL_TYC = [
   'El descuento acordado sobre el plan mensual aplica durante los primeros 6 meses de servicio; a partir del séptimo mes, el plan mensual vuelve a su tarifa normal (sin descuento). El descuento de instalación, por ser un cobro único, no tiene esta limitación. Ante variaciones de usuarios, la facturación recalcula el valor mensual sobre la tarifa por usuario vigente.',
   'Los precios indicados están expresados en UF (Unidad de Fomento) y su equivalente referencial en CLP.',
   'Los valores no incluyen IVA salvo donde se indique expresamente.',
-  'El servicio de arriendo de equipos incluye mantención y reposición por falla técnica.',
-  'Los equipos en modalidad arriendo son propiedad de GeoVictoria y deben ser devueltos al término del contrato en condiciones estándar.',
   'La capacitación inicial está incluida según las condiciones de esta propuesta.',
   'GeoVictoria garantiza un uptime del 99.5% en su plataforma cloud (Microsoft Azure).',
   'El soporte técnico está disponible de lunes a viernes de 8:30 a 18:00 hrs.',
   'Los valores de venta de equipos incluyen garantía de fábrica de 1 año bajo uso normal.',
   'GeoVictoria no se hace responsable en caso de robo, pérdida, daños físicos o defectos por manipulación de terceros.',
   'Los precios serán revisados y ajustados anualmente de acuerdo con el Índice de Precios al Consumidor (IPC) o su equivalente en UF.',
+];
+
+// Cláusulas que aplican SOLO cuando la cotización incluye al menos un reloj en
+// modalidad arriendo. Se anexan a las T&C (PDF y página de aceptación) solo en
+// ese caso; en una cotización de pura compra no se muestran.
+const PROPOSAL_TYC_ARRIENDO = [
+  'El servicio de arriendo de equipos incluye mantención y reposición por falla técnica.',
+  'Los equipos en modalidad arriendo son propiedad de GeoVictoria. Al término del servicio, el cliente debe devolverlos en condiciones estándar, despachándolos por su cuenta y costo a Avenida Los Leones 2061, Providencia, Santiago.',
+  'Si al término del servicio el cliente mantiene relojes en arriendo con menos de 6 mensualidades de arriendo pagadas, deberá pagar una multa de 6 UF + IVA por cada reloj arrendado en esa condición.',
 ];
 
 const SERVICIOS_GRATIS = [
@@ -140,6 +147,7 @@ module.exports = {
   PROPOSAL_INTRO,
   PROPOSAL_BENEFICIOS,
   PROPOSAL_TYC,
+  PROPOSAL_TYC_ARRIENDO,
   SERVICIOS_GRATIS,
   PRICING_TIERS,
   LOGO_BLANCO_SVG,

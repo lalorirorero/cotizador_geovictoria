@@ -26,7 +26,7 @@
  *   - Línea fija de Capacitación online sin costo en TODAS las cotizaciones.
  */
 
-const { LOGO_ORIGINAL_SVG, MESES_DESCUENTO_PLAN } = require("./proposal-constants");
+const { LOGO_ORIGINAL_SVG, MESES_DESCUENTO_PLAN, PROPOSAL_TYC_ARRIENDO } = require("./proposal-constants");
 
 // Ventana de validez de la cotización (días).
 const VALIDEZ_DIAS = 30;
@@ -309,6 +309,12 @@ function buildProposalHtml({
   const { servicios, equipos, accesorios, serviciosAsoc } = adaptarItemsVicky(
     cotizacion.items || [],
   );
+  // Las cláusulas de arriendo (devolución con despacho a costo del cliente +
+  // multa por término anticipado) solo se muestran si hay reloj en arriendo.
+  const hayArriendo = equipos.some((e) => e.tipo === "Arriendo");
+  const tycArriendoHtml = hayArriendo
+    ? PROPOSAL_TYC_ARRIENDO.map((t) => `<li>${escapeHtml(t)}</li>`).join("")
+    : "";
 
   const filas = [];
   const pushFila = (nombre, modalidad, desc, precioUnitUF, cant, subtotalUF, recurrente, opts = {}) => {
@@ -525,7 +531,7 @@ function buildProposalHtml({
       <h4>Términos y Condiciones</h4>
       <ul class="tyc">
         <li>Valores en CLP con referencia en UF; convertidos al valor de la UF del día de la cotización. No incluyen IVA salvo donde se indique.</li>
-        <li>El arriendo de equipos incluye mantención y reposición por falla técnica; los equipos son propiedad de GeoVictoria.</li>
+        ${tycArriendoHtml}
         <li>Incluye sin costo: soporte L-V 8:30-18:00, capacitación inicial, actualizaciones, app móvil y portal del colaborador.</li>
         <li>Plataforma cloud en Microsoft Azure con uptime garantizado de 99,5 %. Valores ajustables anualmente según UF/IPC.</li>
       </ul>
