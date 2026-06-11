@@ -86,12 +86,18 @@ async function finalizeAfterPayment({ config, quoteId, dealId }) {
   );
   const acceptanceData = buildAcceptanceDataFromQuote(config, quote);
 
-  const handoffResult = await runOnboardingHandoff({
-    config,
-    quoteId,
-    dealId: resolvedDealId,
-    acceptanceData,
-  });
+  // Onboarding y NDV en paralelo: son independientes entre sí y juntos sumarían
+  // ~30 s secuenciales; en paralelo el techo baja a ~15 s.
+  console.log("[finalize] iniciando onboarding + NDV en paralelo");
+  const [handoffResult, ndvResultRaw] = await Promise.all([
+    runOnboardingHandoff({ config, quoteId, dealId: resolvedDealId, acceptanceData }),
+    config.ndvHandoffEnabled
+      ? runNdvHandoff({ config, quoteId, dealId: resolvedDealId, acceptanceData }).catch((err) => ({
+          _error: toText(err?.message || err),
+        }))
+      : Promise.resolve(null),
+  ]);
+  console.log("[finalize] onboarding + NDV completados");
 
   const onboardingUrl = toText(handoffResult?.onboardingUrl);
   if (!onboardingUrl) {
@@ -101,28 +107,30 @@ async function finalizeAfterPayment({ config, quoteId, dealId }) {
   // NDV best-effort: no debe bloquear la entrega del onboarding tras un pago OK.
   let ndv = { status: "skipped", reason: "disabled" };
   if (config.ndvHandoffEnabled) {
-    try {
-      const ndvResult = await runNdvHandoff({
-        config,
-        quoteId,
-        dealId: resolvedDealId,
-        acceptanceData,
-      });
-      const ndvId = toText(ndvResult?.ndvId);
-      if (ndvId) {
-        await persistNdvReferences(config, quoteId, ndvId);
-      }
-      let subformSetup = null;
-      if (ndvId) {
-        try {
-          subformSetup = await runNdvSubformSetup({ ndvId, ndvRecord: ndvResult?.ndvRecord || {} });
-        } catch (subformError) {
-          subformSetup = { errors: [String(subformError?.message || subformError)] };
+    if (ndvResultRaw?._error) {
+      console.warn(`[finalize] NDV handoff error: ${ndvResultRaw._error}`);
+      ndv = { status: "error", error: ndvResultRaw._error };
+    } else {
+      try {
+        const ndvResult = ndvResultRaw;
+        const ndvId = toText(ndvResult?.ndvId);
+        if (ndvId) {
+          await persistNdvReferences(config, quoteId, ndvId);
         }
+        console.log(`[finalize] NDV id=${ndvId}, iniciando subforms`);
+        let subformSetup = null;
+        if (ndvId) {
+          try {
+            subformSetup = await runNdvSubformSetup({ ndvId, ndvRecord: ndvResult?.ndvRecord || {} });
+          } catch (subformError) {
+            subformSetup = { errors: [String(subformError?.message || subformError)] };
+          }
+        }
+        console.log(`[finalize] subforms done: ${JSON.stringify(subformSetup)}`);
+        ndv = { status: "ok", ndvId, reconciled: ndvResult?.reconciled === true, subformSetup };
+      } catch (error) {
+        ndv = { status: "error", error: toText(error?.message || error) };
       }
-      ndv = { status: "ok", ndvId, reconciled: ndvResult?.reconciled === true, subformSetup };
-    } catch (error) {
-      ndv = { status: "error", error: toText(error?.message || error) };
     }
   }
 
