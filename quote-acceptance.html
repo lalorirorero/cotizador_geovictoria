@@ -708,52 +708,59 @@
       }
       .wa-panel {
         position: fixed;
-        left: 18px;
+        right: 18px;
         bottom: 18px;
         z-index: 90;
       }
-      .wa-chip {
+      .wa-fab {
+        position: relative;
+        width: 56px;
+        height: 56px;
         border: 0;
-        border-radius: 14px;
-        background: linear-gradient(90deg, #10b981 0%, #08b57d 100%);
-        color: #fff;
-        padding: 10px 13px;
-        font-weight: 700;
-        font-size: 13px;
-        line-height: 1.25;
-        text-align: left;
-        width: min(290px, calc(100vw - 30px));
-        box-shadow: 0 14px 26px rgba(15, 23, 42, 0.2);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .wa-chip-icon {
-        width: 26px;
-        height: 26px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.2);
+        background: linear-gradient(135deg, #25d366 0%, #128c4f 100%);
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+        cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
       }
-      .wa-chip-copy {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
+      .wa-fab:hover,
+      .wa-fab:focus-visible {
+        transform: translateY(-2px) scale(1.04);
+        box-shadow: 0 14px 28px rgba(18, 140, 79, 0.42);
+        outline: none;
       }
-      .wa-chip-title {
-        font-size: 13px;
-        font-weight: 800;
-        line-height: 1.2;
+      .wa-fab svg {
+        width: 30px;
+        height: 30px;
       }
-      .wa-chip-body {
+      /* Etiqueta que se asoma al pasar el cursor (desktop); en móvil va oculta. */
+      .wa-fab-label {
+        position: absolute;
+        right: 66px;
+        top: 50%;
+        transform: translateY(-50%);
+        white-space: nowrap;
+        max-width: 60vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background: #0b3d24;
+        color: #fff;
         font-size: 12px;
         font-weight: 700;
-        line-height: 1.25;
+        padding: 8px 11px;
+        border-radius: 9px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.22);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+      }
+      .wa-fab:hover .wa-fab-label,
+      .wa-fab:focus-visible .wa-fab-label {
+        opacity: 1;
       }
       .wa-card {
         width: min(332px, calc(100vw - 30px));
@@ -865,6 +872,77 @@
         }
         .hero-title {
           font-size: 25px;
+        }
+      }
+      /* ── Móvil: tablet pequeño y teléfono ── */
+      @media (max-width: 640px) {
+        .wrap {
+          padding: 16px 12px 36px;
+        }
+        .hero {
+          padding: 16px 14px 14px;
+          border-radius: 14px;
+        }
+        .hero-title {
+          font-size: 22px;
+        }
+        .hero-sub {
+          font-size: 14px;
+        }
+        .content {
+          padding: 14px 13px;
+        }
+        .head {
+          padding: 13px 14px;
+        }
+        .title {
+          font-size: 16px;
+        }
+        /* Botones que tenían min-width fijo: a ancho completo y apilados. */
+        .terms-actions .btn.secondary,
+        .verify-actions .btn,
+        .terms-actions .btn {
+          width: 100%;
+          min-width: 0;
+        }
+        /* Tablas de precios: si no caben, scrollean dentro del cuerpo del
+           acordeón en vez de romper el ancho de la página. */
+        .acc-body {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .cost-table,
+        .pricing-table,
+        .included-table {
+          font-size: 11px;
+        }
+        .cost-table thead th,
+        .pricing-table thead th {
+          font-size: 10px;
+        }
+        /* FAB de WhatsApp: un poco más chico y pegado a la esquina. */
+        .wa-panel {
+          right: 12px;
+          bottom: 12px;
+        }
+        .wa-fab {
+          width: 50px;
+          height: 50px;
+        }
+        .wa-fab svg {
+          width: 26px;
+          height: 26px;
+        }
+        .wa-fab-label {
+          display: none;
+        }
+      }
+      @media (max-width: 400px) {
+        .hero-title {
+          font-size: 20px;
+        }
+        .wrap {
+          padding: 12px 10px 32px;
         }
       }
     </style>
@@ -1274,23 +1352,18 @@
     </div>
 
     <aside class="wa-panel hidden" id="waPanel">
-      <button id="waChip" class="wa-chip" type="button" aria-label="Mostrar WhatsApp">
-        <span class="wa-chip-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M20.52 3.48A11.82 11.82 0 0 0 12.07 0C5.5 0 .16 5.33.16 11.9c0 2.1.55 4.15 1.58 5.95L0 24l6.35-1.66a11.88 11.88 0 0 0 5.71 1.46h.01c6.57 0 11.9-5.34 11.9-11.9a11.8 11.8 0 0 0-3.45-8.42Z"
-              fill="#fff"
-            />
-            <path
-              d="M18.2 15.2c-.26-.13-1.5-.74-1.74-.82-.23-.09-.4-.13-.57.13-.17.26-.65.82-.8.99-.14.17-.28.2-.53.07-.26-.13-1.07-.39-2.04-1.23-.75-.67-1.26-1.49-1.4-1.74-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.45.13-.15.17-.26.26-.43.09-.17.04-.33-.02-.45-.07-.13-.57-1.37-.79-1.88-.2-.49-.41-.42-.57-.42l-.49-.01c-.17 0-.45.06-.69.33-.24.26-.9.88-.9 2.14 0 1.25.92 2.46 1.05 2.63.13.17 1.8 2.74 4.37 3.84.61.27 1.08.43 1.45.55.61.2 1.16.17 1.59.1.49-.07 1.5-.61 1.72-1.2.21-.59.21-1.1.15-1.2-.06-.1-.22-.16-.48-.29Z"
-              fill="#10B981"
-            />
-          </svg>
-        </span>
-        <span class="wa-chip-copy">
-          <span class="wa-chip-title">Tienes duda sobre tu cotización?</span>
-          <span id="waChipBody" class="wa-chip-body">Soy tu ejecutivo(a) comercial. Hablemos por WhatsApp.</span>
-        </span>
+      <button id="waChip" class="wa-fab" type="button" aria-label="Hablemos por WhatsApp con tu ejecutivo comercial" title="Hablemos por WhatsApp">
+        <span class="wa-fab-label" id="waChipBody">Hablemos por WhatsApp</span>
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path
+            d="M20.52 3.48A11.82 11.82 0 0 0 12.07 0C5.5 0 .16 5.33.16 11.9c0 2.1.55 4.15 1.58 5.95L0 24l6.35-1.66a11.88 11.88 0 0 0 5.71 1.46h.01c6.57 0 11.9-5.34 11.9-11.9a11.8 11.8 0 0 0-3.45-8.42Z"
+            fill="#fff"
+          />
+          <path
+            d="M18.2 15.2c-.26-.13-1.5-.74-1.74-.82-.23-.09-.4-.13-.57.13-.17.26-.65.82-.8.99-.14.17-.28.2-.53.07-.26-.13-1.07-.39-2.04-1.23-.75-.67-1.26-1.49-1.4-1.74-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.45.13-.15.17-.26.26-.43.09-.17.04-.33-.02-.45-.07-.13-.57-1.37-.79-1.88-.2-.49-.41-.42-.57-.42l-.49-.01c-.17 0-.45.06-.69.33-.24.26-.9.88-.9 2.14 0 1.25.92 2.46 1.05 2.63.13.17 1.8 2.74 4.37 3.84.61.27 1.08.43 1.45.55.61.2 1.16.17 1.59.1.49-.07 1.5-.61 1.72-1.2.21-.59.21-1.1.15-1.2-.06-.1-.22-.16-.48-.29Z"
+            fill="#128c4f"
+          />
+        </svg>
       </button>
     </aside>
     <div id="redirectOverlay" class="redirect-overlay hidden" role="status" aria-live="polite">
@@ -2075,7 +2148,7 @@
           );
           if (waChipBody) {
             waChipBody.textContent =
-              "Soy " + supportState.contactName + ", tu ejecutivo(a) comercial. Hablemos por WhatsApp.";
+              "Escríbele a " + supportState.contactName + " por WhatsApp";
           }
           setWhatsappVisibility();
 
