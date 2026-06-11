@@ -997,6 +997,37 @@
         color: var(--ink);
         text-align: right;
       }
+      /* Monto destacado: siempre visible, para que el cliente vea cuanto paga
+         sin depender del scroll horizontal de la tabla de detalle. */
+      .cost-highlight {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 10px 0 12px;
+      }
+      .cost-highlight:empty {
+        display: none;
+      }
+      .cost-highlight .ch-item {
+        flex: 1 1 220px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: linear-gradient(160deg, #ffffff 0%, #f1f9ff 100%);
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .cost-highlight .ch-item span {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .cost-highlight .ch-item strong {
+        font-size: 22px;
+        color: var(--brand-strong);
+        line-height: 1.1;
+      }
     </style>
   </head>
   <body>
@@ -1124,6 +1155,7 @@
                 <span>Detalle de Costos</span>
                 <span class="acc-chevron" aria-hidden="true">▾</span>
               </button>
+              <div id="costHighlight" class="cost-highlight" aria-live="polite"></div>
               <div class="brand-band-b acc-body">
                 <table class="cost-table">
                   <thead>
@@ -2245,6 +2277,21 @@
           }
 
           tbody.innerHTML = itemRowsHtml + totalsRowsHtml;
+
+          // Monto destacado (siempre visible): pago inicial + plan mensual, para
+          // que el cliente vea cuanto paga sin scrollear la tabla de 8 columnas.
+          const costHighlight = document.getElementById("costHighlight");
+          if (costHighlight) {
+            let chHtml =
+              '<div class="ch-item"><span>Pago inicial — a pagar ahora (incluye 1er mes)</span><strong>' +
+              fmtCLP(totals.totalClp) + "</strong></div>";
+            if (recClp > 0) {
+              chHtml +=
+                '<div class="ch-item"><span>Plan mensual — desde el 2&ordm; mes (referencial)</span><strong>' +
+                fmtCLP(mensualClp) + "/mes</strong></div>";
+            }
+            costHighlight.innerHTML = chHtml;
+          }
 
           const ufNote = document.getElementById("ufReferenceNote");
           if (ufNote) {
