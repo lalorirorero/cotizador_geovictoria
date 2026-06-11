@@ -1,5 +1,5 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
-const { getRecord, updateRecordBestEffort, toText } = require("../_shared/zoho-crm");
+const { getRecord, updateRecordBestEffort, createRecord, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
 const { runOnboardingHandoff } = require("../_shared/onboarding-handoff");
@@ -274,6 +274,7 @@ export default async function handler(req, res) {
     const verificationToken = toText(body?.verificationToken);
     const termsAccepted = body?.termsAccepted === true;
     const acceptanceData = body?.acceptanceData || {};
+    const paymentMethod = toText(body?.paymentMethod);
 
     if (!token) {
       sendJson(res, 400, { success: false, error: "Falta token." });
@@ -496,6 +497,30 @@ export default async function handler(req, res) {
         updateMap[config.quoteEmailVerifiedAtField] = acceptedAtIso;
       }
       await updateRecordBestEffort(config.quoteModule, payload.quoteId, updateMap, true);
+    }
+
+    // Forma de pago elegida por el cliente: se deja como NOTA en la cotizacion
+    // (best-effort, nunca rompe la aceptacion). Hoy solo "transferencia" agrega
+    // nota; el pago con tarjeta sigue su flujo normal de pasarela.
+    if (paymentMethod === "transferencia") {
+      try {
+        await createRecord(
+          "Notes",
+          {
+            Note_Title: "Forma de pago elegida: transferencia bancaria",
+            Note_Content:
+              "El cliente eligio pagar por transferencia bancaria desde la pagina de aceptacion. Queda pendiente el envio del comprobante al ejecutivo para procesar el pedido.",
+            Parent_Id: payload.quoteId,
+            se_module: config.quoteModule,
+          },
+          false
+        );
+      } catch (noteErr) {
+        console.warn(
+          "[confirm] No se pudo crear la nota de transferencia:",
+          (noteErr && noteErr.message) || noteErr
+        );
+      }
     }
 
     // Pagos habilitados: se difiere el handoff a onboarding hasta que el pago
