@@ -179,7 +179,7 @@ function numeroParaPdf(numeroCotizacion, quoteId) {
   return String(quoteId || "").slice(-8).toUpperCase();
 }
 
-function buildMensajeParaProspecto(escalon, linkPdf) {
+function buildMensajeParaProspecto(escalon, linkAceptacion) {
   let cuerpo;
   if (escalon.tipo === "instalacion_rm") {
     cuerpo = `Puedo aplicarte un ${escalon.pct}% de descuento en la instalación (Región Metropolitana).`;
@@ -198,7 +198,7 @@ function buildMensajeParaProspecto(escalon, linkPdf) {
     );
   }
   if (escalon.condicionDiscursiva) partes.push(escalon.condicionDiscursiva);
-  partes.push(`Aquí tienes la cotización actualizada: ${linkPdf}`);
+  partes.push(`Aquí revisas, aceptas y pagas tu cotización actualizada: ${linkAceptacion}`);
   return partes.join(" ");
 }
 
@@ -365,7 +365,7 @@ module.exports = async function handler(req, res) {
         condicion_discursiva: escalon.condicionDiscursiva,
       },
       tope_alcanzado: topeAlcanzado,
-      mensaje_para_prospecto: buildMensajeParaProspecto(escalon, pdfUrl),
+      mensaje_para_prospecto: buildMensajeParaProspecto(escalon, acceptanceUrl),
     });
   } catch (error) {
     console.error(`[aplicar-siguiente-descuento] ERROR en stage=${stage}:`, error);
