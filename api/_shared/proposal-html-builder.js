@@ -458,7 +458,7 @@ function buildProposalHtml({
     totHtml +=
       `<div style="margin-top:8px;font-size:8px;line-height:1.4;color:#646464">` +
       `El <b>Pago inicial</b> es lo que se cobra al aceptar e incluye los conceptos de pago &uacute;nico y el primer mes de servicio. ` +
-      `El <b>Valor mensual</b> es referencial, calculado sobre la cantidad de usuarios de esta cotizaci&oacute;n y sujeto a mantenerla: se factura mensualmente desde el segundo mes, y la variaci&oacute;n de usuarios activos lo ajusta en la facturaci&oacute;n del per&iacute;odo siguiente.` +
+      `El <b>Valor mensual</b> es referencial: el plan se factura en UF y se convierte a pesos con la UF del d&iacute;a de cada factura, por lo que el monto en CLP puede variar mes a mes seg&uacute;n la UF. Se factura desde el segundo mes, y la variaci&oacute;n de usuarios activos tambi&eacute;n lo ajusta en la facturaci&oacute;n del per&iacute;odo siguiente.` +
       `</div>`;
   }
 
