@@ -1,4 +1,4 @@
-const { toText } = require("../_shared/zoho-crm");
+const { toText, getUserById } = require("../_shared/zoho-crm");
 const { resolvePaymentSession } = require("../_shared/payment-session");
 const {
   searchPaymentsByExternalReference,
@@ -13,6 +13,28 @@ function sendJson(res, status, payload) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify(payload));
+}
+
+function normalizeWhatsappPhone(value) {
+  const digits = toText(value).replace(/[^\d]/g, "");
+  return digits || "";
+}
+
+// Datos para el CTA de transferencia en pago.html (best-effort: nunca rompe el
+// estado de pago). El ejecutivo y el N° de cotizacion permiten al cliente
+// enviar el comprobante por WhatsApp, igual que en la pagina de aceptacion.
+async function buildTransferInfo(quote) {
+  try {
+    const ownerId = toText(quote?.Owner?.id);
+    const owner = ownerId ? await getUserById(ownerId).catch(() => null) : null;
+    return {
+      executiveName: toText(owner?.full_name || owner?.name || quote?.Owner?.name),
+      whatsappPhone: normalizeWhatsappPhone(owner?.phone || owner?.mobile),
+      quoteNumber: toText(quote?.Numero_Cotizacion),
+    };
+  } catch (_error) {
+    return { executiveName: "", whatsappPhone: "", quoteNumber: "" };
+  }
 }
 
 export default async function handler(req, res) {
@@ -79,6 +101,14 @@ export default async function handler(req, res) {
 
     const paymentsComplete = oneShotApproved && subscriptionAuthorized;
 
+    // Solo se necesita el bloque de transferencia cuando el cliente aun debe
+    // pagar (es el estado en que pago.html muestra el selector de metodo). En
+    // los demas estados se omite el fetch del ejecutivo para no recargar el poll.
+    const transfer =
+      hasOneShot && !oneShotApproved
+        ? await buildTransferInfo(quote)
+        : { executiveName: "", whatsappPhone: "", quoteNumber: "" };
+
     let onboardingUrl = toText(quote?.[acceptanceConfig.quoteOnboardingUrlField]);
     let finalizeError = "";
 
@@ -110,6 +140,7 @@ export default async function handler(req, res) {
         status: subscriptionStatus,
       },
       paymentsComplete,
+      transfer,
       onboarding: { ready: Boolean(onboardingUrl), url: onboardingUrl },
       finalizeError: finalizeError || undefined,
     });
