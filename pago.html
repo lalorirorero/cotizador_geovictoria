@@ -44,7 +44,8 @@
       .header h1 { margin: 0 0 6px; font-size: 20px; }
       .header p { margin: 0; opacity: 0.92; font-size: 14px; }
       .body { padding: 24px 28px 28px; }
-      .steps { display: flex; gap: 8px; margin-bottom: 22px; }
+      .steps { display: flex; gap: 8px; margin-bottom: 22px; justify-content: center; }
+      .step-pill.solo { flex: 0 0 auto; min-width: 240px; }
       .step-pill {
         flex: 1;
         border: 1px solid var(--borde);
@@ -115,9 +116,7 @@
       </div>
       <div class="body">
         <div class="steps" id="stepsBar">
-          <div class="step-pill" data-step="oneshot">1 · Pago inicial</div>
-          <div class="step-pill" data-step="sub">2 · Suscripcion</div>
-          <div class="step-pill" data-step="done">3 · Onboarding</div>
+          <div class="step-pill solo" data-step="oneshot">Pago inicial</div>
         </div>
 
         <div id="loading" class="center">
