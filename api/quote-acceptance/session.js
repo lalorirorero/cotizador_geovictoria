@@ -1,6 +1,21 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
 const { getRecord, getRecordWithFields, getUserById, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
+const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
+const { signVerificationPayload } = require("../_shared/verification-token");
+const { computePaymentAmounts } = require("../_shared/quote-pricing");
+
+// Minteo del link de pago para un cliente que VUELVE a una cotización ya
+// aceptada pero sin pagar. Espejo de confirm.js (no se importa para no acoplar
+// session.js — lectura — al handler de aceptación). Mantener en sync si cambia.
+function buildPaymentUrlForQuote(mpConfig, { quoteId, dealId, billingEmail }) {
+  const ttlMinutes = Math.max(5, Number(mpConfig.paymentSessionTtlMinutes) || 1440);
+  const token = signVerificationPayload(
+    { quoteId, dealId, billingEmail, exp: Date.now() + ttlMinutes * 60 * 1000 },
+    "payment_session"
+  );
+  return `${mpConfig.landingUrl}?${new URLSearchParams({ token }).toString()}`;
+}
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -287,6 +302,30 @@ export default async function handler(req, res) {
       instalacionRegionPct: Number(quote?.[config.quoteDiscountInstRegionPctField] || 0),
     };
 
+    // Ruteo state-aware: una cotización ACEPTADA, con pagos habilitados y SIN
+    // onboarding listo significa que falta el pago. Minteamos el link de pago
+    // para que la página muestre "Ir a pagar" en vez del callejón de onboarding.
+    const onboardingReady = Boolean(isAcceptedLocked && onboardingUrl && onboardingToken);
+    const mpConfig = getMercadoPagoConfig(req);
+    const paymentsEnabled = Boolean(mpConfig.enabled);
+    const needsPayment = isAcceptedLocked && paymentsEnabled && !onboardingReady;
+    const paymentUrl = needsPayment
+      ? buildPaymentUrlForQuote(mpConfig, {
+          quoteId: payload.quoteId,
+          dealId: payload.dealId,
+          billingEmail: toText(quote?.[config.billingEmailField]),
+        })
+      : "";
+    // Monto del pago inicial (mismo cálculo que el checkout de MercadoPago en
+    // resolvePaymentSession): one-shot + primer mes según config. Solo para
+    // mostrarlo en la página; el cobro real lo recalcula el checkout.
+    const pagoInicialClp = needsPayment
+      ? computePaymentAmounts(items, descuentos, {
+          includeIva: mpConfig.includeIva,
+          includeFirstMonth: mpConfig.oneShotIncludeFirstMonth,
+        }).oneShotClp
+      : 0;
+
     sendJson(res, 200, {
       success: true,
       quote: {
@@ -298,7 +337,11 @@ export default async function handler(req, res) {
         acceptedAt,
         onboardingUrl,
         onboardingId,
-        onboardingReady: Boolean(isAcceptedLocked && onboardingUrl && onboardingToken),
+        onboardingReady,
+        paymentsEnabled,
+        needsPayment,
+        paymentUrl,
+        pagoInicialClp,
         quoteDate: toText(quote?.[config.quoteDateField]),
         pdfUrl,
         termsVersion: config.termsVersion,

@@ -706,6 +706,9 @@
       .message.ok {
         color: var(--ok);
       }
+      .message.info {
+        color: #1d4ed8;
+      }
       .wa-panel {
         position: fixed;
         right: 18px;
@@ -1566,6 +1569,9 @@
         pendingConfirmAfterVerification: false,
         paymentsEnabled: false,
         paymentMethod: null,
+        needsPayment: false,
+        paymentUrl: "",
+        pagoInicialClp: 0,
       };
 
       // Texto del CTA segun si el flujo incluye pago antes del onboarding.
@@ -1697,10 +1703,16 @@
 
         const confirmBtn = document.getElementById("confirmBtn");
         if (confirmBtn) {
-          confirmBtn.textContent = flowState.onboardingUrl
-            ? "Ir a mi auto-onboarding"
-            : "Cotizacion ya aceptada";
-          confirmBtn.disabled = !flowState.onboardingUrl;
+          if (flowState.onboardingUrl) {
+            confirmBtn.textContent = "Ir a mi auto-onboarding";
+            confirmBtn.disabled = false;
+          } else if (flowState.needsPayment && flowState.paymentUrl) {
+            confirmBtn.textContent = "Ir a pagar";
+            confirmBtn.disabled = false;
+          } else {
+            confirmBtn.textContent = "Cotizacion ya aceptada";
+            confirmBtn.disabled = true;
+          }
         }
 
         setStatus("Cotizacion ya aceptada", "ok");
@@ -1710,6 +1722,19 @@
               (acceptedAtLabel ? " el " + acceptedAtLabel : "") +
               ". Ya puedes continuar a tu auto-onboarding.",
             "ok"
+          );
+        } else if (flowState.needsPayment && flowState.paymentUrl) {
+          const montoLabel =
+            flowState.pagoInicialClp > 0
+              ? " de " + fmtCLP(flowState.pagoInicialClp)
+              : "";
+          setMessage(
+            "Esta cotizacion ya fue aceptada" +
+              (acceptedAtLabel ? " el " + acceptedAtLabel : "") +
+              ". Solo te falta el pago inicial" +
+              montoLabel +
+              " para activar tu servicio. Continua con el boton “Ir a pagar”.",
+            "info"
           );
         } else {
           setMessage(
@@ -2149,7 +2174,10 @@
           flowState.acceptedAt = q.acceptedAt || "";
           flowState.onboardingUrl = q.onboardingUrl || "";
           flowState.pendingConfirmAfterVerification = false;
-          flowState.paymentsEnabled = data.paymentsEnabled === true;
+          flowState.paymentsEnabled = q.paymentsEnabled === true;
+          flowState.needsPayment = q.needsPayment === true;
+          flowState.paymentUrl = q.paymentUrl || "";
+          flowState.pagoInicialClp = Number(q.pagoInicialClp || 0);
           if (!flowState.acceptedLocked) {
             const cb = document.getElementById("confirmBtn");
             if (cb) cb.textContent = confirmCtaLabel();
@@ -2523,6 +2551,12 @@
             startOnboardingRedirect(flowState.onboardingUrl, {
               title: "Ahora comienza tu experiencia con GeoVictoria",
               detail: "Estamos recuperando tu proceso y redirigiendote al auto-onboarding.",
+              delayMs: 1500,
+            });
+          } else if (flowState.needsPayment && flowState.paymentUrl) {
+            startOnboardingRedirect(flowState.paymentUrl, {
+              title: "Te llevamos a tu pago inicial",
+              detail: "Estamos preparando tu pago seguro para activar tu servicio.",
               delayMs: 1500,
             });
           } else {
