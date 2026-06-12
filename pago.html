@@ -322,8 +322,8 @@
           var hasFirstMonth = Number(a.firstMonthClp || 0) > 0;
           var rows = "";
           if (hasFirstMonth && Number(a.oneShotItemsClp || 0) > 0) {
-            rows += amountRow("Servicios iniciales", fmtCLP(a.oneShotItemsClp));
             rows += amountRow("Primer mes de servicio", fmtCLP(a.firstMonthClp));
+            rows += amountRow("Hardware + instalacion/envio", fmtCLP(a.oneShotItemsClp));
           }
           rows += amountRow(
             "Pago inicial total",
