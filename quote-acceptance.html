@@ -2024,8 +2024,8 @@
 
       function formatTierPrice(tier) {
         if (!tier) return "-";
-        if (tier.type === "fijo") return `${fmtUFRaw(tier.uf)} UF (Fijo)`;
-        return `${fmtUFRaw(tier.uf)} UF/usuario`;
+        if (tier.type === "fijo") return `${fmtUFRaw(tier.uf)} UF (Fijo) + IVA`;
+        return `${fmtUFRaw(tier.uf)} UF/usuario + IVA`;
       }
 
       function renderAsistenciaPricingTable() {
