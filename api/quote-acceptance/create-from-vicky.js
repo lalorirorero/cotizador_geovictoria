@@ -130,7 +130,7 @@ async function convertLead(leadId, dealData) {
 
 // ── Helper: enviar email via Zoho CRM send_mail ──
 async function sendQuoteEmailViaZoho({
-  quoteModule, quoteId, fromEmail, replyToEmail, toEmail, toName, subject, htmlBody, ccEmail,
+  quoteModule, quoteId, fromEmail, replyToEmail, toEmail, toName, subject, htmlBody, ccEmail, ccEmails,
 }) {
   const path = `/crm/v3/${encodeURIComponent(quoteModule)}/${encodeURIComponent(quoteId)}/actions/send_mail`;
   const dataPayload = {
@@ -143,8 +143,20 @@ async function sendQuoteEmailViaZoho({
   if (replyToEmail && replyToEmail !== fromEmail) {
     dataPayload.reply_to = { email: replyToEmail };
   }
-  if (ccEmail && ccEmail !== toEmail) {
-    dataPayload.cc = [{ email: ccEmail }];
+  // CC: combina ccEmail (legado, 1 correo) + ccEmails (lista). Normaliza,
+  // excluye el destinatario principal y deduplica (case-insensitive).
+  const toLower = String(toEmail || "").trim().toLowerCase();
+  const seen = new Set();
+  const ccList = [];
+  for (const raw of [ccEmail, ...(Array.isArray(ccEmails) ? ccEmails : [])]) {
+    const email = String(raw || "").trim();
+    const low = email.toLowerCase();
+    if (!email || low === toLower || seen.has(low)) continue;
+    seen.add(low);
+    ccList.push(email);
+  }
+  if (ccList.length) {
+    dataPayload.cc = ccList.map((email) => ({ email }));
   }
   const body = { data: [dataPayload] };
   const response = await zohoApiFetch(path, {
@@ -1032,6 +1044,8 @@ module.exports = async function handler(req, res) {
         fromEmail: VICKY_FROM_EMAIL,
         replyToEmail: EJEC_EMAIL,
         ccEmail: EJEC_EMAIL,
+        // Copias adicionales opcionales que vengan en el payload (body.cc).
+        ccEmails: Array.isArray(body.cc) ? body.cc : [],
         toEmail: cliente.contactoEmail,
         toName: cliente.contacto,
         subject: `Tu cotización GeoVictoria — ${cliente.empresa}`,
