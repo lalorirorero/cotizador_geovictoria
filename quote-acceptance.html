@@ -607,6 +607,50 @@
         border-color: var(--brand);
         box-shadow: 0 0 0 3px rgba(0, 175, 242, 0.16);
       }
+      .combo {
+        position: relative;
+      }
+      .combo-list {
+        position: absolute;
+        top: calc(100% + 3px);
+        left: 0;
+        right: 0;
+        z-index: 60;
+        margin: 0;
+        padding: 4px;
+        list-style: none;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .combo-item {
+        padding: 8px 10px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 14px;
+        color: var(--ink);
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+      }
+      .combo-item:hover,
+      .combo-item.active {
+        background: #eaf6fe;
+      }
+      .combo-item .code {
+        color: var(--muted);
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .combo-empty {
+        padding: 8px 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
       .full {
         grid-column: 1 / -1;
       }
@@ -1278,11 +1322,17 @@
             </div>
             <div>
               <label for="companyGiro">Giro *</label>
-              <input id="companyGiro" type="text" />
+              <div class="combo" id="comboGiro">
+                <input id="companyGiro" type="text" autocomplete="off" placeholder="Escribe para buscar tu giro" />
+                <ul class="combo-list hidden"></ul>
+              </div>
             </div>
             <div>
               <label for="companyComuna">Comuna *</label>
-              <input id="companyComuna" type="text" />
+              <div class="combo" id="comboComuna">
+                <input id="companyComuna" type="text" autocomplete="off" placeholder="Escribe tu comuna" />
+                <ul class="combo-list hidden"></ul>
+              </div>
             </div>
             <div class="full">
               <label for="companyAddress">Direccion *</label>
@@ -1832,7 +1882,7 @@
       function normalizeWhatsappPhone(value) {
         const raw = String(value || "").trim();
         if (!raw) return "";
-        return raw.replace(/[^\d]/g, "");
+        return raw.replace(/[\u0300-\u036f]/g, "");
       }
 
       function buildWhatsappLink(phoneDigits, executiveName, quoteLabel) {
@@ -2671,10 +2721,141 @@
       sendCodeBtn.addEventListener("click", onSendCode);
       verifyCodeBtn.addEventListener("click", onVerifyCode);
       document.getElementById("confirmBtn").addEventListener("click", onConfirm);
+      // ── Combobox con buscador (Giro / Comuna) ──
+      // Mejora progresiva: si los catálogos no cargan, los inputs siguen
+      // funcionando como texto libre (no se bloquea la aceptación).
+      function comboNormalize(value) {
+        return String(value || "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "");
+      }
+      function comboEscape(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+      function setupCombobox(comboId, items, getLabel, getSub) {
+        const wrap = document.getElementById(comboId);
+        if (!wrap) return;
+        const input = wrap.querySelector("input");
+        const list = wrap.querySelector(".combo-list");
+        if (!input || !list) return;
+        let current = [];
+        let active = -1;
+
+        function render(query) {
+          const nq = comboNormalize(query);
+          current = !nq
+            ? items.slice(0, 50)
+            : items.filter((it) => comboNormalize(getLabel(it)).includes(nq)).slice(0, 50);
+          active = -1;
+          if (current.length === 0) {
+            list.innerHTML = '<li class="combo-empty">Sin coincidencias</li>';
+          } else {
+            list.innerHTML = current
+              .map((it, i) => {
+                const sub = getSub ? getSub(it) : "";
+                return (
+                  '<li class="combo-item" data-i="' + i + '">' +
+                  "<span>" + comboEscape(getLabel(it)) + "</span>" +
+                  (sub ? '<span class="code">' + comboEscape(sub) + "</span>" : "") +
+                  "</li>"
+                );
+              })
+              .join("");
+          }
+          list.classList.remove("hidden");
+        }
+        function hide() {
+          list.classList.add("hidden");
+          active = -1;
+        }
+        function choose(i) {
+          const it = current[i];
+          if (!it) return;
+          input.value = getLabel(it);
+          hide();
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          updateJourneyState();
+        }
+        function paintActive() {
+          const children = list.children;
+          for (let i = 0; i < children.length; i++) {
+            children[i].classList.toggle("active", i === active);
+          }
+          if (children[active]) children[active].scrollIntoView({ block: "nearest" });
+        }
+
+        input.addEventListener("focus", () => {
+          if (input.readOnly || input.disabled) return;
+          render(input.value);
+        });
+        input.addEventListener("input", () => render(input.value));
+        input.addEventListener("keydown", (event) => {
+          if (list.classList.contains("hidden")) return;
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            active = Math.min(active + 1, current.length - 1);
+            paintActive();
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            active = Math.max(active - 1, 0);
+            paintActive();
+          } else if (event.key === "Enter") {
+            if (active >= 0) {
+              event.preventDefault();
+              choose(active);
+            }
+          } else if (event.key === "Escape") {
+            hide();
+          }
+        });
+        list.addEventListener("mousedown", (event) => {
+          const li = event.target.closest(".combo-item");
+          if (!li) return;
+          event.preventDefault();
+          choose(Number(li.getAttribute("data-i")));
+        });
+        document.addEventListener("click", (event) => {
+          if (!wrap.contains(event.target)) hide();
+        });
+      }
+      async function loadFormCatalogs() {
+        try {
+          const [comunasRes, girosRes] = await Promise.all([
+            fetch("/data/comunas.json"),
+            fetch("/data/giros.json"),
+          ]);
+          if (comunasRes.ok) {
+            const comunas = await comunasRes.json();
+            if (Array.isArray(comunas) && comunas.length) {
+              setupCombobox("comboComuna", comunas, (c) => c, null);
+            }
+          }
+          if (girosRes.ok) {
+            const giros = await girosRes.json();
+            if (Array.isArray(giros) && giros.length) {
+              setupCombobox(
+                "comboGiro",
+                giros,
+                (g) => g.name,
+                (g) => g.code
+              );
+            }
+          }
+        } catch (err) {
+          // Sin catálogos: los inputs quedan como texto libre (fallback).
+        }
+      }
+
       bindAccordions();
       renderStage();
       updateJourneyState();
       boot();
+      loadFormCatalogs();
     </script>
   </body>
 </html>
