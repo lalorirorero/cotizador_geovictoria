@@ -300,12 +300,12 @@ function buildProposalHtml({
   const empresa = escapeHtml(cliente.empresa || "EMPRESA");
   const contacto = escapeHtml(cliente.contacto || "");
   const rutEmpresa = escapeHtml(cliente.rutEmpresa || "");
-  const ejecutivo = escapeHtml(cliente.ejecutivo || "Eddyluz Mujica");
+  const ejecutivo = escapeHtml(cliente.ejecutivo || "Anderson Díaz");
   const ejecutivoEmail = escapeHtml(
-    cliente.ejecutivoEmail || "emujica@geovictoria.com",
+    cliente.ejecutivoEmail || "adiazg@geovictoria.com",
   );
   const ejecutivoTelefono = escapeHtml(
-    cliente.ejecutivoTelefono || "+56 9 3932 1687",
+    cliente.ejecutivoTelefono || "+56 9 3937 2058",
   );
   const cotizNumero = escapeHtml(cotizacionId || "—");
 
