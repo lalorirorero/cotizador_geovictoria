@@ -65,6 +65,24 @@ function parseBody(req) {
   return typeof req.body === "object" && req.body ? req.body : {};
 }
 
+// Índice del primer escalón recurrente (sobre el plan) cuyo pct cubre `pct`
+// (es decir, el menor escalón con pct >= pct pedido). Ignora los escalones de
+// instalación, que tienen su propia línea. Si `pct` supera el tope (40),
+// devuelve el último escalón de la escalera. Devuelve -1 si pct <= 0.
+function idxEscalonRecurrentePorPct(pct) {
+  const target = Number(pct) || 0;
+  if (target <= 0) return -1;
+  let ultimoRecurrente = -1;
+  for (let i = 0; i < DISCOUNT_LADDER.length; i++) {
+    const e = DISCOUNT_LADDER[i];
+    if (e.tipo === "instalacion_rm" || e.tipo === "instalacion_region") continue;
+    ultimoRecurrente = i;
+    if (e.pct >= target) return i;
+  }
+  // Pidió más que el tope: comiteamos hasta el máximo recurrente disponible.
+  return ultimoRecurrente;
+}
+
 // Decide hasta qué escalón comitear. En el flujo nuevo, la negociación ocurre
 // vía consultar-siguiente-descuento, que va avanzando Escalon_Negociacion. Al
 // aceptar, comiteamos TODO el nivel negociado de una sola vez (un solo PDF):
@@ -74,8 +92,14 @@ function parseBody(req) {
 //   - Si NO hubo negociación previa (llamada directa al commit), avanzamos un
 //     solo escalón aplicable desde lo comiteado — comportamiento clásico.
 //
+// GARANTÍA "lo ofrecido = lo aplicado": si Vicky ya le comunicó un % al cliente
+// (pctOfrecido), comiteamos AL MENOS el escalón recurrente que cubre ese %,
+// aunque el puntero de negociación se haya quedado atrás (modelo que se adelantó
+// a las tools). Esto evita el desfase "ofrezco 35 / aplico 30". Queda acotado
+// por la escalera, así que nunca compromete más del tope (40%).
+//
 // Devuelve { targetIdx, escalon } o null si no hay más escalones aplicables.
-function elegirNivelACommitear(quote, config) {
+function elegirNivelACommitear(quote, config, pctOfrecido) {
   const commitIdx = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
   const negocIdx = Math.max(0, Number(quote?.[config.quoteEscalonNegociacionField] || 0));
 
@@ -87,6 +111,11 @@ function elegirNivelACommitear(quote, config) {
     // Sin negociación previa: siguiente escalón aplicable desde lo comiteado.
     targetIdx = siguienteEscalonAplicable(quote, config, commitIdx);
   }
+
+  // Piso por el % que Vicky ya prometió de palabra al cliente.
+  const minIdx = idxEscalonRecurrentePorPct(pctOfrecido);
+  if (minIdx >= 0 && minIdx > targetIdx) targetIdx = minIdx;
+
   if (targetIdx < 0 || targetIdx >= DISCOUNT_LADDER.length) return null;
   return { targetIdx, escalon: DISCOUNT_LADDER[targetIdx] };
 }
@@ -230,6 +259,10 @@ module.exports = async function handler(req, res) {
     if (!quoteId) {
       return sendJson(res, 400, { ok: false, error: "Falta quoteId." });
     }
+    // % que Vicky ya le comunicó al cliente (opcional). Garantiza que lo
+    // comiteado no quede por debajo de lo ofrecido. Se acota luego por la
+    // escalera, así que un valor inflado nunca compromete más del tope.
+    const pctOfrecido = Math.max(0, Number(body.pctOfrecido || 0)) || 0;
 
     stage = "fetch_quote";
     const quote = await getRecord(config.quoteModule, quoteId);
@@ -239,7 +272,7 @@ module.exports = async function handler(req, res) {
 
     // 1. Decidir hasta qué escalón comitear (todo el nivel negociado).
     stage = "elegir_escalon";
-    const eleccion = elegirNivelACommitear(quote, config);
+    const eleccion = elegirNivelACommitear(quote, config, pctOfrecido);
     if (!eleccion) {
       // No hay nada nuevo que comitear. Si el cliente está ACEPTANDO un descuento
       // que ya quedó aplicado (re-aceptar el tope), NO es un error: devolvemos el
