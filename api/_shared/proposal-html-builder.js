@@ -111,6 +111,7 @@ function adaptarItemsVicky(items) {
         nombre: String(it.nombre || ""),
         cantidad: Number(it.cantidad || 1),
         tipo,
+        codigo: String(it.id || it.codigo || "").toLowerCase(),
         precioUnit: Number(it.precioUnitarioUF || 0),
         subtotalUF: Number(it.subtotalUF || 0),
       });
@@ -159,6 +160,26 @@ function descServicio(s) {
 }
 const DESC_EQUIPO =
   "Reloj biométrico de control de asistencia (facial y huella), con conexión WiFi y Ethernet. Autorizado por la Dirección del Trabajo.";
+const DESC_ENVIO_RELOJ =
+  "Despacho del reloj a la dirección del cliente: incluye embalaje y transporte hasta destino.";
+const DESC_UPS =
+  "Sistema de respaldo de energía (UPS) para el reloj de control: mantiene el equipo operativo ante cortes de suministro eléctrico.";
+
+// Descripción por ítem de hardware/accesorio. El subform de Zoho mezcla relojes
+// con add-ons (envío, UPS) que NO son relojes; sin esto todos heredaban la
+// descripción del reloj. Se resuelve por Codigo_Item (con respaldo por nombre);
+// el reloj biométrico queda como fallback.
+function descEquipo(e) {
+  const cod = String(e.codigo || "").toLowerCase();
+  const nom = String(e.nombre || "").toLowerCase();
+  if (cod.includes("envio") || cod.includes("envío") || cod.includes("despacho") || nom.includes("envío") || nom.includes("envio") || nom.includes("despacho")) {
+    return DESC_ENVIO_RELOJ;
+  }
+  if (cod === "ups" || cod.includes("ups") || cod.includes("sai") || nom.includes("ups")) {
+    return DESC_UPS;
+  }
+  return DESC_EQUIPO;
+}
 const DESC_SERVICIO_ASOC =
   "Instalación en terreno y puesta en marcha del equipo, con carga inicial de trabajadores.";
 const DESC_CAPACITACION =
@@ -346,11 +367,11 @@ function buildProposalHtml({
   );
   equipos.forEach((e) => {
     const rec = e.tipo === "Arriendo";
-    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", DESC_EQUIPO, e.precioUnit, e.cantidad, e.subtotalUF, rec, rec ? optRec : {});
+    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", descEquipo(e), e.precioUnit, e.cantidad, e.subtotalUF, rec, rec ? optRec : {});
   });
   accesorios.forEach((a) => {
     const rec = a.tipo === "Arriendo";
-    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", DESC_EQUIPO, a.precioUnit, a.cantidad, a.subtotalUF, rec, rec ? optRec : {});
+    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", descEquipo(a), a.precioUnit, a.cantidad, a.subtotalUF, rec, rec ? optRec : {});
   });
   serviciosAsoc.forEach((s) => {
     const nombre = s.zona ? `${s.nombre} (${s.zona})` : s.nombre;
