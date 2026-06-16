@@ -1,0 +1,224 @@
+/**
+ * Endpoint: POST /api/quote-acceptance/regenerate-pdf
+ *
+ * Regenera el PDF de una cotización a partir del ESTADO ACTUAL en Zoho (subform
+ * de ítems + descuentos comiteados), sin avanzar descuentos ni recalcular nada.
+ * Útil cuando se editaron los ítems directamente en Zoho y el PDF_URL quedó
+ * desactualizado (la página de aceptación muestra los valores nuevos en vivo,
+ * pero el PDF es un artefacto congelado al momento en que se generó).
+ *
+ * Sube el PDF nuevo a Supabase Storage, actualiza PDF_URL y sube Version_PDF.
+ * NO toca el escalón de descuento, ni los precios, ni la URL de aceptación.
+ *
+ * Body: { "quoteId": "<id Zoho>" }   // o { "token": "<token de aceptación>" }
+ * Auth: header x-vicky-secret = VICKY_COTIZADORA_SECRET.
+ *
+ * Respuesta: { ok:true, version, link_pdf }
+ */
+
+const {
+  getRecord,
+  getRecordWithFields,
+  updateRecord,
+  toText,
+} = require("../_shared/zoho-crm");
+const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
+const { htmlToPdfBuffer } = require("../_shared/pdfshift-client");
+const { uploadPdfToSupabase } = require("../_shared/supabase-pdf-upload");
+const { buildProposalHtml } = require("../_shared/proposal-html-builder");
+
+function sendJson(res, status, payload) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(payload));
+}
+
+function parseBody(req) {
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body || "{}");
+    } catch {
+      return {};
+    }
+  }
+  return typeof req.body === "object" && req.body ? req.body : {};
+}
+
+function quoteIdFromToken(token) {
+  try {
+    const payloadB64 = String(token || "").split(".")[0];
+    if (!payloadB64) return "";
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64").toString("utf8"));
+    return toText(payload?.quoteId);
+  } catch {
+    return "";
+  }
+}
+
+// Espejo de buildClienteParaHtml en aplicar-siguiente-descuento.js.
+async function buildClienteParaHtml(quote, config) {
+  const accountId = toText(quote?.Cuenta_Asociada?.id);
+  const contactId = toText(
+    quote?.[config.quoteContactLookupField]?.id || quote?.[config.quoteContactLookupField],
+  );
+  const account = accountId
+    ? await getRecordWithFields("Accounts", accountId, ["Account_Name", "RUT_Empresa"])
+    : null;
+  const contact = contactId
+    ? await getRecordWithFields("Contacts", contactId, ["First_Name", "Last_Name"])
+    : null;
+  const contactoFullName = [contact?.First_Name, contact?.Last_Name].filter(Boolean).join(" ").trim();
+  return {
+    empresa: toText(account?.Account_Name) || toText(quote?.Name) || "EMPRESA",
+    contacto: contactoFullName || "",
+    contactoEmail: toText(quote?.[config.contactEmailField]),
+    rutEmpresa: toText(quote?.[config.companyRutField]) || toText(account?.RUT_Empresa),
+    ejecutivo: "Anderson Díaz",
+    ejecutivoEmail: "adiazg@geovictoria.com",
+    ejecutivoTelefono: "+56 9 3937 2058",
+  };
+}
+
+// Espejo de subformACotizacionItems en aplicar-siguiente-descuento.js.
+function subformACotizacionItems(quote, config) {
+  const subform = quote?.[config.quoteItemsSubformField];
+  if (!Array.isArray(subform)) return [];
+  return subform.map((row) => {
+    const modalidadZoho = String(row?.Modalidad || "");
+    const codigo = String(row?.Codigo_Item || "").toLowerCase();
+    let tipo = "modulo";
+    if (codigo === "instalacion_reloj") tipo = "servicio";
+    else if (modalidadZoho === "Arriendo" || modalidadZoho === "Venta") tipo = "hardware";
+    return {
+      tipo,
+      id: codigo,
+      nombre: String(row?.Nombre_Item || ""),
+      modalidad:
+        modalidadZoho === "Recurrente"
+          ? "Por usuario"
+          : modalidadZoho === "Único"
+          ? "Fijo"
+          : modalidadZoho === "Arriendo"
+          ? "Arriendo mensual"
+          : modalidadZoho === "Venta"
+          ? "Venta única"
+          : modalidadZoho === "Por usuario"
+          ? "Por usuario"
+          : "Cobro único",
+      cantidad: Number(row?.Cantidad || 0),
+      precioUnitarioUF: Number(row?.Precio_Unitario_UF || 0),
+      subtotalUF: Number(row?.Subtotal_UF || 0),
+      zonaTarifa: String(row?.[config.quoteItemZonaTarifaField] || ""),
+    };
+  });
+}
+
+async function getUFActualSafe() {
+  try {
+    const res = await fetch("https://mindicador.cl/api/uf", { cache: "no-store" });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data?.serie?.[0]?.valor || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function numeroParaPdf(numeroCotizacion, quoteId) {
+  const sinPrefijo = String(numeroCotizacion || "").replace(/^\s*COT[\s_-]*/i, "").trim();
+  if (sinPrefijo) return sinPrefijo;
+  return String(quoteId || "").slice(-8).toUpperCase();
+}
+
+module.exports = async function handler(req, res) {
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-vicky-secret");
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
+  if (req.method !== "POST") {
+    return sendJson(res, 405, { ok: false, error: "Metodo no permitido." });
+  }
+
+  const expectedSecret = toText(process.env.VICKY_COTIZADORA_SECRET);
+  const providedSecret = toText(req.headers["x-vicky-secret"]);
+  if (expectedSecret && expectedSecret !== providedSecret) {
+    return sendJson(res, 401, { ok: false, error: "Unauthorized" });
+  }
+
+  let stage = "init";
+  try {
+    const config = getAcceptanceConfig(req);
+    const body = parseBody(req);
+    const quoteId = toText(body.quoteId) || quoteIdFromToken(body.token);
+    if (!quoteId) {
+      return sendJson(res, 400, { ok: false, error: "Falta quoteId (o token)." });
+    }
+
+    stage = "fetch_quote";
+    const quote = await getRecord(config.quoteModule, quoteId);
+    if (!quote) {
+      return sendJson(res, 404, { ok: false, error: "Cotizacion no encontrada." });
+    }
+
+    // Descuentos COMITEADOS actuales (no se tocan; solo se reflejan en el PDF).
+    const descuentos = {
+      recurrentePct: Number(quote?.[config.quoteDiscountPctField] || 0),
+      instalacionRMPct: Number(quote?.[config.quoteDiscountInstRMPctField] || 0),
+      instalacionRegionPct: Number(quote?.[config.quoteDiscountInstRegionPctField] || 0),
+    };
+
+    stage = "render_pdf";
+    const cliente = await buildClienteParaHtml(quote, config);
+    const ufActual = await getUFActualSafe();
+    const items = subformACotizacionItems(quote, config);
+    const versionActual = Math.max(1, Number(quote?.[config.quoteVersionPdfField] || 1));
+    const versionNueva = versionActual + 1;
+    // Mantenemos la URL de aceptación vigente (no re-firmamos el token).
+    const acceptanceUrl = toText(quote?.[config.quoteAcceptanceUrlField]);
+
+    const html = buildProposalHtml({
+      cliente,
+      cotizacion: { items, ufActual },
+      acceptanceUrl,
+      cotizacionId: numeroParaPdf(quote && quote.Numero_Cotizacion, quoteId),
+      validezHasta: new Date(Date.now() + config.validityDays * 24 * 60 * 60 * 1000).toISOString(),
+      version: versionNueva,
+      descuentos,
+    });
+
+    stage = "upload_pdf";
+    const pdfBuffer = await htmlToPdfBuffer(html, { format: "Letter", margin: "0" });
+    const { pdfUrl } = await uploadPdfToSupabase({
+      pdfBuffer,
+      quoteId,
+      empresa: cliente.empresa,
+    });
+
+    stage = "update_quote";
+    await updateRecord(
+      config.quoteModule,
+      quoteId,
+      {
+        [config.quoteVersionPdfField]: versionNueva,
+        [config.quotePdfUrlField]: pdfUrl,
+      },
+      true,
+    );
+
+    return sendJson(res, 200, {
+      ok: true,
+      version: versionNueva,
+      link_pdf: pdfUrl,
+    });
+  } catch (error) {
+    console.error(`[regenerate-pdf] ERROR en stage=${stage}:`, error);
+    return sendJson(res, 500, {
+      ok: false,
+      error: "No se pudo regenerar el PDF.",
+      detail: String(error?.message || error).slice(0, 400),
+    });
+  }
+};
