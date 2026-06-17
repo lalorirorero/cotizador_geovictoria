@@ -53,7 +53,10 @@ const SERVICIOS_GRATIS = [
 ];
 
 const PRICING_TIERS = [
-  { min: 1, max: 10, type: 'fijo', uf: 0.75 },
+  // Micro-plan: 1 usuario que marca (cubre marcador + 1 administrador). Desde
+  // 2 que marcan, tramo fijo normal.
+  { min: 1, max: 1, type: 'fijo', uf: 0.25 },
+  { min: 2, max: 10, type: 'fijo', uf: 0.75 },
   { min: 11, max: 20, type: 'por_usuario', uf: 0.09 },
   { min: 21, max: 30, type: 'por_usuario', uf: 0.08 },
   { min: 31, max: 50, type: 'por_usuario', uf: 0.07 },
