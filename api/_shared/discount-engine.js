@@ -21,8 +21,29 @@
  * índice N produce el set acumulado de descuentos vigente en ese nivel.
  */
 
-const { DISCOUNT_LADDER, MESES_DESCUENTO_PLAN } = require("./proposal-constants");
+const { DISCOUNT_LADDER, MESES_DESCUENTO_PLAN, PRICING_TIERS } = require("./proposal-constants");
 const { sanitizeItems, computePaymentAmounts } = require("./quote-pricing");
+
+// Tarifa del micro-plan (tramo fijo 1-1: 1 trabajador que marca). En ese tramo
+// NO se aplica descuento sobre el plan mensual recurrente (acuerdo comercial).
+const MICRO_PLAN_UF = (() => {
+  const t = (PRICING_TIERS || []).find((x) => x.min === 1 && x.max === 1 && x.type === "fijo");
+  return t ? Number(t.uf) : null;
+})();
+
+// Detecta el micro-plan leyendo el ítem de asistencia del subform: si su precio
+// unitario coincide con la tarifa del tramo 1-1, es micro-plan.
+function esMicroPlan(quote, config) {
+  if (MICRO_PLAN_UF == null) return false;
+  const items = quote?.[config.quoteItemsSubformField];
+  if (!Array.isArray(items)) return false;
+  return items.some((row) => {
+    const codigo = String(row?.Codigo_Item || "").toLowerCase();
+    if (codigo !== "asistencia") return false;
+    const pu = Number(row?.Precio_Unitario_UF || 0);
+    return Math.abs(pu - MICRO_PLAN_UF) < 1e-6;
+  });
+}
 
 // Detecta si la cotización tiene ítems de instalación de la zona dada, leyendo
 // el subform. Si la zona no existe, ese escalón se salta automáticamente.
@@ -52,7 +73,10 @@ function escalonAplica(quote, config, idx) {
   if (escalon.tipo === "instalacion_region") {
     return tieneInstalacionDeZona(quote, config, "regiones");
   }
-  return true;
+  // Escalón del plan mensual (recurrente): NO aplica en el micro-plan
+  // (1 trabajador que marca). En ese tramo no hay descuento del servicio
+  // recurrente; los descuentos de instalación (cobro único) sí siguen vigentes.
+  return !esMicroPlan(quote, config);
 }
 
 // Primer escalón aplicable cuyo índice sea >= fromIdx. Devuelve el índice o -1.
