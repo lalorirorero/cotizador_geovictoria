@@ -455,7 +455,13 @@ function mapModalidadToZoho(modalidadVicky) {
 }
 
 function isItemRecurrente(modalidadZoho) {
-  return modalidadZoho === "Recurrente" || modalidadZoho === "Arriendo";
+  // "Único" es el reference_value del display "Fijo" (tarifa fija MENSUAL), por
+  // eso cuenta como recurrente. Los pagos únicos reales van a "Venta".
+  return (
+    modalidadZoho === "Recurrente" ||
+    modalidadZoho === "Arriendo" ||
+    modalidadZoho === "Único"
+  );
 }
 
 // Mapea tipo + id del item al picklist Categoria_Item

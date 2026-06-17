@@ -115,22 +115,20 @@ const DISCOUNT_LADDER = [
   {
     tipo: "recurrente_20",
     pct: 20,
-    condicionDiscursiva:
-      "Este descuento aplica si aceptas y pagas dentro de las próximas 24 horas.",
+    condicionDiscursiva: null,
     label: "20 % de descuento sobre el plan mensual",
   },
   {
     tipo: "recurrente_30",
     pct: 30,
-    condicionDiscursiva:
-      "Este descuento aplica si aceptas y pagas dentro de las próximas 12 horas.",
+    condicionDiscursiva: "Te puedo mantener este precio por hoy.",
     label: "30 % de descuento sobre el plan mensual",
   },
   {
     tipo: "recurrente_40",
     pct: 40,
     condicionDiscursiva:
-      "Este descuento aplica si aceptas y pagas dentro de la próxima hora.",
+      "Es el mejor precio que te puedo dejar; te lo reservo por hoy.",
     label: "40 % de descuento sobre el plan mensual",
   },
 ];
