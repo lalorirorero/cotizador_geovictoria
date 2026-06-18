@@ -56,10 +56,10 @@ const PRICING_TIERS = [
   // Micro-plan: 1 usuario que marca (cubre marcador + 1 administrador). Desde
   // 2 que marcan, tramo fijo normal.
   { min: 1, max: 1, type: 'fijo', uf: 0.25 },
-  { min: 2, max: 10, type: 'fijo', uf: 0.75 },
-  { min: 11, max: 20, type: 'por_usuario', uf: 0.09 },
-  { min: 21, max: 30, type: 'por_usuario', uf: 0.08 },
-  { min: 31, max: 50, type: 'por_usuario', uf: 0.07 },
+  { min: 2, max: 10, type: 'fijo', uf: 0.6 },
+  { min: 11, max: 20, type: 'por_usuario', uf: 0.07 },
+  { min: 21, max: 30, type: 'por_usuario', uf: 0.065 },
+  { min: 31, max: 50, type: 'por_usuario', uf: 0.055 },
   { min: 51, max: 100, type: 'por_usuario', uf: 0.065 },
   { min: 101, max: 200, type: 'por_usuario', uf: 0.06 },
   { min: 201, max: 500, type: 'por_usuario', uf: 0.055 },
@@ -86,8 +86,8 @@ const ISO_ORIGINAL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1
 //   - Los escalones de instalación se aplican solo si la cotización tiene
 //     ítems de instalación con la zona correspondiente. Si no aplica, se
 //     saltan automáticamente al siguiente.
-//   - Los escalones de recurrente se aplican secuencialmente: 10 → 20 → 30 →
-//     40 %, cada uno con una ventana de contratación más corta.
+//   - Los escalones de recurrente se aplican secuencialmente: 10 → 20 %
+//     (tope 20%), cada uno con una ventana de contratación más corta.
 //   - Los descuentos son acumulativos sobre líneas distintas (instalación y
 //     recurrente conviven en el mismo PDF).
 //   - condicionDiscursiva es texto que Vicky comunica al cliente; no tiene
@@ -115,21 +115,9 @@ const DISCOUNT_LADDER = [
   {
     tipo: "recurrente_20",
     pct: 20,
-    condicionDiscursiva: null,
-    label: "20 % de descuento sobre el plan mensual",
-  },
-  {
-    tipo: "recurrente_30",
-    pct: 30,
-    condicionDiscursiva: "Te puedo mantener este precio por hoy.",
-    label: "30 % de descuento sobre el plan mensual",
-  },
-  {
-    tipo: "recurrente_40",
-    pct: 40,
     condicionDiscursiva:
       "Es el mejor precio que te puedo dejar; te lo reservo por hoy.",
-    label: "40 % de descuento sobre el plan mensual",
+    label: "20 % de descuento sobre el plan mensual",
   },
 ];
 

@@ -64,7 +64,10 @@ function isRecurrentModalidad(value) {
 function clampDescuentoPct(value) {
   const n = Math.round(toNumber(value));
   if (!Number.isFinite(n) || n <= 0) return 0;
-  // Tope del descuento recurrente del plan: 40% (escalera 10→20→30→35→40).
+  // Backstop de seguridad del descuento recurrente: 40%. La escalera de
+  // negociación nueva tope en 20% (DISCOUNT_LADDER 10→20), pero este clamp se
+  // mantiene en 40% a propósito para NO recortar cotizaciones antiguas ya
+  // comiteadas a 30/40% al regenerar/cobrar (las antiguas siguen igual).
   return Math.max(0, Math.min(40, Math.round(n / 5) * 5));
 }
 

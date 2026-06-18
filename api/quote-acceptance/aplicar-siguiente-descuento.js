@@ -95,8 +95,8 @@ function idxEscalonRecurrentePorPct(pct) {
 // GARANTÍA "lo ofrecido = lo aplicado": si Vicky ya le comunicó un % al cliente
 // (pctOfrecido), comiteamos AL MENOS el escalón recurrente que cubre ese %,
 // aunque el puntero de negociación se haya quedado atrás (modelo que se adelantó
-// a las tools). Esto evita el desfase "ofrezco 35 / aplico 30". Queda acotado
-// por la escalera, así que nunca compromete más del tope (40%).
+// a las tools). Esto evita el desfase "ofrezco 20 / aplico 10". Queda acotado
+// por la escalera, así que nunca compromete más del tope (20%).
 //
 // Devuelve { targetIdx, escalon } o null si no hay más escalones aplicables.
 function elegirNivelACommitear(quote, config, pctOfrecido) {
