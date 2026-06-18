@@ -2001,6 +2001,20 @@
       function fmtUFRaw(value) {
         return fmtUF(value).replace(/\s*UF$/, "");
       }
+      // Precio UNITARIO / tarifa de tramo: hasta 3 decimales. Los tramos de
+      // asistencia 0,055 (31-50) y 0,065 (21-30) se redondeaban a 0,06 / 0,07
+      // con fmtUF (2 decimales) y falseaban el valor real de cara al cliente.
+      // Sin ceros trailing, coma decimal (formato chileno). Los totales siguen
+      // usando fmtUF (2 decimales).
+      function fmtUFUnitRaw(value) {
+        const n = Number(value || 0);
+        const rounded = Math.round(n * 1000) / 1000;
+        if (Number.isInteger(rounded)) return rounded.toLocaleString("es-CL");
+        const [entero, dec] = rounded.toFixed(3).split(".");
+        const enteroCL = Number(entero).toLocaleString("es-CL");
+        const decTrimmed = dec.replace(/0+$/, "");
+        return decTrimmed ? `${enteroCL},${decTrimmed}` : enteroCL;
+      }
 
       const ASISTENCIA_PRICING_TIERS = [
         { min: 1, max: 10, type: "fijo", uf: 0.6 },
@@ -2024,8 +2038,8 @@
 
       function formatTierPrice(tier) {
         if (!tier) return "-";
-        if (tier.type === "fijo") return `${fmtUFRaw(tier.uf)} UF (Fijo) + IVA`;
-        return `${fmtUFRaw(tier.uf)} UF/usuario + IVA`;
+        if (tier.type === "fijo") return `${fmtUFUnitRaw(tier.uf)} UF (Fijo) + IVA`;
+        return `${fmtUFUnitRaw(tier.uf)} UF/usuario + IVA`;
       }
 
       function renderAsistenciaPricingTable() {
@@ -2062,12 +2076,12 @@
         const modalidad = String(row?.modalidad || "");
         const value = Number(row?.precioUnitarioUf || 0);
         if (modalidad === "fijo" || modalidad === "Fijo") {
-          return "Fijo: " + fmtUFRaw(value) + " UF";
+          return "Fijo: " + fmtUFUnitRaw(value) + " UF";
         }
         if (modalidad === "por usuario" || modalidad === "Por usuario") {
-          return fmtUFRaw(value) + " UF/u";
+          return fmtUFUnitRaw(value) + " UF/u";
         }
-        return fmtUFRaw(value) + " UF";
+        return fmtUFUnitRaw(value) + " UF";
       }
 
       function formatCLPReferenceNote(q, totals) {
