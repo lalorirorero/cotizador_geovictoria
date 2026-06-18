@@ -358,20 +358,21 @@ function buildProposalHtml({
     });
   };
 
-  // El descuento del plan mensual (recurrente) se aplica POR LÍNEA en los items
-  // recurrentes (igual que el de instalación), para que el desglose sea la única
-  // fuente del descuento y los totales muestren solo el precio final.
+  // El descuento del plan mensual (recurrente) se aplica POR LÍNEA, pero SOLO a
+  // los servicios de software (asistencia), NO al arriendo de hardware (reloj u
+  // otros equipos/accesorios en arriendo), aunque sean recurrentes. Regla
+  // comercial. El desglose es la única fuente del descuento.
   const optRec = descRecPct > 0 ? { factorLinea: factorRec, descLineaPct: descRecPct } : {};
   servicios.forEach((s) =>
     pushFila(s.nombre, "Pago mensual", descServicio(s), s.precioUnit, s.cantidad, s.subtotalUF, true, optRec),
   );
   equipos.forEach((e) => {
     const rec = e.tipo === "Arriendo";
-    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", descEquipo(e), e.precioUnit, e.cantidad, e.subtotalUF, rec, rec ? optRec : {});
+    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", descEquipo(e), e.precioUnit, e.cantidad, e.subtotalUF, rec, {});
   });
   accesorios.forEach((a) => {
     const rec = a.tipo === "Arriendo";
-    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", descEquipo(a), a.precioUnit, a.cantidad, a.subtotalUF, rec, rec ? optRec : {});
+    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", descEquipo(a), a.precioUnit, a.cantidad, a.subtotalUF, rec, {});
   });
   serviciosAsoc.forEach((s) => {
     const nombre = s.zona ? `${s.nombre} (${s.zona})` : s.nombre;

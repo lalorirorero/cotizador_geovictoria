@@ -150,18 +150,25 @@ function computePaymentAmounts(items, descuentos = 0, options = {}) {
     const subtotalAjustado = subtotal * factorLinea;
 
     if (recurrente) {
-      recurringNet += subtotalAjustado;
-      if (afecto) recurringIvaBase += subtotalAjustado;
+      // El descuento negociado del plan mensual aplica SOLO al plan de software
+      // (asistencia), NO al arriendo de hardware (reloj u otros equipos en
+      // arriendo), aunque ambos vivan en el bucket recurrente. Regla comercial.
+      const esArriendoHardware = String(row?.modalidad || "")
+        .toLowerCase()
+        .includes("arriendo");
+      const factorPlan = esArriendoHardware ? 1 : factorRec;
+      recurringNet += subtotalAjustado * factorPlan;
+      if (afecto) recurringIvaBase += subtotalAjustado * factorPlan;
     } else {
       oneShotNet += subtotalAjustado;
       if (afecto) oneShotIvaBase += subtotalAjustado;
     }
   });
 
-  // Descuento recurrente: aplica al bucket recurrente después de los descuentos
-  // por línea (que no son recurrentes; quedaron en one-shot).
-  const recurringNetDisc = recurringNet * factorRec;
-  const recurringIvaBaseDisc = recurringIvaBase * factorRec;
+  // El descuento recurrente ya se aplicó por línea (solo al plan de software, no
+  // al arriendo de hardware), así que el bucket recurrente ya viene neto.
+  const recurringNetDisc = recurringNet;
+  const recurringIvaBaseDisc = recurringIvaBase;
 
   const oneShotIva = includeIva ? oneShotIvaBase * IVA_RATE : 0;
   const recurringIva = includeIva ? recurringIvaBaseDisc * IVA_RATE : 0;
