@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@sparticuz/chromium": "131.0.0",
+    "@vercel/functions": "^1.0.0",
     "puppeteer-core": "23.11.1"
   }
 }

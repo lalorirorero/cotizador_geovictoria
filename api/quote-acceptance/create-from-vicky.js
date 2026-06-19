@@ -8,6 +8,19 @@ const { uploadPdfToSupabase } = require("../_shared/supabase-pdf-upload");
 const { buildProposalHtml } = require("../_shared/proposal-html-builder");
 const { descuentosHasta } = require("../_shared/discount-engine");
 
+// waitUntil: corre trabajo en segundo plano DESPUÉS de responder, dentro de la
+// misma invocación (Vercel mantiene viva la función hasta que termine). Se usa
+// para generar el PDF + correo sin bloquear la respuesta a Vicky. Si el paquete
+// no estuviera disponible, cae a un fallback best-effort (la promesa corre igual).
+let waitUntil;
+try {
+  ({ waitUntil } = require("@vercel/functions"));
+} catch (_e) {
+  waitUntil = (p) => {
+    Promise.resolve(p).catch(() => {});
+  };
+}
+
 const VICKY_OWNER_EMAIL = toText(process.env.VICKY_OWNER_EMAIL) || "egomez@geovictoria.com";
 const VICKY_FROM_EMAIL = toText(process.env.VICKY_FROM_EMAIL) || "vicky@geovictoria.com";
 const VICKY_REPLY_TO_EMAIL = toText(process.env.VICKY_REPLY_TO_EMAIL) || "egomez@geovictoria.com";
@@ -998,83 +1011,87 @@ module.exports = async function handler(req, res) {
     });
     const acceptanceUrl = `${config.baseUrl}/quote-acceptance.html?token=${encodeURIComponent(token)}`;
 
-    // ── PDF ──
-    stage = "render_pdf";
-    // El correlativo Numero_Cotizacion (auto-número de Zoho) se genera al crear
-    // el registro; lo leemos para mostrarlo en el PDF (sin el prefijo "COT").
-    const numeroCotizacion = await getRecordWithFields(config.quoteModule, quoteId, ["Numero_Cotizacion"])
-      .then((r) => toText(r?.Numero_Cotizacion))
-      .catch(() => "");
-    const html = buildProposalHtml({
-      cliente: {
-        ...cliente,
-        ejecutivo: EJEC_NOMBRE,
-        ejecutivoEmail: EJEC_EMAIL,
-        ejecutivoTelefono: EJEC_TELEFONO,
-      },
-      cotizacion,
-      acceptanceUrl,
-      cotizacionId: numeroParaPdf(numeroCotizacion, quoteId),
-      validezHasta: new Date(expMs).toISOString(),
-      descuentos: descIniciales,
-      condicionDiscursiva: condicionDiscursivaInicial,
-    });
-    const pdfBuffer = await htmlToPdfBuffer(html, {
-      format: "Letter",
-      margin: "0",
-    });
-
-    stage = "upload_pdf";
-    const { pdfUrl } = await uploadPdfToSupabase({
-      pdfBuffer,
-      quoteId,
-      empresa: cliente.empresa,
-    });
-
-    stage = "update_quote_urls";
+    // El link de aceptación es por token y NO necesita el PDF. Marcamos la
+    // cotización como "Enviada" con su link y le respondemos a Vicky de
+    // INMEDIATO; el PDF (Chromium headless, lo pesado) + el correo se generan en
+    // segundo plano con waitUntil. Así la respuesta baja de ~40-60s a un par de
+    // segundos y el link llega siempre (antes el render del PDF la timeouteaba).
+    stage = "update_quote_acceptance";
     await updateRecord(config.quoteModule, quoteId, {
       [config.quoteAcceptanceUrlField]: acceptanceUrl,
-      [config.quotePdfUrlField]: pdfUrl,
       [config.quoteStatusField]: "Enviada",
     }, true);
 
-    // Email (no bloqueante)
-    stage = "send_email";
-    try {
-      const tieneReloj = (cotizacion.items || []).some(
-        (it) => it && it.tipo === "hardware",
-      );
-      await sendQuoteEmailViaZoho({
-        quoteModule: config.quoteModule,
-        quoteId,
-        fromEmail: VICKY_FROM_EMAIL,
-        replyToEmail: EJEC_EMAIL,
-        ccEmail: EJEC_EMAIL,
-        // Copias adicionales opcionales que vengan en el payload (body.cc).
-        ccEmails: Array.isArray(body.cc) ? body.cc : [],
-        toEmail: cliente.contactoEmail,
-        toName: cliente.contacto,
-        subject: `Tu cotización GeoVictoria — ${cliente.empresa}`,
-        htmlBody: buildEmailHtml({
-          contacto: cliente.contacto,
-          empresa: cliente.empresa,
-          pdfUrl,
-          tieneReloj,
-        }),
-      });
-    } catch (emailErr) {
-      console.error("[create-from-vicky] Email failed (no bloqueante):", emailErr.message);
-    }
-
-    return sendJson(res, 200, {
+    sendJson(res, 200, {
       ok: true,
       quoteId, dealId, accountId, contactId,
       acceptanceUrl,
-      pdfUrl,
+      pdfUrl: "",
+      pdfPendiente: true,
       sectorAplicado: sectorParaZoho,
       reuse,
       expiresAt: new Date(expMs).toISOString(),
     });
+
+    // ── PDF + correo en segundo plano (no bloquea la respuesta a Vicky) ──
+    waitUntil(
+      (async () => {
+        // El correlativo Numero_Cotizacion (auto-número de Zoho) se genera al
+        // crear el registro; lo leemos para mostrarlo en el PDF (sin "COT").
+        const numeroCotizacion = await getRecordWithFields(config.quoteModule, quoteId, ["Numero_Cotizacion"])
+          .then((r) => toText(r?.Numero_Cotizacion))
+          .catch(() => "");
+        const html = buildProposalHtml({
+          cliente: {
+            ...cliente,
+            ejecutivo: EJEC_NOMBRE,
+            ejecutivoEmail: EJEC_EMAIL,
+            ejecutivoTelefono: EJEC_TELEFONO,
+          },
+          cotizacion,
+          acceptanceUrl,
+          cotizacionId: numeroParaPdf(numeroCotizacion, quoteId),
+          validezHasta: new Date(expMs).toISOString(),
+          descuentos: descIniciales,
+          condicionDiscursiva: condicionDiscursivaInicial,
+        });
+        const pdfBuffer = await htmlToPdfBuffer(html, { format: "Letter", margin: "0" });
+        const { pdfUrl } = await uploadPdfToSupabase({
+          pdfBuffer,
+          quoteId,
+          empresa: cliente.empresa,
+        });
+        await updateRecord(config.quoteModule, quoteId, {
+          [config.quotePdfUrlField]: pdfUrl,
+        }, true);
+        const tieneReloj = (cotizacion.items || []).some(
+          (it) => it && it.tipo === "hardware",
+        );
+        await sendQuoteEmailViaZoho({
+          quoteModule: config.quoteModule,
+          quoteId,
+          fromEmail: VICKY_FROM_EMAIL,
+          replyToEmail: EJEC_EMAIL,
+          ccEmail: EJEC_EMAIL,
+          ccEmails: Array.isArray(body.cc) ? body.cc : [],
+          toEmail: cliente.contactoEmail,
+          toName: cliente.contacto,
+          subject: `Tu cotización GeoVictoria — ${cliente.empresa}`,
+          htmlBody: buildEmailHtml({
+            contacto: cliente.contacto,
+            empresa: cliente.empresa,
+            pdfUrl,
+            tieneReloj,
+          }),
+        });
+      })().catch((bgErr) =>
+        console.error(
+          "[create-from-vicky] PDF/correo en segundo plano falló:",
+          bgErr?.message || bgErr,
+        ),
+      ),
+    );
+    return;
 
   } catch (error) {
     console.error(`[create-from-vicky] ERROR en stage=${stage}:`, error);
