@@ -887,6 +887,36 @@
         border-top-color: #00aff2;
         animation: gv-spin 0.9s linear infinite;
       }
+      #preparingOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(160deg, #ffffff 0%, #eff8ff 62%, #e9f5ff 100%);
+        text-align: center;
+        padding: 24px;
+        transition: opacity 0.3s ease;
+      }
+      #preparingOverlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+        display: none;
+      }
+      #preparingOverlay .prep-title {
+        margin: 4px 0 2px;
+        font-size: 21px;
+        font-weight: 700;
+        color: #0f2b47;
+      }
+      #preparingOverlay .prep-text {
+        margin: 0;
+        font-size: 14px;
+        color: #374151;
+        max-width: 320px;
+      }
       .redirect-title {
         margin: 0 0 6px;
         font-size: 24px;
@@ -1078,6 +1108,11 @@
     </style>
   </head>
   <body>
+    <div id="preparingOverlay">
+      <div class="redirect-spinner"></div>
+      <h2 class="prep-title">Preparando tu cotización…</h2>
+      <p class="prep-text">Estamos cargando los datos de tu cotización en línea. Esto toma solo unos segundos.</p>
+    </div>
     <div class="wrap">
       <section class="hero">
         <div class="hero-top">
@@ -2375,6 +2410,12 @@
           setStatus("No disponible", "warn");
           setMessage((error && error.message) || "No se pudo cargar la cotizacion.", "error");
           updateJourneyState();
+        } finally {
+          // Ocultar el overlay de carga apenas la cotización quedó cargada (o
+          // falló): así el cliente no ve el "Sin datos" inicial mientras llega
+          // la data de Zoho.
+          const ov = document.getElementById("preparingOverlay");
+          if (ov) ov.classList.add("hidden");
         }
       }
 
