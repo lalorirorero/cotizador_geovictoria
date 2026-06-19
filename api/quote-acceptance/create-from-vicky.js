@@ -46,6 +46,15 @@ const EJEC_WHATSAPP = "56939372058";
 const EJEC_OWNER_ID = "3525045000426432190";
 const EJEC_OWNER = { id: EJEC_OWNER_ID };
 
+// Cuentas internas de GeoVictoria que NUNCA deben reusarse al deduplicar por RUT.
+// Un RUT basura/de prueba puede chocar con una cuenta interna y terminar asociando
+// la cotización de un prospecto a esa cuenta (caso real: el dedup pegó el lead a la
+// cuenta interna "GeoVictoria"). Configurable vía env (lista separada por comas).
+const INTERNAL_ACCOUNT_NAMES = (process.env.VICKY_INTERNAL_ACCOUNT_NAMES || "GeoVictoria")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
 // Documentos hosteados (URLs permanentes en Supabase) que van como botones de
 // descarga en el correo de la cotización.
 const DOC_CERTIFICACION = "https://cotizacion.geovictoria.com/pdf/assets/certificacion-dt.pdf";
@@ -416,15 +425,29 @@ async function findAccountIdByRut(rutEmpresa, empresaName) {
   const query = `select id, Account_Name from Accounts where RUT_Empresa in (${escaped}) limit 10`;
   const rows = await executeCoqlQuery(query);
   if (!rows.length) return null;
+  // Guardia anti-cuenta-interna: descarta cuentas internas de GeoVictoria para no
+  // asociar la cotización de un prospecto a una cuenta interna por una colisión de
+  // RUT (típicamente un RUT de prueba/basura). Si solo matchearon internas, se
+  // trata como "sin match" (el caller lanzará un error claro en vez de pegarse a
+  // la cuenta interna).
+  const esInterna = (name) =>
+    INTERNAL_ACCOUNT_NAMES.includes(String(name || "").trim().toLowerCase());
+  const externas = rows.filter((r) => !esInterna(r.Account_Name));
+  if (!externas.length) {
+    console.warn(
+      `[create-from-vicky] dedup por RUT '${rutEmpresa}' solo matcheó cuenta(s) interna(s); se ignora para no asociar la cotización a una cuenta interna de GeoVictoria.`,
+    );
+    return null;
+  }
   // Si el RUT está en varias cuentas (dato sucio / colisión), preferimos la que
   // coincide con el nombre cotizado, para no asociar a otra empresa distinta.
   if (empresaName) {
     const norm = (s) => String(s || "").trim().toLowerCase();
     const target = norm(empresaName);
-    const byName = rows.find((r) => norm(r.Account_Name) === target);
+    const byName = externas.find((r) => norm(r.Account_Name) === target);
     if (byName) return toText(byName.id);
   }
-  return toText(rows[0]?.id) || null;
+  return toText(externas[0]?.id) || null;
 }
 
 async function findContactIdByEmail(email) {
