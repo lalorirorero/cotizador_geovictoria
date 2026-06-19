@@ -1111,3 +1111,8 @@ module.exports.buildSubformItems = buildSubformItems;
 // Exponemos buildEmailHtml para que el preview reuse EXACTAMENTE el mismo correo
 // que producción (sin mantener dos copias del diseño).
 module.exports.buildEmailHtml = buildEmailHtml;
+
+// Exponemos el envío del correo de cotización (vía Zoho send_mail) para que el
+// cron de respaldo del PDF (backfill-pdf.js) reenvíe el MISMO correo cuando el
+// render en segundo plano falló y el cliente nunca lo recibió.
+module.exports.sendQuoteEmailViaZoho = sendQuoteEmailViaZoho;

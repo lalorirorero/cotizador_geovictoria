@@ -222,3 +222,11 @@ module.exports = async function handler(req, res) {
     });
   }
 };
+
+// Reutilizados por el cron de respaldo del PDF (backfill-pdf.js), que regenera
+// el PDF de las cotizaciones cuyo render en segundo plano falló. Exportarlos
+// evita una tercera copia de la misma lógica de mapeo.
+module.exports.subformACotizacionItems = subformACotizacionItems;
+module.exports.buildClienteParaHtml = buildClienteParaHtml;
+module.exports.numeroParaPdf = numeroParaPdf;
+module.exports.getUFActualSafe = getUFActualSafe;

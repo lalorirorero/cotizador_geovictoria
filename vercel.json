@@ -24,6 +24,10 @@
       "memory": 1536,
       "maxDuration": 60
     },
+    "api/quote-acceptance/backfill-pdf.js": {
+      "memory": 1536,
+      "maxDuration": 60
+    },
     "api/quote-acceptance/consultar-siguiente-descuento.js": {
       "memory": 1024,
       "maxDuration": 30
@@ -45,6 +49,12 @@
       "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/quote-acceptance/backfill-pdf",
+      "schedule": "*/10 * * * *"
+    }
+  ],
   "routes": [
     {
       "src": "^/pdf/([^/]+)/([^/]+)$",
