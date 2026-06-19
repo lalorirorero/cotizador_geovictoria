@@ -136,7 +136,15 @@ function fmtCLP(n) {
 // Mensaje que Vicky copia tal cual para ofrecer el descuento en la
 // conversación (negociación), con el precio recalculado. Mismo formato en el
 // flujo referencial (preform) y en el post-cotización.
-function buildMensajeNegociacion(escalon, amounts, esUltimo = false) {
+// opts:
+//   - conciso: oferta NO es la primera de la negociación → solo el nuevo precio,
+//     sin repetir el detalle largo ("incluye el primer mes", "desde el 2º mes",
+//     "IVA incluido"), que ya se explicó en la primera oferta.
+//   - esPrimerDescuentoPlan: este es el PRIMER tramo de descuento del PLAN → se
+//     muestra la condición de los 6 meses. En los tramos siguientes NO se repite.
+function buildMensajeNegociacion(escalon, amounts, esUltimo = false, opts = {}) {
+  const conciso = opts.conciso === true;
+  const esPrimerDescuentoPlan = opts.esPrimerDescuentoPlan !== false; // default: true
   const pagoInicial = fmtCLP(amounts.oneShotClp);
   const mensual = fmtCLP(amounts.recurringClp);
 
@@ -157,13 +165,18 @@ function buildMensajeNegociacion(escalon, amounts, esUltimo = false) {
       ? `${pagoInicial} (incluye el primer mes)`
       : pagoInicial;
 
-  const partes = [
-    oferta,
-    `Con eso tu pago inicial queda en ${inicialDetalle} y, desde el 2º mes, el plan mensual recurrente en ${mensual}/mes (IVA incluido).`,
-  ];
-  // Si hay descuento sobre el PLAN, aclarar que aplica solo los primeros N meses.
+  const partes = [oferta];
+  if (conciso) {
+    partes.push(`Con eso queda en ${mensual}/mes (pago inicial ${pagoInicial}).`);
+  } else {
+    partes.push(
+      `Con eso tu pago inicial queda en ${inicialDetalle} y, desde el 2º mes, el plan mensual recurrente en ${mensual}/mes (IVA incluido).`,
+    );
+  }
+  // La condición de los 6 meses se dice UNA sola vez: solo en el primer tramo de
+  // descuento del plan, para no repetirla en cada oferta.
   const tieneDescPlan = Number(amounts?.descuentos?.recurrentePct || 0) > 0;
-  if (tieneDescPlan) {
+  if (tieneDescPlan && esPrimerDescuentoPlan) {
     partes.push(
       `Ese precio con descuento en el plan aplica los primeros ${MESES_DESCUENTO_PLAN} meses; desde el mes ${MESES_DESCUENTO_PLAN + 1} el plan vuelve a su tarifa normal.`,
     );

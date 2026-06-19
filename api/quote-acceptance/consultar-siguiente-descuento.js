@@ -128,6 +128,16 @@ module.exports = async function handler(req, res) {
     const { descuentos } = descuentosHasta(quote, config, i);
     const amounts = previewAmounts(quote, config, descuentos);
 
+    // ¿Hubo oferta previa? (no repetir el detalle largo) y ¿primer descuento del
+    // plan? (la condición de 6 meses se dice una vez).
+    const previo = descuentosHasta(quote, config, i - 1).descuentos;
+    const huboOfertaPrevia =
+      (previo.recurrentePct || 0) > 0 ||
+      (previo.instalacionRMPct || 0) > 0 ||
+      (previo.instalacionRegionPct || 0) > 0;
+    const esPrimerDescuentoPlan =
+      String(escalon.tipo).startsWith("recurrente") && (previo.recurrentePct || 0) === 0;
+
     return sendJson(res, 200, {
       ok: true,
       escalon: {
@@ -145,6 +155,7 @@ module.exports = async function handler(req, res) {
         escalon,
         amounts,
         !hayEscalonDespues(quote, config, i),
+        { conciso: huboOfertaPrevia, esPrimerDescuentoPlan },
       ),
     });
   } catch (error) {
