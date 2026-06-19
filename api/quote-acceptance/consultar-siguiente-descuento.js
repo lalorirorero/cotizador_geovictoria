@@ -89,6 +89,22 @@ module.exports = async function handler(req, res) {
       return sendJson(res, 404, { ok: false, error: "Cotizacion no encontrada." });
     }
 
+    // Cotización ya ACEPTADA: el precio quedó cerrado, no se negocia más descuento
+    // sobre un trato cerrado. Antes esto computaba el escalón igual (o reventaba) y
+    // Vicky lo mostraba como "problema técnico" y derivaba (caso real: pidieron
+    // descuento sobre una cotización ya aceptada y en el tope). Devolvemos un estado
+    // CLARO (no error técnico) para que Vicky diga que ya está aceptada al mejor precio.
+    stage = "check_estado";
+    const estadoNorm = toText(quote?.[config.quoteStatusField]).toLowerCase();
+    if (estadoNorm.includes("acept")) {
+      return sendJson(res, 200, {
+        ok: false,
+        error: "YA_ACEPTADA",
+        ya_aceptada: true,
+        tope_alcanzado: true,
+      });
+    }
+
     // El puntero de negociación nunca retrocede por debajo de lo comiteado.
     stage = "elegir_escalon";
     const commitIdx = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
