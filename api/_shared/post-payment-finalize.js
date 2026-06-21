@@ -16,6 +16,7 @@ const { runOnboardingHandoff } = require("./onboarding-handoff");
 const { runNdvHandoff } = require("./ndv-handoff");
 const { runNdvSubformSetup } = require("./ndv-subforms");
 const { normalizeEmail } = require("./verification-token");
+const { notifyQuoteEvent } = require("./quote-internal-notify");
 const { sanitizeItems, clampDescuentoPct, computePaymentAmounts } = require("./quote-pricing");
 const {
   searchPaymentsByExternalReference,
@@ -132,6 +133,14 @@ async function finalizeAfterPayment({ config, quoteId, dealId }) {
         ndv = { status: "error", error: toText(error?.message || error) };
       }
     }
+  }
+
+  // Notificación interna "pagada" (best-effort, no bloquea la finalización).
+  // Solo en la PRIMERA finalización (onboarding nuevo): si fue reusado, este
+  // pago ya se había finalizado antes → no re-notificamos (anti-duplicado entre
+  // el webhook y el polling de status).
+  if (handoffResult?.reused !== true) {
+    await notifyQuoteEvent({ config, quote, quoteId, evento: "pagada" });
   }
 
   return {

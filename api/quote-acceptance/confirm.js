@@ -5,6 +5,7 @@ const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
 const { runOnboardingHandoff } = require("../_shared/onboarding-handoff");
 const { runNdvHandoff } = require("../_shared/ndv-handoff");
 const { runNdvSubformSetup } = require("../_shared/ndv-subforms");
+const { notifyQuoteEvent } = require("../_shared/quote-internal-notify");
 const {
   verifyVerificationToken,
   signVerificationPayload,
@@ -497,6 +498,10 @@ export default async function handler(req, res) {
         updateMap[config.quoteEmailVerifiedAtField] = acceptedAtIso;
       }
       await updateRecordBestEffort(config.quoteModule, payload.quoteId, updateMap, true);
+
+      // Notificación interna al equipo (best-effort, no bloquea la aceptación).
+      // Solo en la PRIMERA aceptación (estamos dentro de !alreadyAccepted).
+      await notifyQuoteEvent({ config, quote, quoteId: payload.quoteId, evento: "aceptada" });
     }
 
     // Forma de pago elegida por el cliente: se deja como NOTA en la cotizacion
