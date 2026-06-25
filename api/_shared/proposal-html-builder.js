@@ -458,11 +458,44 @@ function buildProposalHtml({
   const iniIva = uniIva + recIva;
   const iniTot = uniTot + recTot;
   const iniTotUF = uniTotUF + recTotUF;
+  // Etiqueta dinámica del pago único: lista SOLO los conceptos que la cotización
+  // realmente incluye (compra de equipos / instalación / envío / servicios), para
+  // no mostrar "instalación" cuando no aplica (causa de confusión de clientes).
+  const conceptosUnico = [];
+  if (
+    [...equipos, ...accesorios].some(
+      (x) => x && x.tipo !== "Arriendo" && Number(x.subtotalUF || 0) > 0,
+    )
+  ) {
+    conceptosUnico.push("equipos");
+  }
+  if (
+    serviciosAsoc.some(
+      (s) => CODIGOS_INSTALACION_PDF.has(String(s.codigo || "")) && Number(s.subtotalUF || 0) > 0,
+    )
+  ) {
+    conceptosUnico.push("instalación");
+  }
+  if (serviciosAsoc.some((s) => /^envio/i.test(String(s.codigo || "")) && Number(s.subtotalUF || 0) > 0)) {
+    conceptosUnico.push("envío");
+  }
+  if (
+    serviciosAsoc.some((s) => {
+      const c = String(s.codigo || "");
+      return Number(s.subtotalUF || 0) > 0 && !CODIGOS_INSTALACION_PDF.has(c) && !/^envio/i.test(c);
+    })
+  ) {
+    conceptosUnico.push("servicios");
+  }
+  const etiquetaUnico = conceptosUnico.length
+    ? `Pago único (${conceptosUnico.join(", ")})`
+    : "Pago único";
+
   let totHtml = "";
   if (grpUni || grpRec) {
     totHtml += `<div class="tot-h">Pago inicial — al aceptar</div>`;
     if (grpUni) {
-      totHtml += `<div class="tr"><span>Pago único (equipos, instalación, servicios)</span><span>${formatCLP(uniNetoCLP)}<span class="uf-ref">${formatUF(uniUF)} UF</span></span></div>`;
+      totHtml += `<div class="tr"><span>${etiquetaUnico}</span><span>${formatCLP(uniNetoCLP)}<span class="uf-ref">${formatUF(uniUF)} UF</span></span></div>`;
     }
     if (grpRec) {
       totHtml += `<div class="tr"><span>Primer mes de servicio</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
