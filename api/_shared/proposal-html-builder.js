@@ -490,6 +490,24 @@ function buildProposalHtml({
     ? `Pago único (${conceptosUnico.join(", ")})`
     : "Pago único";
 
+  // Etiqueta dinámica del cobro mensual (recurrente): lista SOLO lo que el cliente
+  // paga mes a mes — el software (suscripción de los módulos) y el arriendo del
+  // hardware en modalidad Arriendo (reloj u otros equipos). Así el cliente entiende
+  // que el "Valor mensual" incluye el arriendo del reloj y no es solo el software.
+  const recHaySoftware = servicios.some((s) => s && Number(s.subtotalUF || 0) > 0);
+  let recHayReloj = false;
+  let recHayOtroArriendo = false;
+  for (const x of [...equipos, ...accesorios]) {
+    if (!x || x.tipo !== "Arriendo" || Number(x.subtotalUF || 0) <= 0) continue;
+    if (String(x.nombre || "").toLowerCase().includes("reloj")) recHayReloj = true;
+    else recHayOtroArriendo = true;
+  }
+  const conceptosRec = [];
+  if (recHaySoftware) conceptosRec.push("software");
+  if (recHayReloj) conceptosRec.push("arriendo del reloj");
+  else if (recHayOtroArriendo) conceptosRec.push("arriendo de equipos");
+  const etiquetaRec = conceptosRec.length ? ` (${conceptosRec.join(" + ")})` : "";
+
   let totHtml = "";
   if (grpUni || grpRec) {
     totHtml += `<div class="tot-h">Pago inicial — al aceptar</div>`;
@@ -497,7 +515,7 @@ function buildProposalHtml({
       totHtml += `<div class="tr"><span>${etiquetaUnico}</span><span>${formatCLP(uniNetoCLP)}<span class="uf-ref">${formatUF(uniUF)} UF</span></span></div>`;
     }
     if (grpRec) {
-      totHtml += `<div class="tr"><span>Primer mes de servicio</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
+      totHtml += `<div class="tr"><span>Primer mes de servicio${etiquetaRec}</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
     }
     totHtml += `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(iniIva)}</span></div>`;
     totHtml += `<div class="tr grand"><span>Total a pagar ahora</span><span>${formatCLP(iniTot)}<span class="uf-ref">${formatUF(iniTotUF)} UF</span></span></div>`;
@@ -505,7 +523,7 @@ function buildProposalHtml({
     totHtml += `<div class="tot-h">Total</div><div class="tr grand"><span>Total</span><span>${formatCLP(0)}</span></div>`;
   }
   if (grpRec) {
-    totHtml += `<div class="tot-h" style="margin-top:6px">Valor mensual del servicio — desde el 2&ordm; mes</div>`;
+    totHtml += `<div class="tot-h" style="margin-top:6px">Valor mensual del servicio${etiquetaRec} — desde el 2&ordm; mes</div>`;
     totHtml += `<div class="tr"><span>Neto</span><span>${formatCLP(recNetoCLP)}<span class="uf-ref">${formatUF(recUF)} UF</span></span></div>`;
     totHtml += `<div class="tr"><span>IVA (19%)</span><span>${formatCLP(recIva)}</span></div>`;
     totHtml += `<div class="tr grand"><span>Total mensual (referencial)</span><span>${formatCLP(recTot)}/mes<span class="uf-ref">${formatUF(recTotUF)} UF</span></span></div>`;
