@@ -32,6 +32,7 @@ const { signAcceptancePayload } = require("../_shared/acceptance-token");
 const { shouldNotify } = require("../_shared/quote-internal-notify");
 const { validateEmail } = require("../_shared/verification-mailer");
 const { zohoApiFetch } = require("../_shared/zoho-auth");
+const { hayEscalonDespues } = require("../_shared/discount-engine");
 
 const FLAG_ENABLED =
   toText(process.env.REACTIVATION_EMAIL_ENABLED).toLowerCase() === "true";
@@ -257,6 +258,20 @@ module.exports = async function handler(req, res) {
     const empresa = toText(quote?.Name);
     if (!shouldNotify({ clientEmail: toEmail, empresa })) {
       return sendJson(res, 200, { ok: true, skipped: "correo interno/de prueba" });
+    }
+
+    // Correctitud: solo reenviamos la cotización si YA está en su descuento
+    // máximo (el PDF vigente refleja el mejor precio). Si todavía queda descuento
+    // por dar, NO mandamos este PDF —tendría un precio peor que el que Vicky le va
+    // a ofrecer—; ese gancho va por WhatsApp, donde Vicky aplica el descuento y
+    // recién ahí entrega el PDF nuevo. Mismo criterio que `topeAlcanzado`.
+    const commitIdx = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
+    const enMaximo = !hayEscalonDespues(quote, config, commitIdx - 1);
+    if (!enMaximo) {
+      return sendJson(res, 200, {
+        ok: true,
+        skipped: "descuento no esta en el maximo: reenganche del precio via WhatsApp",
+      });
     }
 
     const acceptanceUrl = await resolverAcceptanceUrl(quote, quoteId, config);
