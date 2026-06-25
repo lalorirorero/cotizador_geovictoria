@@ -459,34 +459,33 @@ function buildProposalHtml({
   const iniTot = uniTot + recTot;
   const iniTotUF = uniTotUF + recTotUF;
   // Etiqueta dinámica del pago único: lista SOLO los conceptos que la cotización
-  // realmente incluye (compra de equipos / instalación / envío / servicios), para
-  // no mostrar "instalación" cuando no aplica (causa de confusión de clientes).
-  const conceptosUnico = [];
-  if (
-    [...equipos, ...accesorios].some(
-      (x) => x && x.tipo !== "Arriendo" && Number(x.subtotalUF || 0) > 0,
-    )
-  ) {
-    conceptosUnico.push("equipos");
+  // realmente cobra como pago único, clasificando cada ítem por su CÓDIGO/nombre
+  // (no por el array): el envío puede llegar como "hardware/Venta" (sobre todo al
+  // regenerar desde Zoho), así que hay que distinguirlo de un equipo comprado de
+  // verdad. El arriendo es recurrente (no es pago único). Evita decir
+  // "instalación"/"equipos" cuando no aplican (causa de confusión de clientes).
+  const esEnvioItem = (cod, nom) => {
+    const c = String(cod || "").toLowerCase();
+    const n = String(nom || "").toLowerCase();
+    return (
+      c.includes("envio") || c.includes("despacho") ||
+      n.includes("envío") || n.includes("envio") || n.includes("despacho")
+    );
+  };
+  const conceptosSet = new Set();
+  for (const x of [...equipos, ...accesorios]) {
+    if (!x || x.tipo === "Arriendo" || Number(x.subtotalUF || 0) <= 0) continue;
+    if (esEnvioItem(x.codigo, x.nombre)) conceptosSet.add("envío");
+    else conceptosSet.add("equipos");
   }
-  if (
-    serviciosAsoc.some(
-      (s) => CODIGOS_INSTALACION_PDF.has(String(s.codigo || "")) && Number(s.subtotalUF || 0) > 0,
-    )
-  ) {
-    conceptosUnico.push("instalación");
+  for (const s of serviciosAsoc) {
+    if (!s || Number(s.subtotalUF || 0) <= 0) continue;
+    if (CODIGOS_INSTALACION_PDF.has(String(s.codigo || ""))) conceptosSet.add("instalación");
+    else if (esEnvioItem(s.codigo, s.nombre)) conceptosSet.add("envío");
+    else conceptosSet.add("servicios");
   }
-  if (serviciosAsoc.some((s) => /^envio/i.test(String(s.codigo || "")) && Number(s.subtotalUF || 0) > 0)) {
-    conceptosUnico.push("envío");
-  }
-  if (
-    serviciosAsoc.some((s) => {
-      const c = String(s.codigo || "");
-      return Number(s.subtotalUF || 0) > 0 && !CODIGOS_INSTALACION_PDF.has(c) && !/^envio/i.test(c);
-    })
-  ) {
-    conceptosUnico.push("servicios");
-  }
+  const ORDEN_CONCEPTOS = ["equipos", "instalación", "envío", "servicios"];
+  const conceptosUnico = ORDEN_CONCEPTOS.filter((c) => conceptosSet.has(c));
   const etiquetaUnico = conceptosUnico.length
     ? `Pago único (${conceptosUnico.join(", ")})`
     : "Pago único";
