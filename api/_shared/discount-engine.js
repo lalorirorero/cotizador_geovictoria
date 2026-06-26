@@ -160,17 +160,22 @@ function buildMensajeNegociacion(escalon, amounts, esUltimo = false, opts = {}) 
   // El pago inicial incluye el primer mes cuando se calculó con
   // includeFirstMonth (lo aclaramos para que el cliente no lo lea como un
   // cobro mensual aparte del inicial).
-  const inicialDetalle =
-    amounts.firstMonthClp > 0
-      ? `${pagoInicial} (incluye el primer mes)`
-      : pagoInicial;
+  // ¿El pago inicial difiere del mensual? Solo difiere cuando hay cargos de UNA
+  // vez (compra de equipos, instalación, envío). En planes solo-software el pago
+  // inicial = el primer mes = el mensual, así que mostrar ambos números (y el
+  // "desde el 2º mes…") es redundante: se dice el mismo monto dos veces.
+  const hayCargoInicial =
+    Math.round(amounts.oneShotClp) !== Math.round(amounts.recurringClp);
 
   const partes = [oferta];
-  if (conciso) {
+  if (!hayCargoInicial) {
+    // Solo-software: un solo número, corto.
+    partes.push(`Con eso queda en ${mensual}/mes (IVA incluido).`);
+  } else if (conciso) {
     partes.push(`Con eso queda en ${mensual}/mes (pago inicial ${pagoInicial}).`);
   } else {
     partes.push(
-      `Con eso tu pago inicial queda en ${inicialDetalle} y, desde el 2º mes, el plan mensual recurrente en ${mensual}/mes (IVA incluido).`,
+      `Con eso el pago inicial queda en ${pagoInicial} (incluye el primer mes) y luego ${mensual}/mes (IVA incluido).`,
     );
   }
   // La condición de los 6 meses se dice UNA sola vez: solo en el primer tramo de
