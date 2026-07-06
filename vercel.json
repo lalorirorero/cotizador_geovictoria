@@ -1,5 +1,9 @@
 {
   "functions": {
+    "api/creator-ndv-test.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
     "api/creator/create-draft-from-widget.js": {
       "memory": 1024,
       "maxDuration": 60
