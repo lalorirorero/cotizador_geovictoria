@@ -121,6 +121,41 @@ function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
   };
 }
 
+// Construye las filas de Form_Order (subform del maestro ALL_DATA) que enlazan
+// el NDV con sus sub-registros. Replica exactamente lo que hace CreateNextStep
+// en el wizard manual (mismas keys nombradas). Sin esto, Form_Order queda vacío
+// y RegeneratePdfJson no encuentra servicios → el PDF no se genera.
+//
+// Form_ID debe ir como STRING: los IDs de Creator son de 19 dígitos y como Number
+// de JS perderían precisión (> Number.MAX_SAFE_INTEGER).
+function buildFormOrderRows(createdServices) {
+  return createdServices
+    .filter((s) => toText(s.id))
+    .map((s, index) => ({
+      Number: index + 1,
+      Form_ID: toText(s.id),
+      Product_Name: toText(s.serviceName),
+      Product_Type: "Recurrente",
+      Selected: true,
+      FormName: "Servicio_Recurrente",
+    }));
+}
+
+// PATCH del campo Form_Order en el registro maestro (report ALL_DATA).
+async function patchMasterFormOrder(creatorConfig, ndvId, rows) {
+  const path = `/creator/v2.1/data/${encodeURIComponent(creatorConfig.ownerName)}/${encodeURIComponent(creatorConfig.appLinkName)}/report/${encodeURIComponent(creatorConfig.reportLinkName)}/${encodeURIComponent(toText(ndvId))}`;
+  const response = await creatorApiFetch(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: { Form_Order: rows } }),
+  });
+  const payload = await readJsonSafe(response);
+  if (!response.ok || isCreatorError(payload)) {
+    throw new Error(`Creator Form_Order PATCH failed (${response.status}): ${JSON.stringify(payload).slice(0, 300)}`);
+  }
+  return true;
+}
+
 function buildFinalizarFormularioRecord({ ndvId, ndvRecord }) {
   return {
     ID_Formulario: ndvId,
@@ -164,15 +199,37 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
   //    Creator dispara UpdatePdfJson1 (→ JsonPdf) y CreateGoToNextStep
   //    (→ UpdateFormOrderId en el NDV) automáticamente.
   let serviceCount = 0;
+  const createdServices = [];
   for (const serviceName of recurringServices) {
     try {
       const record = buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord });
       const serviceId = await createSubformRecord(creatorConfig, "Servicio_Recurrente", record);
       console.log(`[ndv-subforms] Servicio_Recurrente(${serviceName}) → id=${serviceId}`);
-      if (serviceId) serviceCount++;
+      if (serviceId) {
+        serviceCount++;
+        createdServices.push({ id: serviceId, serviceName });
+      }
     } catch (err) {
       console.warn(`[ndv-subforms] Servicio_Recurrente(${serviceName}) ERROR: ${err.message}`);
       errors.push(`Servicio_Recurrente(${serviceName}): ${err.message}`);
+    }
+  }
+
+  // 1b. Poblar Form_Order en el maestro ANTES de crear Finalizar_Formulario.
+  //     GeneratePDF se dispara al crear Finalizar (on add) y lee Form_Order; si
+  //     está vacío no arma el PDF. Al escribirlo aquí, esa única generación ya
+  //     ve los servicios. (Caso simple: solo recurrentes. Hardware/ventas se
+  //     agregarán en la extensión.)
+  let formOrderWritten = false;
+  const formOrderRows = buildFormOrderRows(createdServices);
+  if (formOrderRows.length > 0) {
+    try {
+      await patchMasterFormOrder(creatorConfig, ndvId, formOrderRows);
+      formOrderWritten = true;
+      console.log(`[ndv-subforms] Form_Order poblado con ${formOrderRows.length} fila(s)`);
+    } catch (err) {
+      console.warn(`[ndv-subforms] Form_Order PATCH ERROR: ${err.message}`);
+      errors.push(`Form_Order: ${err.message}`);
     }
   }
 
@@ -191,10 +248,12 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
     errors.push(`Finalizar_Formulario: ${err.message}`);
   }
 
-  console.log(`[ndv-subforms] done serviceCount=${serviceCount} finalizarId=${finalizarId} errors=${JSON.stringify(errors)}`);
+  console.log(`[ndv-subforms] done serviceCount=${serviceCount} finalizarId=${finalizarId} formOrderWritten=${formOrderWritten} errors=${JSON.stringify(errors)}`);
   return {
     serviceCount,
     finalizarId,
+    formOrderWritten,
+    formOrderRows: formOrderRows.length,
     errors,
   };
 }
