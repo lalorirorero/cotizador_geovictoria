@@ -137,6 +137,92 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // ── Modo "freshCot": crea master como COTIZACIÓN (editable) y deja que el
+    //    workflow CreateNextStep arme Form_Order internamente al crear el
+    //    Servicio_Recurrente con FORM_STATUS=CREATED. SIN PATCH externo. ──
+    if (body.freshCot === true) {
+      const creatorConfig = getCreatorConfig();
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yyyy = String(now.getFullYear());
+      const creatorDate = `${dd}-${mm}-${yyyy}`;
+      const dataBase = `/creator/v2.1/data/${encodeURIComponent(creatorConfig.ownerName)}/${encodeURIComponent(creatorConfig.appLinkName)}`;
+
+      // 1) Master como Cotización
+      const masterRecord = {
+        Formulario: "Cotización",
+        FORM_STATUS: "BEING EDITED",
+        STATUS: "BORRADOR",
+        ESTADO_COT: "Vigente",
+        Nombre_del_documento: `TEST freshCot / ${yyyy}-${mm}-${dd}`,
+        CRM_Account: "3525045000633660939",
+        CRM_ACCOUNT_NAME: "Huellero company",
+        Correo_Vendedor: "adiazg@geovictoria.com",
+        Pa_s_Facturaci_n: "Chile",
+        Identificador_Tributario_Empresa: "20.788.061-2",
+        Moneda: "UF",
+        Linea_de_Negocio: "Telemarketing",
+        Servicio_Recurrente: "Control de Asistencia",
+        Servicios_Recurrentes: ["Control de Asistencia"],
+        Hito_de_Facturaci_n: "Cargando...",
+        N_Empleados_Compometidos: 10,
+        Cantidad_de_Usuarios: 10,
+        Cantidad_de_Usuarios_PDF: 10,
+        Plantilla_Tabla_de_Cobro: "Sin Plantilla",
+        Tabla_de_Cobro: [
+          { Modalidad: "Rango Fijo", Desde: 1, Hasta: 10, Valor: 1.39, Valor_Usuario_Adicional: 0.139 },
+        ],
+        IdDuplicatedMasterForm: 0,
+        Fecha_de_creaci_n: creatorDate,
+        fecha_uf_usd: creatorDate,
+      };
+      const mResp = await creatorApiFetch(`${dataBase}/form/${encodeURIComponent("Nota_de_Venta")}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: masterRecord }),
+      });
+      const mPayload = await readJson(mResp);
+      const ndvId = toText(mPayload?.data?.ID || mPayload?.data?.id);
+      out.steps.createMaster = { status: mResp.status, ndvId, payload: ndvId ? undefined : mPayload };
+      if (!ndvId) { res.statusCode = 500; res.end(JSON.stringify({ ...out, error: "sin ndvId" }, null, 2)); return; }
+
+      // 2) Servicio_Recurrente con FORM_STATUS=CREATED → dispara CreateNextStep (append interno de Form_Order)
+      const servicioRecord = {
+        ID_Formulario: ndvId,
+        Formulario: "Cotización",
+        Servicio_Recurrente: "Control de Asistencia",
+        FORM_STATUS: "CREATED",
+        N_Empleados_Compometidos: 10,
+        Cantidad_de_Usuarios: 10,
+        Cantidad_de_Usuarios_PDF: 10,
+        Tabla_de_Cobro: [
+          { Modalidad: "Rango Fijo", Desde: 1, Hasta: 10, Valor: 1.39, Valor_Usuario_Adicional: 0.139 },
+        ],
+        Moneda: "UF",
+        Periodicidad_de_Servicio: "Mensual",
+        Hito_de_Facturaci_n: "Cargando...",
+        Plantilla_Tabla_de_Cobro: "No hay Plantillas",
+        Descuento_Ejecutivo: 0,
+        Fecha_de_Inicio: creatorDate,
+        Linea_de_Negocio: "Telemarketing",
+        country: "Chile",
+        CAN_UPDATE_FIELDS: true,
+        isSimpleService: false,
+        NDV_STATUS: "BORRADOR",
+        IdDuplicatedMasterForm: 0,
+      };
+      const sResp = await creatorApiFetch(`${dataBase}/form/${encodeURIComponent("Servicio_Recurrente")}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: servicioRecord }),
+      });
+      const sPayload = await readJson(sResp);
+      out.steps.createServicio = { status: sResp.status, id: toText(sPayload?.data?.ID), code: sPayload?.code };
+
+      // 3) Ver si Form_Order se pobló solo (por CreateNextStep)
+      out.steps.ndvRecordAfter = await fetchNdvRecord(creatorConfig, ndvId);
+      out.ok = true;
+      out.reviewHint = `ID_NDV=${out.steps.ndvRecordAfter?.ID_NDV}; Form_Order_len=${out.steps.ndvRecordAfter?.Form_Order_len}`;
+      res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return;
+    }
+
     const quoteId = toText(body.quoteId);
     if (!quoteId) {
       res.statusCode = 400;
