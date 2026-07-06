@@ -59,6 +59,33 @@ module.exports = async function handler(req, res) {
 
   const base = `/creator/v2.1/meta/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}`;
 
+  // Lectura cruda de un registro por ID en cualquier reporte: ?raw=REPORT:ID
+  // Ej: ?raw=SERVICES_ALL_DATA:3783684000024667176  (ver JsonPdf del sub-registro)
+  if (req.query?.raw) {
+    try {
+      const [report, recId] = String(req.query.raw).split(":");
+      const path = `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/report/${encodeURIComponent(report)}/${encodeURIComponent(recId)}`;
+      const resp = await creatorApiFetch(path, { method: "GET" });
+      const payload = await readJson(resp);
+      const data = payload?.data || {};
+      out.ok = true;
+      out.raw = {
+        report, recId, status: resp.status,
+        Servicio_Recurrente: data.Servicio_Recurrente,
+        FORM_STATUS: data.FORM_STATUS,
+        JsonPdf_present: Boolean(data.JsonPdf),
+        JsonPdf: data.JsonPdf,
+        Tabla_de_Cobro_len: Array.isArray(data.Tabla_de_Cobro) ? data.Tabla_de_Cobro.length : 0,
+        N_Empleados_Compometidos: data.N_Empleados_Compometidos,
+        ID_Formulario: data.ID_Formulario,
+      };
+      res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return;
+    } catch (e) {
+      out.error = String((e && e.stack) || (e && e.message) || e);
+      res.statusCode = 500; res.end(JSON.stringify(out, null, 2)); return;
+    }
+  }
+
   // Búsqueda de un registro real por ID_NDV → vuelca Form_Order / FORM_STATUS / PDF.
   if (req.query?.record) {
     try {
