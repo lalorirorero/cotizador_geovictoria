@@ -68,6 +68,75 @@ module.exports = async function handler(req, res) {
   const out = { ok: false, steps: {} };
   try {
     const body = parseBody(req);
+
+    // ── Modo "fresh": crea un NDV maestro directo (sin CRM quote) y corre el
+    //    código REAL de runNdvSubformSetup para validar el fix de Form_Order. ──
+    if (body.fresh === true) {
+      const creatorConfig = getCreatorConfig();
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yyyy = String(now.getFullYear());
+      const creatorDate = `${dd}-${mm}-${yyyy}`;
+
+      // ndvRecord mínimo que consumen buildServicioRecurrenteRecord/Finalizar y
+      // que reproduce lo que produciría runNdvHandoff para Huellero (caso simple).
+      const ndvRecord = {
+        Formulario: "Nota de Venta",
+        FORM_STATUS: "CREATED",
+        STATUS: "PENDIENTE",
+        Nombre_del_documento: `TEST Form_Order fix / ${yyyy}-${mm}-${dd}`,
+        CRM_Account: "3525045000633660939",
+        CRM_ACCOUNT_NAME: "Huellero company",
+        Correo_Vendedor: "adiazg@geovictoria.com",
+        Pa_s_Facturaci_n: "Chile",
+        Identificador_Tributario_Empresa: "20.788.061-2",
+        Moneda: "UF",
+        Linea_de_Negocio: "Telemarketing",
+        Servicio_Recurrente: "Control de Asistencia",
+        Servicios_Recurrentes: ["Control de Asistencia"],
+        Hito_de_Facturaci_n: "Cargando...",
+        N_Empleados_Compometidos: 10,
+        Cantidad_de_Usuarios: 10,
+        Cantidad_de_Usuarios_PDF: 10,
+        Plantilla_Tabla_de_Cobro: "Sin Plantilla",
+        Tabla_de_Cobro: [
+          { Modalidad: "Rango Fijo", Desde: 1, Hasta: 10, Valor: 1.39, Valor_Usuario_Adicional: 0.139 },
+        ],
+        Fecha_de_creaci_n: creatorDate,
+        fecha_uf_usd: creatorDate,
+      };
+
+      // Crear el maestro (form Nota_de_Venta → report ALL_DATA)
+      const createPath = `/creator/v2.1/data/${encodeURIComponent(creatorConfig.ownerName)}/${encodeURIComponent(creatorConfig.appLinkName)}/form/${encodeURIComponent("Nota_de_Venta")}`;
+      const createResp = await creatorApiFetch(createPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: ndvRecord }),
+      });
+      const createPayload = await readJson(createResp);
+      const ndvId = toText(createPayload?.data?.ID || createPayload?.data?.id);
+      out.steps.createMaster = { status: createResp.status, ndvId, payload: ndvId ? undefined : createPayload };
+
+      if (!ndvId) {
+        res.statusCode = 500;
+        res.end(JSON.stringify({ ...out, error: "No se obtuvo ndvId del maestro" }, null, 2));
+        return;
+      }
+
+      // Correr el código REAL que estamos probando
+      const subformSetup = await runNdvSubformSetup({ ndvId, ndvRecord });
+      out.steps.subforms = subformSetup;
+
+      // Estado del registro tras el fix
+      out.steps.ndvRecordAfter = await fetchNdvRecord(creatorConfig, ndvId);
+      out.ok = true;
+      out.reviewHint = `Revisa en Creator → Reporte NDV el ID_NDV=${out.steps.ndvRecordAfter?.ID_NDV || "(ver arriba)"}`;
+      res.statusCode = 200;
+      res.end(JSON.stringify(out, null, 2));
+      return;
+    }
+
     const quoteId = toText(body.quoteId);
     if (!quoteId) {
       res.statusCode = 400;
