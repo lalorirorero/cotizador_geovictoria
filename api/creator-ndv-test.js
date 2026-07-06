@@ -137,6 +137,35 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // ── Modo "gridTest": PATCH de Tabla_de_Cobro a un sub-registro y relee, para
+    //    determinar si las escrituras de grid por REST persisten. ──
+    if (body.gridTest === true) {
+      const creatorConfig = getCreatorConfig();
+      const report = toText(body.report) || "SERVICES_ALL_DATA";
+      const recId = toText(body.recordId);
+      if (!recId) { res.statusCode = 400; res.end(JSON.stringify({ ok: false, error: "falta recordId" })); return; }
+      const path = `/creator/v2.1/data/${encodeURIComponent(creatorConfig.ownerName)}/${encodeURIComponent(creatorConfig.appLinkName)}/report/${encodeURIComponent(report)}/${encodeURIComponent(recId)}`;
+      const tabla = [
+        { Modalidad: "Rango Fijo", Desde: 1, Hasta: 10, Valor: 1.39, Valor_Usuario_Adicional: 0.139 },
+      ];
+      const patchResp = await creatorApiFetch(path, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { Tabla_de_Cobro: tabla } }),
+      });
+      out.steps.patch = { status: patchResp.status, payload: await readJson(patchResp) };
+      // releer
+      const readResp = await creatorApiFetch(path, { method: "GET" });
+      const readPayload = await readJson(readResp);
+      out.steps.afterRead = {
+        status: readResp.status,
+        Tabla_de_Cobro_len: Array.isArray(readPayload?.data?.Tabla_de_Cobro) ? readPayload.data.Tabla_de_Cobro.length : 0,
+        Tabla_de_Cobro: readPayload?.data?.Tabla_de_Cobro,
+        JsonPdf_present: Boolean(readPayload?.data?.JsonPdf),
+      };
+      out.ok = true;
+      res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return;
+    }
+
     // ── Modo "freshCot": crea master como COTIZACIÓN (editable) y deja que el
     //    workflow CreateNextStep arme Form_Order internamente al crear el
     //    Servicio_Recurrente con FORM_STATUS=CREATED. SIN PATCH externo. ──
