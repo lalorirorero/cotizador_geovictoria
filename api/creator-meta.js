@@ -59,6 +59,34 @@ module.exports = async function handler(req, res) {
 
   const base = `/creator/v2.1/meta/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}`;
 
+  // Búsqueda por criterio: ?search=REPORT:FIELD:VALUE → cuenta + resumen
+  if (req.query?.search) {
+    try {
+      const [report, field, value] = String(req.query.search).split(":");
+      const criteria = encodeURIComponent(`${field}=="${value}"`);
+      const path = `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/report/${encodeURIComponent(report)}?criteria=${criteria}&max_records=200`;
+      const resp = await creatorApiFetch(path, { method: "GET" });
+      const payload = await readJson(resp);
+      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      out.ok = true;
+      out.search = {
+        report, field, value, status: resp.status, count: rows.length,
+        rows: rows.map((r) => ({
+          ID: r.ID,
+          Servicio_Recurrente: r.Servicio_Recurrente,
+          FORM_STATUS: r.FORM_STATUS,
+          Tabla_len: Array.isArray(r.Tabla_de_Cobro) ? r.Tabla_de_Cobro.length : 0,
+          JsonPdf_present: Boolean(r.JsonPdf),
+          Fecha_de_Inicio: r.Fecha_de_Inicio,
+        })),
+      };
+      res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return;
+    } catch (e) {
+      out.error = String((e && e.stack) || (e && e.message) || e);
+      res.statusCode = 500; res.end(JSON.stringify(out, null, 2)); return;
+    }
+  }
+
   // Lectura cruda de un registro por ID en cualquier reporte: ?raw=REPORT:ID
   // Ej: ?raw=SERVICES_ALL_DATA:3783684000024667176  (ver JsonPdf del sub-registro)
   if (req.query?.raw) {
