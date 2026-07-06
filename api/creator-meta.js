@@ -59,6 +59,52 @@ module.exports = async function handler(req, res) {
 
   const base = `/creator/v2.1/meta/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}`;
 
+  // Búsqueda de un registro real por ID_NDV → vuelca Form_Order / FORM_STATUS / PDF.
+  if (req.query?.record) {
+    try {
+      const idNdv = String(req.query.record);
+      const dataBase = `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/report/${encodeURIComponent(config.reportLinkName)}`;
+      const criteria = encodeURIComponent(`ID_NDV=="${idNdv}"`);
+      const resp = await creatorApiFetch(`${dataBase}?criteria=${criteria}&max_records=1`, { method: "GET" });
+      const payload = await readJson(resp);
+      const rec = Array.isArray(payload?.data) ? payload.data[0] : payload?.data;
+      if (!rec) {
+        out.ok = true;
+        out.record = { status: resp.status, found: false, raw: payload };
+      } else {
+        out.ok = true;
+        out.record = {
+          status: resp.status,
+          found: true,
+          ID: rec.ID,
+          ID_NDV: rec.ID_NDV,
+          Formulario: rec.Formulario,
+          FORM_STATUS: rec.FORM_STATUS,
+          STATUS: rec.STATUS,
+          ESTADO_COT: rec.ESTADO_COT,
+          Servicios_Recurrentes: rec.Servicios_Recurrentes,
+          Servicios_No_Recurrentes: rec.Servicios_No_Recurrentes,
+          Servicio_Recurrente_Configurado: rec.Servicio_Recurrente_Configurado,
+          Form_Order_len: Array.isArray(rec.Form_Order) ? rec.Form_Order.length : 0,
+          Form_Order: rec.Form_Order,
+          JsonPdf_present: Boolean(rec.JsonPdf),
+          PDF_STRING_present: Boolean(rec.PDF_STRING),
+          PDF_URL: rec.PDF_URL,
+          N_Empleados_Compometidos: rec.N_Empleados_Compometidos,
+          Tabla_de_Cobro_len: Array.isArray(rec.Tabla_de_Cobro) ? rec.Tabla_de_Cobro.length : 0,
+        };
+      }
+      res.statusCode = 200;
+      res.end(JSON.stringify(out, null, 2));
+      return;
+    } catch (e) {
+      out.error = String((e && e.stack) || (e && e.message) || e);
+      res.statusCode = 500;
+      res.end(JSON.stringify(out, null, 2));
+      return;
+    }
+  }
+
   try {
     // Lista de formularios de la app
     const formsResp = await creatorApiFetch(`${base}/forms`, { method: "GET" });
