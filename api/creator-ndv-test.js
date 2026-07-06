@@ -218,8 +218,33 @@ module.exports = async function handler(req, res) {
 
       // 3) Ver si Form_Order se pobló solo (por CreateNextStep)
       out.steps.ndvRecordAfter = await fetchNdvRecord(creatorConfig, ndvId);
+
+      // 4) Crear Finalizar_Formulario → dispara GeneratePDF (Form_Order ya poblado).
+      //    Con timeout de 25s: Creator termina el PDF en background igual.
+      const finalizarRecord = {
+        ID_Formulario: ndvId,
+        Empresa: "Creada en Plataforma",
+        Identificador_Tributario_Empresa: "20.788.061-2",
+        country: "Chile",
+        CAN_UPDATE_FIELDS: true,
+        FORM_STATUS: "BEING EDITED",
+        NDV_STATUS: "BORRADOR",
+        Notas_PDF: "",
+        Solicitar_datos_de_Facturaci_n_al_Cliente: false,
+        BillingDataRequested: false,
+        BillingDataReceived: false,
+        hasAttendance: true,
+        hasServices: true,
+      };
+      const finPromise = creatorApiFetch(`${dataBase}/form/${encodeURIComponent("Finalizar_Formulario")}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: finalizarRecord }),
+      }).then(async (r) => ({ status: r.status, code: (await readJson(r))?.code })).catch((e) => ({ error: String(e).slice(0, 120) }));
+      const finTimeout = new Promise((resolve) => setTimeout(() => resolve({ status: "timeout-25s (Creator sigue en background)" }), 25000));
+      out.steps.createFinalizar = await Promise.race([finPromise, finTimeout]);
+
       out.ok = true;
-      out.reviewHint = `ID_NDV=${out.steps.ndvRecordAfter?.ID_NDV}; Form_Order_len=${out.steps.ndvRecordAfter?.Form_Order_len}`;
+      out.ndvId = ndvId;
+      out.reviewHint = `ID_NDV=${out.steps.ndvRecordAfter?.ID_NDV}; Form_Order_len=${out.steps.ndvRecordAfter?.Form_Order_len}. Reconsulta el registro en ~60s para ver PDF_STRING.`;
       res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return;
     }
 
