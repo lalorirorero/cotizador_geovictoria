@@ -65,7 +65,7 @@ module.exports = async function handler(req, res) {
       const idNdv = String(req.query.record);
       const dataBase = `/creator/v2.1/data/${encodeURIComponent(config.ownerName)}/${encodeURIComponent(config.appLinkName)}/report/${encodeURIComponent(config.reportLinkName)}`;
       const criteria = encodeURIComponent(`ID_NDV=="${idNdv}"`);
-      const resp = await creatorApiFetch(`${dataBase}?criteria=${criteria}&max_records=1`, { method: "GET" });
+      const resp = await creatorApiFetch(`${dataBase}?criteria=${criteria}&max_records=200`, { method: "GET" });
       const payload = await readJson(resp);
       const rec = Array.isArray(payload?.data) ? payload.data[0] : payload?.data;
       if (!rec) {
