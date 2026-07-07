@@ -1555,7 +1555,7 @@
         <div class="redirect-spinner"></div>
         <h3 id="redirectTitle" class="redirect-title">Estamos preparando todo para ti</h3>
         <p id="redirectText" class="redirect-text">
-          Ahora comienza tu experiencia con GeoVictoria. Estamos cargando tu informacion para redirigirte al auto-onboarding.
+          Ahora comienza tu experiencia con GeoVictoria. Te estamos redirigiendo al auto-onboarding — y tambien te enviamos el link a tu correo, para que lo completes cuando quieras.
         </p>
       </div>
     </div>
@@ -1730,9 +1730,9 @@
         showRedirectOverlay(
           opts.title || "Estamos preparando todo para ti",
           opts.detail ||
-            "Ahora comienza tu experiencia con GeoVictoria. Estamos cargando tu informacion para redirigirte al auto-onboarding."
+            "Ahora comienza tu experiencia con GeoVictoria. Te estamos redirigiendo al auto-onboarding — y tambien te enviamos el link a tu correo, para que lo completes cuando quieras."
         );
-        const delayMs = Number(opts.delayMs || 1700);
+        const delayMs = Number(opts.delayMs || 5000);
         window.setTimeout(() => {
           window.location.href = url;
         }, Math.max(900, delayMs));

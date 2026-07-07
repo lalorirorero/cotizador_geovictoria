@@ -437,18 +437,22 @@
           if (state.onboarding.ready && state.onboarding.url) {
             contentEl.innerHTML =
               '<div class="center">' +
-              '<h2>¡Pago confirmado!</h2>' +
+              '<h2>¡Pago confirmado! 🎉</h2>' +
               '<p class="lead">Tu pago y suscripcion estan activos. ' +
-              "Ya puedes comenzar tu onboarding con GeoVictoria.</p>" +
-              '<button class="btn success" id="goOnboarding">Ir a mi onboarding</button>' +
+              "En unos segundos te llevaremos a tu auto-onboarding para configurar tu plataforma.</p>" +
+              '<p class="lead">📧 Tambien te enviamos el link del auto-onboarding a tu correo: ' +
+              "puedes completarlo cuando quieras — mientras antes lo hagas, antes queda lista tu plataforma.</p>" +
+              '<button class="btn success" id="goOnboarding">Ir a mi onboarding ahora</button>' +
               "</div>";
             document.getElementById("goOnboarding").addEventListener("click", function () {
               window.location.href = state.onboarding.url;
             });
             setMessage("Te redirigiremos automaticamente en unos segundos...", "ok");
+            // 8s: tiempo suficiente para leer el mensaje (antes 2,5s: ilegible).
+            // El boton permite saltar de inmediato.
             window.setTimeout(function () {
               window.location.href = state.onboarding.url;
-            }, 2500);
+            }, 8000);
           } else {
             contentEl.innerHTML =
               '<div class="center">' +
