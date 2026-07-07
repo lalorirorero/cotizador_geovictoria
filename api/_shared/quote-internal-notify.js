@@ -120,7 +120,9 @@ function seccionPagosMp(pagos) {
       (p) => `<tr>
   <td>${p.tipo}</td><td><b>${p.operacion}</b></td><td>${p.monto}</td>
   <td>${p.fecha}</td><td>${p.metodo}</td>
-  <td>${p.comprobanteUrl ? `<a href="${p.comprobanteUrl}">Ver comprobante</a>` : "—"}</td>
+  <td>${p.comprobanteUrl
+    ? `<a href="${p.comprobanteUrl}">Ver comprobante</a>`
+    : `<a href="https://www.mercadopago.cl/activities?q=${encodeURIComponent(p.operacion)}">Ver en panel MP</a>`}</td>
 </tr>`,
     )
     .join("");
