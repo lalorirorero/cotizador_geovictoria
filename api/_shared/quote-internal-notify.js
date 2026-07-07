@@ -12,6 +12,11 @@
 
 const { zohoApiFetch } = require("./zoho-auth");
 const { getRecordWithFields, toText } = require("./zoho-crm");
+const { getMercadoPagoConfig } = require("./mercadopago-config");
+const {
+  searchPaymentsByExternalReference,
+  buildExternalReference,
+} = require("./mercadopago-client");
 
 const NOTIFY_FROM = toText(process.env.VICKY_FROM_EMAIL) || "vicky@geovictoria.com";
 const NOTIFY_RECIPIENTS = (
@@ -49,7 +54,43 @@ function fmtClp(n) {
   return "$" + Math.round(v).toLocaleString("es-CL");
 }
 
-function buildHtml({ evento, empresa, numero, clientEmail, rut, montoClp, dealId }) {
+// Detalle de los pagos APROBADOS en Mercado Pago para la cotización (best-effort,
+// para que el equipo reciba el comprobante sin entrar al panel de MP).
+async function detallePagosMP(quoteId) {
+  try {
+    const mp = getMercadoPagoConfig();
+    if (!mp.enabled || !mp.accessToken) return [];
+    const pagos = [];
+    for (const kind of ["oneshot", "sub"]) {
+      const found = await searchPaymentsByExternalReference(
+        mp,
+        buildExternalReference(quoteId, kind),
+      ).catch(() => []);
+      for (const p of found || []) {
+        if (String(p?.status) !== "approved") continue;
+        pagos.push({
+          operacion: toText(p.id),
+          monto: fmtClp(p.transaction_amount),
+          fecha: p.date_approved
+            ? new Date(p.date_approved).toLocaleString("es-CL", { timeZone: "America/Santiago" })
+            : "",
+          metodo:
+            toText(p.payment_method_id) +
+            (p?.card?.last_four_digits ? ` ****${p.card.last_four_digits}` : ""),
+          tipo: kind === "sub" ? "suscripción mensual" : "pago inicial",
+          comprobanteUrl:
+            toText(p?.transaction_details?.external_resource_url) ||
+            toText(p?.point_of_interaction?.transaction_data?.ticket_url),
+        });
+      }
+    }
+    return pagos;
+  } catch (_e) {
+    return [];
+  }
+}
+
+function buildHtml({ evento, empresa, numero, clientEmail, rut, montoClp, dealId, pagosMp }) {
   const titulo = evento === "pagada" ? "💰 Cotización PAGADA" : "✅ Cotización ACEPTADA";
   const dealLink = dealId
     ? `<a href="${DEAL_URL_BASE}${encodeURIComponent(dealId)}">Ver el Deal en Zoho</a>`
@@ -65,8 +106,29 @@ function buildHtml({ evento, empresa, numero, clientEmail, rut, montoClp, dealId
   <tr><td><b>RUT</b></td><td>${rut || "—"}</td></tr>
   ${filaMonto}
 </table>
+${seccionPagosMp(pagosMp)}
 <p style="margin:14px 0 0;">${dealLink}</p>
 </body></html>`;
+}
+
+
+// Sección "Comprobante Mercado Pago" del correo interno (solo si hay pagos).
+function seccionPagosMp(pagos) {
+  if (!Array.isArray(pagos) || pagos.length === 0) return "";
+  const filas = pagos
+    .map(
+      (p) => `<tr>
+  <td>${p.tipo}</td><td><b>${p.operacion}</b></td><td>${p.monto}</td>
+  <td>${p.fecha}</td><td>${p.metodo}</td>
+  <td>${p.comprobanteUrl ? `<a href="${p.comprobanteUrl}">Ver comprobante</a>` : "—"}</td>
+</tr>`,
+    )
+    .join("");
+  return `<h3 style="color:#0d47a1;margin:18px 0 6px;">Comprobante Mercado Pago</h3>
+<table cellpadding="6" style="border-collapse:collapse;font-size:13px;border:1px solid #e2e8f0;">
+  <tr style="background:#f7fafc;"><th>Tipo</th><th>N° operación</th><th>Monto</th><th>Fecha</th><th>Método</th><th></th></tr>
+  ${filas}
+</table>`;
 }
 
 async function sendInternalMail({ quoteModule, quoteId, subject, htmlBody }) {
@@ -155,10 +217,13 @@ async function notifyQuoteEvent({ config, quote, quoteId, evento }) {
       return;
     }
 
+    // Comprobante MP: solo en el evento de pago (best-effort, nunca bloquea).
+    const pagosMp = evento === "pagada" ? await detallePagosMP(quoteId) : [];
+
     const subject = `[GeoVictoria] Cotización ${numero || quoteId} ${
       evento === "pagada" ? "PAGADA" : "ACEPTADA"
     } — ${empresa || "cliente"}`;
-    const htmlBody = buildHtml({ evento, empresa, numero, clientEmail, rut, montoClp, dealId });
+    const htmlBody = buildHtml({ evento, empresa, numero, clientEmail, rut, montoClp, dealId, pagosMp });
     await sendInternalMail({ quoteModule: config.quoteModule, quoteId, subject, htmlBody });
     console.log(`[quote-notify] enviado evento=${evento} quote=${numero || quoteId} → ${NOTIFY_RECIPIENTS.join(", ")}`);
     // Además del correo: aviso por WhatsApp (best-effort, no bloquea).
