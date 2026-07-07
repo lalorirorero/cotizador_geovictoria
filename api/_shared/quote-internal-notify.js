@@ -92,6 +92,24 @@ async function sendInternalMail({ quoteModule, quoteId, subject, htmlBody }) {
   }
 }
 
+// Notificación por WhatsApp (vía el agente Vicky → línea de Meta). Best-effort y
+// seguro por defecto: si la URL o el secreto no están configurados, no hace nada.
+const AGENT_NOTIFY_URL = toText(process.env.VICKY_AGENT_NOTIFY_URL);
+const AGENT_CRON_SECRET = toText(process.env.VICKY_AGENT_CRON_SECRET);
+
+async function notifyWhatsApp({ evento, empresa, numero, montoClp }) {
+  if (!AGENT_NOTIFY_URL || !AGENT_CRON_SECRET) return;
+  try {
+    await fetch(AGENT_NOTIFY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-cron-secret": AGENT_CRON_SECRET },
+      body: JSON.stringify({ evento, empresa, numero, monto: montoClp }),
+    });
+  } catch (err) {
+    console.warn(`[quote-notify] WhatsApp best-effort falló:`, toText(err?.message || err).slice(0, 150));
+  }
+}
+
 /**
  * Notifica al equipo el evento de la cotización. Best-effort: captura todos los
  * errores (no lanza). `quote` es el registro de Zoho ya cargado por el caller.
@@ -143,6 +161,8 @@ async function notifyQuoteEvent({ config, quote, quoteId, evento }) {
     const htmlBody = buildHtml({ evento, empresa, numero, clientEmail, rut, montoClp, dealId });
     await sendInternalMail({ quoteModule: config.quoteModule, quoteId, subject, htmlBody });
     console.log(`[quote-notify] enviado evento=${evento} quote=${numero || quoteId} → ${NOTIFY_RECIPIENTS.join(", ")}`);
+    // Además del correo: aviso por WhatsApp (best-effort, no bloquea).
+    await notifyWhatsApp({ evento, empresa, numero, montoClp });
   } catch (err) {
     console.error(`[quote-notify] falló (best-effort) evento=${evento}:`, toText(err?.message || err).slice(0, 200));
   }

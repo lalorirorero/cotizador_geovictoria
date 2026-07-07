@@ -51,11 +51,19 @@
     "api/payments/create-subscription.js": {
       "memory": 1024,
       "maxDuration": 30
+    },
+    "api/payments/reconcile-pending.js": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/quote-acceptance/backfill-pdf",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/payments/reconcile-pending",
       "schedule": "*/10 * * * *"
     }
   ],
