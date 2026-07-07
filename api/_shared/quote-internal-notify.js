@@ -233,4 +233,4 @@ async function notifyQuoteEvent({ config, quote, quoteId, evento }) {
   }
 }
 
-module.exports = { notifyQuoteEvent, shouldNotify };
+module.exports = { notifyQuoteEvent, shouldNotify, detallePagosMP, buildHtml };
