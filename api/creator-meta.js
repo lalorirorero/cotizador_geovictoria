@@ -97,6 +97,10 @@ module.exports = async function handler(req, res) {
       const payload = await readJson(resp);
       const data = payload?.data || {};
       out.ok = true;
+      if (req.query?.full) {
+        out.rawFull = { report, recId, status: resp.status, data };
+        res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return;
+      }
       out.raw = {
         report, recId, status: resp.status,
         Servicio_Recurrente: data.Servicio_Recurrente,
