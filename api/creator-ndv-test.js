@@ -167,7 +167,7 @@ module.exports = async function handler(req, res) {
         Modalidad_de_Pago: "30 días",
         Modalidad_de_Tarifa: "Por Usuario",
         Hito_de_Facturaci_n: "Cargando...",
-        Plantilla_Tabla_de_Cobro: "Asistencia",
+        Plantilla_Tabla_de_Cobro: "No hay Plantillas",
         Moneda: "UF",
         country: "Chile",
         Logo_PDF: "Geovictoria",
