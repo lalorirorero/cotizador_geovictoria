@@ -93,6 +93,16 @@ async function createSubformRecord(creatorConfig, formLinkName, record, timeoutM
   return resolveCreatedId(payload);
 }
 
+// Receta VERIFICADA (COT-56717, PDF correcto por puro REST). Claves:
+//  - FORM_STATUS="CREATED": dispara CreateNextStep, que puebla Form_Order en el
+//    maestro. Con "BEING EDITED" caía en UpdateFormOrderId (no-op) → Form_Order vacío.
+//  - IdDuplicatedMasterForm=0: CreateNextStep solo appendea la fila si
+//    duplicateMainFormID==0; si el campo va null, no appendea.
+//  - Tabla_de_Cobro inline (la que cotizó Vicky): SÍ persiste por REST (la lectura
+//    REST es lossy y no la muestra, pero queda guardada). UpdatePdfJson1 arma el
+//    JsonPdf desde ella.
+//  - Hito/Plantilla van con el valor estático (los reales son picklists dinámicos
+//    que REST rechaza).
 function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
   const employees = toNumber(ndvRecord.N_Empleados_Compometidos) || 1;
   const chargeTable = Array.isArray(ndvRecord.Tabla_de_Cobro) ? ndvRecord.Tabla_de_Cobro : [];
@@ -100,60 +110,26 @@ function buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord }) {
   return {
     ID_Formulario: ndvId,
     Servicio_Recurrente: serviceName,
+    Formulario: "Cotización",
+    FORM_STATUS: "CREATED",
+    IdDuplicatedMasterForm: 0,
+    Linea_de_Negocio: "Estándar",
+    Periodicidad_de_Servicio: "Mensual",
+    Modalidad_de_Pago: toText(ndvRecord.Modalidad_de_Pago) || "30 días",
+    Modalidad_de_Tarifa: "Por Usuario",
+    Hito_de_Facturaci_n: "Cargando...",
+    Plantilla_Tabla_de_Cobro: "No hay Plantillas",
+    Moneda: toText(ndvRecord.Moneda) || "UF",
+    country: toText(ndvRecord.Pa_s_Facturaci_n) || "Chile",
+    Logo_PDF: "Geovictoria",
+    Descuento_Ejecutivo: toNumber(ndvRecord.Descuento_Ejecutivo) || 0,
     N_Empleados_Compometidos: employees,
     Cantidad_de_Usuarios: employees,
     Cantidad_de_Usuarios_PDF: employees,
-    Tabla_de_Cobro: chargeTable,
-    Moneda: toText(ndvRecord.Moneda) || "UF",
-    Periodicidad_de_Servicio: "Mensual",
-    // Hito_de_Facturaci_n is a dynamic picklist (static values = {"Cargando..."} only).
-    // Creator populates the real value via its onUserInput workflow; API must use the static value.
-    Hito_de_Facturaci_n: "Cargando...",
-    Plantilla_Tabla_de_Cobro: "No hay Plantillas",
-    Descuento_Ejecutivo: 0,
-    Fecha_de_Inicio: formatCreatorDate(),
-    Linea_de_Negocio: "Telemarketing",
-    country: toText(ndvRecord.Pa_s_Facturaci_n) || "Chile",
-    CAN_UPDATE_FIELDS: true,
     isSimpleService: false,
-    FORM_STATUS: "BEING EDITED",
-    NDV_STATUS: toText(ndvRecord.STATUS) || "BORRADOR",
+    CAN_UPDATE_FIELDS: true,
+    Tabla_de_Cobro: chargeTable,
   };
-}
-
-// Construye las filas de Form_Order (subform del maestro ALL_DATA) que enlazan
-// el NDV con sus sub-registros. Replica exactamente lo que hace CreateNextStep
-// en el wizard manual (mismas keys nombradas). Sin esto, Form_Order queda vacío
-// y RegeneratePdfJson no encuentra servicios → el PDF no se genera.
-//
-// Form_ID debe ir como STRING: los IDs de Creator son de 19 dígitos y como Number
-// de JS perderían precisión (> Number.MAX_SAFE_INTEGER).
-function buildFormOrderRows(createdServices) {
-  return createdServices
-    .filter((s) => toText(s.id))
-    .map((s, index) => ({
-      Number: index + 1,
-      Form_ID: toText(s.id),
-      Product_Name: toText(s.serviceName),
-      Product_Type: "Recurrente",
-      Selected: true,
-      FormName: "Servicio_Recurrente",
-    }));
-}
-
-// PATCH del campo Form_Order en el registro maestro (report ALL_DATA).
-async function patchMasterFormOrder(creatorConfig, ndvId, rows) {
-  const path = `/creator/v2.1/data/${encodeURIComponent(creatorConfig.ownerName)}/${encodeURIComponent(creatorConfig.appLinkName)}/report/${encodeURIComponent(creatorConfig.reportLinkName)}/${encodeURIComponent(toText(ndvId))}`;
-  const response = await creatorApiFetch(path, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: { Form_Order: rows } }),
-  });
-  const payload = await readJsonSafe(response);
-  if (!response.ok || isCreatorError(payload)) {
-    throw new Error(`Creator Form_Order PATCH failed (${response.status}): ${JSON.stringify(payload).slice(0, 300)}`);
-  }
-  return true;
 }
 
 function buildFinalizarFormularioRecord({ ndvId, ndvRecord }) {
@@ -196,48 +172,27 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
   console.log(`[ndv-subforms] ndvId=${ndvId} servicios=${JSON.stringify(recurringServices)}`);
 
   // 1. Crear un Servicio_Recurrente por cada servicio recurrente.
-  //    Creator dispara UpdatePdfJson1 (→ JsonPdf) y CreateGoToNextStep
-  //    (→ UpdateFormOrderId en el NDV) automáticamente.
+  //    Con FORM_STATUS="CREATED" + IdDuplicatedMasterForm=0, Creator dispara:
+  //      - UpdatePdfJson1 → arma JsonPdf desde la Tabla_de_Cobro (que persiste)
+  //      - CreateGoToNextStep→CreateNextStep → puebla Form_Order en el maestro
+  //    (Nota: la Tabla_de_Cobro sí persiste por REST; la lectura REST no la
+  //    muestra pero queda guardada — verificado por Deluge en COT-56717.)
   let serviceCount = 0;
-  const createdServices = [];
   for (const serviceName of recurringServices) {
     try {
       const record = buildServicioRecurrenteRecord({ ndvId, serviceName, ndvRecord });
       const serviceId = await createSubformRecord(creatorConfig, "Servicio_Recurrente", record);
       console.log(`[ndv-subforms] Servicio_Recurrente(${serviceName}) → id=${serviceId}`);
-      if (serviceId) {
-        serviceCount++;
-        createdServices.push({ id: serviceId, serviceName });
-      }
+      if (serviceId) serviceCount++;
     } catch (err) {
       console.warn(`[ndv-subforms] Servicio_Recurrente(${serviceName}) ERROR: ${err.message}`);
       errors.push(`Servicio_Recurrente(${serviceName}): ${err.message}`);
     }
   }
 
-  // 1b. Poblar Form_Order en el maestro ANTES de crear Finalizar_Formulario.
-  //     GeneratePDF se dispara al crear Finalizar (on add) y lee Form_Order; si
-  //     está vacío no arma el PDF. Al escribirlo aquí, esa única generación ya
-  //     ve los servicios. (Caso simple: solo recurrentes. Hardware/ventas se
-  //     agregarán en la extensión.)
-  let formOrderWritten = false;
-  const formOrderRows = buildFormOrderRows(createdServices);
-  if (formOrderRows.length > 0) {
-    try {
-      await patchMasterFormOrder(creatorConfig, ndvId, formOrderRows);
-      formOrderWritten = true;
-      console.log(`[ndv-subforms] Form_Order poblado con ${formOrderRows.length} fila(s)`);
-    } catch (err) {
-      console.warn(`[ndv-subforms] Form_Order PATCH ERROR: ${err.message}`);
-      errors.push(`Form_Order: ${err.message}`);
-    }
-  }
-
-  // 2. Crear Finalizar_Formulario.
-  //    Creator dispara FinalizeForm (→ FORM_STATUS=CREATED en NDV) y
-  //    GeneratePDF (→ RegeneratePdfJson → PDF_STRING en NDV) automáticamente.
-  //    NO hacemos PATCH manual del Form_Order: las reglas del NDV bloquean
-  //    ediciones externas; Creator lo actualiza internamente vía sus workflows.
+  // 2. Crear Finalizar_Formulario (Form_Order ya poblado por CreateNextStep).
+  //    Dispara FinalizeForm (→ FORM_STATUS=CREATED) y GeneratePDF
+  //    (→ RegeneratePdfJson → PDF_STRING).
   let finalizarId = "";
   try {
     const finalizarRecord = buildFinalizarFormularioRecord({ ndvId, ndvRecord });
@@ -248,12 +203,10 @@ async function runNdvSubformSetup({ ndvId, ndvRecord }) {
     errors.push(`Finalizar_Formulario: ${err.message}`);
   }
 
-  console.log(`[ndv-subforms] done serviceCount=${serviceCount} finalizarId=${finalizarId} formOrderWritten=${formOrderWritten} errors=${JSON.stringify(errors)}`);
+  console.log(`[ndv-subforms] done serviceCount=${serviceCount} finalizarId=${finalizarId} errors=${JSON.stringify(errors)}`);
   return {
     serviceCount,
     finalizarId,
-    formOrderWritten,
-    formOrderRows: formOrderRows.length,
     errors,
   };
 }

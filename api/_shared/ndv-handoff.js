@@ -763,7 +763,7 @@ function buildNdvRecord({
   const committedEmployees = inferCommittedEmployees(quote);
   const chargeTable = inferChargeTable(quote, committedEmployees);
   const firstServicio = toText(servicios.serviciosRecurrentes[0]) || "Control de Asistencia";
-  const resolvedBusinessLine = "Telemarketing";
+  const resolvedBusinessLine = "Estándar";
   const resolvedBillingMilestone = inferBillingMilestoneForTelemarketing(firstServicio);
   const dealsAsociados =
     toText(quote?.Deals_Asociados) ||
@@ -890,6 +890,16 @@ async function runNdvHandoff({ config, quoteId, dealId, acceptanceData }) {
     ownerUser,
     billingContactId,
     acceptanceData: acceptanceData || {},
+    // Vicky deja una COTIZACIÓN (editable). El maestro debe nacer como "Cotización"
+    // para que CreateNextStep pueble Form_Order al crear los servicios. La
+    // conversión a NDV y el confirmar quedan como paso humano posterior.
+    overrides: {
+      formulario: "Cotización",
+      status: "BORRADOR",
+      formStatus: "BEING EDITED",
+      estadoCot: "Vigente",
+      hitoFacturacion: "Cargando...",
+    },
   });
 
   prevalidateNdvRecord(ndvRecord);
