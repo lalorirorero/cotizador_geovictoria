@@ -14,11 +14,11 @@ function buildVerificationEmailHtml({ code, quoteId, ttlMinutes, supportLabel, s
   return (
     `<div style="font-family:Arial,sans-serif;line-height:1.45;color:#0f172a">` +
     `<h2 style="margin:0 0 12px 0;color:#0f172a">Validacion de correo - Cotizacion GeoVictoria</h2>` +
-    `<p style="margin:0 0 8px 0">Tu codigo de verificacion es:</p>` +
+    `<p style="margin:0 0 8px 0">Tu código de verificación es:</p>` +
     `<p style="margin:0 0 14px 0;font-size:28px;font-weight:700;letter-spacing:2px;color:#0284c7">${code}</p>` +
-    `<p style="margin:0 0 8px 0">Este codigo vence en ${ttlMinutes} minutos.</p>` +
+    `<p style="margin:0 0 8px 0">Este código vence en ${ttlMinutes} minutos.</p>` +
     `<p style="margin:0 0 8px 0">Cotizacion: <strong>${toText(quoteId) || "-"}</strong></p>` +
-    `<p style="margin:0;color:#334155">Si no solicitaste este codigo, ignora este correo.</p>` +
+    `<p style="margin:0;color:#334155">Si no solicitaste este código, ignora este correo.</p>` +
     `<p style="margin:14px 0 0 0;color:#334155">${supportLine}</p>` +
     `</div>`
   );
@@ -28,11 +28,11 @@ function buildVerificationEmailText({ code, quoteId, ttlMinutes, supportLabel, s
   return [
     "Validacion de correo - Cotizacion GeoVictoria",
     "",
-    `Codigo de verificacion: ${code}`,
+    `Código de verificación: ${code}`,
     `Vence en ${ttlMinutes} minutos.`,
     `Cotizacion: ${toText(quoteId) || "-"}`,
     "",
-    "Si no solicitaste este codigo, ignora este correo.",
+    "Si no solicitaste este código, ignora este correo.",
     `${supportLabel}: ${supportEmail || "no disponible"}`,
   ].join("\n");
 }
@@ -202,7 +202,7 @@ async function sendVerificationCodeEmail({
     throw new Error("Correo de destino invalido para verificacion.");
   }
 
-  const subject = "Codigo de verificacion - Cotizacion GeoVictoria";
+  const subject = "Código de verificación - Cotización GeoVictoria";
   const html = buildVerificationEmailHtml({
     code,
     quoteId,
