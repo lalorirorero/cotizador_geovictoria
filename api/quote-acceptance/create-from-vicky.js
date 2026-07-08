@@ -132,8 +132,9 @@ async function convertLead(leadId, dealData, existingIds = {}) {
     notify_new_entity_owner: true,
     Deals: dealData,
   };
-  if (existingIds.accountId) payload.Accounts = existingIds.accountId;
-  if (existingIds.contactId) payload.Contacts = existingIds.contactId;
+  // Zoho espera jsonobject {id} (string pelado → INVALID_DATA, caso real 08-jul).
+  if (existingIds.accountId) payload.Accounts = { id: existingIds.accountId };
+  if (existingIds.contactId) payload.Contacts = { id: existingIds.contactId };
   const response = await zohoApiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -840,10 +841,22 @@ module.exports = async function handler(req, res) {
           stage = "dedupe_account_by_rut";
           const existingAccountId = await findAccountIdByRut(cliente.rutEmpresa, cliente.empresa);
           if (!existingAccountId) {
-            throw new Error(
-              `Zoho reportó duplicate data pero no se encontró Account con RUT ${cliente.rutEmpresa} (posible inconsistencia o validación distinta)`,
+            // Duplicado por NOMBRE con RUT distinto: son empresas homónimas, NO
+            // la misma. Antes esto botaba la cotización completa (bug real desde
+            // may-2026); ahora se crea la cuenta desambiguando el nombre con el
+            // RUT, que es lo que haría un humano.
+            console.warn(
+              `[create-from-vicky] Capa 3 Account: duplicado por nombre con RUT distinto (${cliente.rutEmpresa}); creando cuenta desambiguada.`,
             );
-          }
+            stage = "create_account_disambiguated";
+            const retryResult = await createRecord(
+              "Accounts",
+              { ...createAccountPayload, Account_Name: `${cliente.empresa} (${cliente.rutEmpresa})` },
+              true,
+            );
+            accountId = toText(retryResult?.id);
+            if (!accountId) throw new Error("No se obtuvo accountId (cuenta desambiguada)");
+          } else {
           console.warn(
             `[create-from-vicky] Capa 3 Account: encontrado existente id=${existingAccountId}. Aplicando update conservador.`,
           );
@@ -858,6 +871,7 @@ module.exports = async function handler(req, res) {
           }
           accountId = existingAccountId;
           reuse.accountReused = true;
+          }
         }
       }
 
