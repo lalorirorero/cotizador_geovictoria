@@ -165,10 +165,14 @@ async function convertLead(leadId, dealData, existingIds = {}) {
   const parsed = JSON.parse(text);
   const result = parsed?.data?.[0];
   if (!result) throw new Error("Respuesta de convert Lead sin data");
+  // Zoho v3 devuelve cada entidad como objeto {id, name} (o string en variantes
+  // viejas). Parsear solo el string hacía "fallar" conversiones EXITOSAS y el
+  // fallback duplicaba cuenta/deal (caso real 08-jul).
+  const idFrom = (v) => toText(v && typeof v === "object" ? v.id : v);
   return {
-    accountId: toText(result.Accounts),
-    contactId: toText(result.Contacts),
-    dealId: toText(result.Deals),
+    accountId: idFrom(result.Accounts),
+    contactId: idFrom(result.Contacts),
+    dealId: idFrom(result.Deals),
   };
 }
 
