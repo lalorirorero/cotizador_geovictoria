@@ -215,8 +215,24 @@ module.exports = async function handler(req, res) {
         const rp = await readJson(rr);
         out.steps.restReadBack_Tabla_len = Array.isArray(rp?.data?.Tabla_de_Cobro) ? rp.data.Tabla_de_Cobro.length : 0;
       }
+      // Crear Finalizar_Formulario por REST → dispara GeneratePDF
+      const finRec = {
+        ID_Formulario: masterId,
+        Empresa: "Creada en Plataforma",
+        Identificador_Tributario_Empresa: "76622058-4",
+        country: "Chile",
+        FORM_STATUS: "BEING EDITED",
+        hasAttendance: true,
+        hasServices: true,
+      };
+      const fpath = `/creator/v2.1/data/${encodeURIComponent(creatorConfig2.ownerName)}/${encodeURIComponent(creatorConfig2.appLinkName)}/form/${encodeURIComponent("Finalizar_Formulario")}`;
+      const fresp = await creatorApiFetch(fpath, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: finRec }) });
+      const fpayload = await readJson(fresp);
+      out.steps.finalizar = { status: fresp.status, code: fpayload?.code, id: toText(fpayload?.data?.ID), error: fpayload?.error };
+
       out.ok = true;
-      out.dumpHint = "Corre DumpSvc (Deluge) con este newServiceId para leer el grid de forma confiable";
+      out.masterId = masterId;
+      out.dumpHint = `Corre DumpMaster (Deluge) con masterId ${masterId} para ver Form_Order + PDF_STRING`;
       res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return;
     }
 
