@@ -740,6 +740,15 @@ module.exports = async function handler(req, res) {
           Pipeline: "Standard (Standard)",
           Closing_Date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
           Amount: cotizacion.totalCLP || undefined,
+          // Obligatorios del layout de Deals del org: sin ellos el convert
+          // devuelve MANDATORY_NOT_FOUND (caso real: Territorio, 08-jul-2026).
+          Territorio: VICKY_TERRITORIO,
+          Tombola: VICKY_TOMBOLA,
+          Monda_del_trato: VICKY_MONEDA,
+          Sector: sectorParaZoho,
+          N_Empleados_que_marcan: cliente.userCount,
+          Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
+          Lead_Source: VICKY_LEAD_SOURCE,
         };
         const convertResult = await convertLead(existing.leadId, dealDataForConvert);
         accountId = convertResult.accountId;
