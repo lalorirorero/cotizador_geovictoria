@@ -142,7 +142,30 @@ module.exports = async function handler(req, res) {
     //    y confirmar si el grid persiste por REST (la lectura REST es lossy). ──
     if (body.restCreateService === true) {
       const creatorConfig = getCreatorConfig();
-      const masterId = toText(body.masterId) || "3783684000024665206";
+      // Crear un maestro FRESCO y limpio por REST (para que CreateNextStep no reviente).
+      let masterId = toText(body.masterId);
+      if (!masterId) {
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, "0");
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const yyyy = String(now.getFullYear());
+        const master = {
+          Formulario: "Cotización", FORM_STATUS: "BEING EDITED", STATUS: "BORRADOR", ESTADO_COT: "Vigente",
+          Nombre_del_documento: `RESTGRIDTEST / ${yyyy}-${mm}-${dd}`,
+          CRM_Account: "3525045000208660206", CRM_ACCOUNT_NAME: "HuelleroCompany",
+          Correo_Vendedor: "adiazg@geovictoria.com", Pa_s_Facturaci_n: "Chile",
+          Identificador_Tributario_Empresa: "76622058-4", Moneda: "UF", Linea_de_Negocio: "Estándar",
+          Servicio_Recurrente: "Control de Asistencia", Servicios_Recurrentes: ["Control de Asistencia"],
+          N_Empleados_Compometidos: 10, Cantidad_de_Usuarios: 10, Cantidad_de_Usuarios_PDF: 10,
+          Plantilla_Tabla_de_Cobro: "Sin Plantilla",
+        };
+        const mpath = `/creator/v2.1/data/${encodeURIComponent(creatorConfig.ownerName)}/${encodeURIComponent(creatorConfig.appLinkName)}/form/${encodeURIComponent("Nota_de_Venta")}`;
+        const mresp = await creatorApiFetch(mpath, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: master }) });
+        const mpayload = await readJson(mresp);
+        masterId = toText(mpayload?.data?.ID);
+        out.steps.masterCreate = { status: mresp.status, code: mpayload?.code, masterId, error: mpayload?.error };
+        if (!masterId) { res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return; }
+      }
       const tabla = [
         { Modalidad: "Rango Fijo", Desde: 1, Hasta: 10, Valor: 0.75, Valor_Usuario_Adicional: 0 },
         { Modalidad: "Rango por Usuario", Desde: 11, Hasta: 20, Valor: 0.09, Valor_Usuario_Adicional: 0 },
