@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Pago y activacion · GeoVictoria</title>
+    <title>Pago y activación · GeoVictoria</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="icon" href="/icon-light-32x32.png" media="(prefers-color-scheme: light)" />
     <link rel="icon" href="/icon-dark-32x32.png" media="(prefers-color-scheme: dark)" />
@@ -243,7 +243,7 @@
             // Sesion expirada: error definitivo, no reintentar.
             var expired = new Error(
               (data && data.error) ||
-                "La sesion de pago expiro. Solicita un nuevo enlace a tu ejecutivo comercial."
+                "La sesión de pago expiró. Solicita un nuevo enlace a tu ejecutivo comercial."
             );
             expired.permanent = true;
             throw expired;
@@ -342,7 +342,7 @@
           var monthlyNote = hasFirstMonth
             ? '<p style="font-size:12px;color:var(--suave);margin:-4px 0 14px">' +
               "El valor mensual del servicio se factura por separado a partir del 2&ordm; mes y es referencial: " +
-              "se calcula sobre los usuarios de la cotizacion y varia segun los usuarios activos de cada periodo." +
+              "se calcula sobre los usuarios de la cotización y varía según los usuarios activos de cada período." +
               "</p>"
             : "";
           contentEl.innerHTML =
@@ -384,10 +384,10 @@
           var phone = String(t.whatsappPhone || "").replace(/[^\d]/g, "");
           if (!phone) return "";
           var nombre = String(t.executiveName || "equipo comercial").trim();
-          var cot = String(t.quoteNumber || (state.quote && state.quote.name) || "mi cotizacion").trim();
+          var cot = String(t.quoteNumber || (state.quote && state.quote.name) || "mi cotización").trim();
           var text =
-            "Hola " + nombre + ", acepte la cotizacion " + cot +
-            " y voy a pagar por transferencia. Te envio el comprobante para procesar mi pedido.";
+            "Hola " + nombre + ", acepte la cotización " + cot +
+            " y voy a pagar por transferencia. Te envío el comprobante para procesar mi pedido.";
           return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
         }
 
@@ -409,8 +409,8 @@
             "<li><span>Cuenta corriente</span><strong>8001204108</strong></li>" +
             "<li><span>Email</span><strong>adiazg@geovictoria.com</strong></li>" +
             "</ul>" +
-            '<p class="transfer-help">Transfiere el pago inicial de tu cotizacion e indica el numero de ' +
-            "cotizacion. Luego envia el comprobante a tu ejecutivo por WhatsApp para procesar tu pedido.</p>" +
+            '<p class="transfer-help">Transfiere el pago inicial de tu cotización e indica el número de ' +
+            "cotización. Luego envía el comprobante a tu ejecutivo por WhatsApp para procesar tu pedido.</p>" +
             waBtn +
             '<button class="btn secondary" id="transferBackBtn">Volver a opciones de pago</button>' +
             "</div>"
@@ -493,7 +493,7 @@
             loadingEl.classList.add("hidden");
             contentEl.classList.remove("hidden");
             if (state.quote && state.quote.name) {
-              quoteNameEl.textContent = "Cotizacion: " + state.quote.name;
+              quoteNameEl.textContent = "Cotización: " + state.quote.name;
             }
 
             var step = currentStepOf(state);
@@ -529,7 +529,7 @@
           loadingEl.classList.add("hidden");
           contentEl.classList.remove("hidden");
           contentEl.innerHTML =
-            '<div class="center"><h2>Enlace invalido</h2>' +
+            '<div class="center"><h2>Enlace inválido</h2>' +
             '<p class="lead">Falta el token de pago. Solicita un nuevo enlace a tu ejecutivo comercial.</p></div>';
         } else {
           render();
