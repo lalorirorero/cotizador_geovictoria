@@ -199,6 +199,7 @@ module.exports = async function handler(req, res) {
         Cantidad_de_Usuarios: 10,
         Cantidad_de_Usuarios_PDF: 10,
         isSimpleService: false,
+        IdDuplicatedMasterForm: 0,
         Tabla_de_Cobro: tabla,
       };
       const creatorConfig2 = creatorConfig;
