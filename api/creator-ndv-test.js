@@ -137,6 +137,66 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // ── Modo "restCreateService": crea un Servicio_Recurrente por REST con la tabla
+    //    completa (formato correcto). Devuelve el ID para leerlo por Deluge (DumpSvc)
+    //    y confirmar si el grid persiste por REST (la lectura REST es lossy). ──
+    if (body.restCreateService === true) {
+      const creatorConfig = getCreatorConfig();
+      const masterId = toText(body.masterId) || "3783684000024665206";
+      const tabla = [
+        { Modalidad: "Rango Fijo", Desde: 1, Hasta: 10, Valor: 0.75, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 11, Hasta: 20, Valor: 0.09, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 21, Hasta: 30, Valor: 0.08, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 31, Hasta: 50, Valor: 0.07, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 51, Hasta: 100, Valor: 0.065, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 101, Hasta: 200, Valor: 0.06, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 201, Hasta: 500, Valor: 0.055, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 501, Hasta: 1000, Valor: 0.05, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 1001, Hasta: 3000, Valor: 0.045, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 3001, Hasta: 5000, Valor: 0.04, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 5001, Hasta: 8000, Valor: 0.035, Valor_Usuario_Adicional: 0 },
+        { Modalidad: "Rango por Usuario", Desde: 8001, Hasta: 9999, Valor: 0.03, Valor_Usuario_Adicional: 0.03 },
+      ];
+      const rec = {
+        ID_Formulario: masterId,
+        Servicio_Recurrente: "Control de Asistencia",
+        Formulario: "Cotización",
+        FORM_STATUS: "CREATED",
+        Linea_de_Negocio: "Estándar",
+        Periodicidad_de_Servicio: "Mensual",
+        Modalidad_de_Pago: "30 días",
+        Modalidad_de_Tarifa: "Por Usuario",
+        Hito_de_Facturaci_n: "Cargando...",
+        Plantilla_Tabla_de_Cobro: "Asistencia",
+        Moneda: "UF",
+        country: "Chile",
+        Logo_PDF: "Geovictoria",
+        Descuento_Ejecutivo: 0,
+        N_Empleados_Compometidos: 10,
+        Cantidad_de_Usuarios: 10,
+        Cantidad_de_Usuarios_PDF: 10,
+        isSimpleService: false,
+        Tabla_de_Cobro: tabla,
+      };
+      const creatorConfig2 = creatorConfig;
+      const path = `/creator/v2.1/data/${encodeURIComponent(creatorConfig2.ownerName)}/${encodeURIComponent(creatorConfig2.appLinkName)}/form/${encodeURIComponent("Servicio_Recurrente")}`;
+      const resp = await creatorApiFetch(path, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: rec }),
+      });
+      const payload = await readJson(resp);
+      const newId = toText(payload?.data?.ID);
+      out.steps.create = { status: resp.status, code: payload?.code, newServiceId: newId, error: payload?.error };
+      if (newId) {
+        const rpath = `/creator/v2.1/data/${encodeURIComponent(creatorConfig2.ownerName)}/${encodeURIComponent(creatorConfig2.appLinkName)}/report/SERVICES_ALL_DATA/${encodeURIComponent(newId)}`;
+        const rr = await creatorApiFetch(rpath, { method: "GET" });
+        const rp = await readJson(rr);
+        out.steps.restReadBack_Tabla_len = Array.isArray(rp?.data?.Tabla_de_Cobro) ? rp.data.Tabla_de_Cobro.length : 0;
+      }
+      out.ok = true;
+      out.dumpHint = "Corre DumpSvc (Deluge) con este newServiceId para leer el grid de forma confiable";
+      res.statusCode = 200; res.end(JSON.stringify(out, null, 2)); return;
+    }
+
     // ── Modo "gridTest": PATCH de Tabla_de_Cobro a un sub-registro y relee, para
     //    determinar si las escrituras de grid por REST persisten. ──
     if (body.gridTest === true) {
