@@ -36,18 +36,61 @@ function getBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
-function getMercadoPagoConfig(req) {
+// ── Carril de test por empresa ──
+// Permite probar el flujo completo (incluido el pago) con MercadoPago sandbox
+// SIN afectar a clientes reales: si la cotización es de la empresa de prueba
+// (HuelleroCompany, por ID de cuenta CRM o RUT), el pago usa credenciales de
+// test. Los IDs/RUTs se pueden configurar por env; por defecto HuelleroCompany.
+function normalizeRut(value) {
+  return toText(value).replace(/[.\s-]/g, "").toUpperCase();
+}
+
+function isTestLaneQuote(quote, acceptanceConfig) {
+  if (!quote) return false;
+  const testAccountIds = (toText(process.env.MP_TEST_LANE_ACCOUNT_IDS) || "3525045000208660206")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const testRuts = (toText(process.env.MP_TEST_LANE_RUTS) || "76622058-4")
+    .split(",").map((s) => normalizeRut(s)).filter(Boolean);
+  const testNames = (toText(process.env.MP_TEST_LANE_COMPANIES) || "huellerocompany")
+    .split(",").map((s) => s.trim().toLowerCase().replace(/\s+/g, "")).filter(Boolean);
+  const accountId = toText(
+    quote?.Cuenta_Asociada?.id || quote?.CRM_Account?.id || quote?.[acceptanceConfig?.onboardingAccountLookupField]?.id
+  );
+  const rut = normalizeRut(
+    quote?.[acceptanceConfig?.companyRutField] || quote?.RUT_Cliente || quote?.RUT || quote?.Identificador_Tributario_Empresa
+  );
+  const companyName = toText(
+    quote?.Cuenta_Asociada?.name || quote?.CRM_ACCOUNT_NAME || quote?.Account_Name?.name || quote?.CRM_ACCOUNT
+  ).toLowerCase().replace(/\s+/g, "");
+  if (accountId && testAccountIds.includes(accountId)) return true;
+  if (rut && testRuts.includes(rut)) return true;
+  if (companyName && testNames.includes(companyName)) return true;
+  return false;
+}
+
+function getMercadoPagoConfig(req, opts = {}) {
   const baseUrl = getBaseUrl(req);
-  const environment = toText(process.env.MP_ENVIRONMENT || "test").toLowerCase();
+  const testLane = opts.testLane === true;
+  const environment = testLane
+    ? "test"
+    : toText(process.env.MP_ENVIRONMENT || "test").toLowerCase();
   const landingPath = toText(process.env.MP_PAYMENT_LANDING_PATH || "/pago.html");
+
+  // Carril de test: usa credenciales sandbox y marca la URL de notificación con
+  // ?lane=test para que el webhook consulte el pago en la cuenta MP correcta.
+  const baseNotificationUrl = toText(process.env.MP_NOTIFICATION_URL) || `${baseUrl}/api/payments/webhook`;
+  const notificationUrl = testLane
+    ? baseNotificationUrl + (baseNotificationUrl.includes("?") ? "&" : "?") + "lane=test"
+    : baseNotificationUrl;
 
   return {
     enabled: toBool(process.env.MP_PAYMENTS_ENABLED, false),
+    testLane,
     environment,
     isProduction: environment === "production" || environment === "prod",
     apiBase: MP_API_BASE,
-    accessToken: toText(process.env.MP_ACCESS_TOKEN),
-    publicKey: toText(process.env.MP_PUBLIC_KEY),
+    accessToken: testLane ? toText(process.env.MP_TEST_ACCESS_TOKEN) : toText(process.env.MP_ACCESS_TOKEN),
+    publicKey: testLane ? toText(process.env.MP_TEST_PUBLIC_KEY) : toText(process.env.MP_PUBLIC_KEY),
     webhookSecret: toText(process.env.MP_WEBHOOK_SECRET),
     currencyId: toText(process.env.MP_CURRENCY_ID || "CLP"),
     includeIva: toBool(process.env.MP_CHARGE_INCLUDE_IVA, true),
@@ -64,7 +107,7 @@ function getMercadoPagoConfig(req) {
     baseUrl,
     landingPath,
     landingUrl: `${baseUrl}${landingPath.startsWith("/") ? "" : "/"}${landingPath}`,
-    notificationUrl: toText(process.env.MP_NOTIFICATION_URL) || `${baseUrl}/api/payments/webhook`,
+    notificationUrl,
     // Valor (best-effort) que se escribe en el campo de estado del handoff de la
     // cotizacion mientras el pago esta pendiente.
     statusPaymentPending: toText(process.env.MP_QUOTE_STATUS_PAYMENT_PENDING || "Pago Pendiente"),
@@ -87,6 +130,7 @@ function pickInitPoint(resource, config) {
 module.exports = {
   MP_API_BASE,
   getMercadoPagoConfig,
+  isTestLaneQuote,
   pickInitPoint,
   toBool,
 };

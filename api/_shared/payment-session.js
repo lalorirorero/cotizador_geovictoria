@@ -9,7 +9,7 @@
 
 const { getRecord, toText } = require("./zoho-crm");
 const { getAcceptanceConfig } = require("./quote-acceptance-config");
-const { getMercadoPagoConfig } = require("./mercadopago-config");
+const { getMercadoPagoConfig, isTestLaneQuote } = require("./mercadopago-config");
 const { verifyVerificationToken, normalizeEmail } = require("./verification-token");
 const { sanitizeItems, clampDescuentoPct, computePaymentAmounts } = require("./quote-pricing");
 
@@ -17,7 +17,6 @@ const PAYMENT_SESSION_PURPOSE = "payment_session";
 
 async function resolvePaymentSession(req, token) {
   const acceptanceConfig = getAcceptanceConfig(req);
-  const mpConfig = getMercadoPagoConfig(req);
 
   const payload = verifyVerificationToken(token, PAYMENT_SESSION_PURPOSE);
   const quoteId = toText(payload?.quoteId);
@@ -29,6 +28,11 @@ async function resolvePaymentSession(req, token) {
   if (!quote) {
     throw new Error("No se encontro la cotizacion.");
   }
+
+  // Carril de test: si la cotización es de la empresa de prueba (HuelleroCompany),
+  // el pago corre en MercadoPago sandbox — sin afectar a clientes reales.
+  const testLane = isTestLaneQuote(quote, acceptanceConfig);
+  const mpConfig = getMercadoPagoConfig(req, { testLane });
 
   const quoteDealId = toText(
     quote?.[acceptanceConfig.quoteDealLookupField]?.id ||
