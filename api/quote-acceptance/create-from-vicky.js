@@ -121,23 +121,44 @@ function splitFullName(fullName) {
 }
 
 // ── Helper: convertir Lead → Account+Contact+Deal ──
-async function convertLead(leadId, dealData) {
+// Si la cuenta/contacto YA existen (dedup por nombre de Zoho), el convert
+// devuelve DUPLICATE_DATA con el id del duplicado: se reintenta UNA vez
+// apuntando a esos registros existentes (el lead se fusiona en ellos).
+async function convertLead(leadId, dealData, existingIds = {}) {
   const path = `/crm/v3/Leads/${encodeURIComponent(leadId)}/actions/convert`;
-  const body = {
-    data: [{
-      overwrite: true,
-      notify_lead_owner: true,
-      notify_new_entity_owner: true,
-      Deals: dealData,
-    }],
+  const payload = {
+    overwrite: true,
+    notify_lead_owner: true,
+    notify_new_entity_owner: true,
+    Deals: dealData,
   };
+  if (existingIds.accountId) payload.Accounts = existingIds.accountId;
+  if (existingIds.contactId) payload.Contacts = existingIds.contactId;
   const response = await zohoApiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ data: [payload] }),
   });
   const text = await response.text();
   if (!response.ok) {
+    // Duplicado: reintenta apuntando al registro existente que Zoho reporta.
+    let dup = null;
+    try { dup = JSON.parse(text)?.data?.[0]; } catch { /* noop */ }
+    if (dup?.code === "DUPLICATE_DATA" && dup?.details?.duplicate_record?.id) {
+      const dupModule = toText(dup?.details?.duplicate_record?.module?.api_name);
+      const dupId = toText(dup.details.duplicate_record.id);
+      const puedeReintentar =
+        (dupModule === "Contacts" && !existingIds.contactId) ||
+        (dupModule !== "Contacts" && !existingIds.accountId);
+      if (puedeReintentar) {
+        console.warn(`[create-from-vicky] convert duplicado en ${dupModule} (${dupId}); reintento fusionando.`);
+        const retryIds =
+          dupModule === "Contacts"
+            ? { ...existingIds, contactId: dupId }
+            : { ...existingIds, accountId: dupId };
+        return convertLead(leadId, dealData, retryIds);
+      }
+    }
     throw new Error(`Zoho convert Lead failed (${response.status}): ${text.slice(0, 300)}`);
   }
   const parsed = JSON.parse(text);
@@ -706,47 +727,62 @@ module.exports = async function handler(req, res) {
     };
 
     // ── CAMINO A: Convertir Lead existente ──
+    // Best-effort: si la conversión falla por cualquier motivo (blueprint,
+    // permisos, datos), NO se pierde la venta — se loguea fuerte y se cae al
+    // CAMINO B (creación directa con dedup por RUT). El lead queda huérfano
+    // para revisión manual, pero el cliente recibe su cotización igual.
     if (existing.leadId) {
       stage = "convert_lead";
-      const dealDataForConvert = {
-        Deal_Name: `${cliente.empresa} - Cotización Vicky`,
-        Stage: VICKY_DEAL_STAGE,
-        Pipeline: "Standard (Standard)",
-        Closing_Date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-        Amount: cotizacion.totalCLP || undefined,
-      };
-      const convertResult = await convertLead(existing.leadId, dealDataForConvert);
-      accountId = convertResult.accountId;
-      contactId = convertResult.contactId;
-      dealId = convertResult.dealId;
-      reuse.leadConverted = true;
+      try {
+        const dealDataForConvert = {
+          Deal_Name: `${cliente.empresa} - Cotización Vicky`,
+          Stage: VICKY_DEAL_STAGE,
+          Pipeline: "Standard (Standard)",
+          Closing_Date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          Amount: cotizacion.totalCLP || undefined,
+        };
+        const convertResult = await convertLead(existing.leadId, dealDataForConvert);
+        accountId = convertResult.accountId;
+        contactId = convertResult.contactId;
+        dealId = convertResult.dealId;
 
-      if (!accountId || !contactId || !dealId) {
-        throw new Error("Conversión de Lead no devolvió todos los IDs");
+        if (!accountId || !contactId || !dealId) {
+          throw new Error("Conversión de Lead no devolvió todos los IDs");
+        }
+        reuse.leadConverted = true;
+
+        // Datos nuevos ganan: actualizar Account, Contact y Deal con los datos del prospect.
+        // En este camino (conversión de Lead) sí queremos que los datos nuevos ganen
+        // porque el Lead era una primera intención desactualizada.
+        stage = "update_account_after_convert";
+        await updateRecord("Accounts", accountId, buildAccountFullPayload(cliente, sectorParaZoho), true);
+
+        stage = "update_contact_after_convert";
+        await updateRecord("Contacts", contactId, buildContactFullPayload(cliente), true);
+
+        stage = "update_deal_after_convert";
+        await updateRecord("Deals", dealId, {
+          Territorio: VICKY_TERRITORIO,
+          Tombola: VICKY_TOMBOLA,
+          Monda_del_trato: VICKY_MONEDA,
+          Sector: sectorParaZoho,
+          N_Empleados_que_marcan: cliente.userCount,
+          Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
+          Lead_Source: VICKY_LEAD_SOURCE,
+          Description: `Deal creado por Vicky desde Lead convertido.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP\nSector: ${sectorParaZoho}`,
+        }, true);
+      } catch (convErr) {
+        console.error(
+          `[create-from-vicky] CONVERT FALLÓ lead=${existing.leadId} (${toText(convErr?.message || convErr).slice(0, 250)}) → fallback a creación directa; lead queda para revisión manual.`,
+        );
+        accountId = undefined;
+        contactId = undefined;
+        dealId = undefined;
+        reuse.leadConverted = false;
       }
+    }
 
-      // Datos nuevos ganan: actualizar Account, Contact y Deal con los datos del prospect.
-      // En este camino (conversión de Lead) sí queremos que los datos nuevos ganen
-      // porque el Lead era una primera intención desactualizada.
-      stage = "update_account_after_convert";
-      await updateRecord("Accounts", accountId, buildAccountFullPayload(cliente, sectorParaZoho), true);
-
-      stage = "update_contact_after_convert";
-      await updateRecord("Contacts", contactId, buildContactFullPayload(cliente), true);
-
-      stage = "update_deal_after_convert";
-      await updateRecord("Deals", dealId, {
-        Territorio: VICKY_TERRITORIO,
-        Tombola: VICKY_TOMBOLA,
-        Monda_del_trato: VICKY_MONEDA,
-        Sector: sectorParaZoho,
-        N_Empleados_que_marcan: cliente.userCount,
-        Producto_Soluci_n: VICKY_PRODUCTO_DEFAULT,
-        Lead_Source: VICKY_LEAD_SOURCE,
-        Description: `Deal creado por Vicky desde Lead convertido.\nUsuarios: ${cliente.userCount}\nTotal: ${cotizacion.totalUF} UF / ${cotizacion.totalCLP} CLP\nSector: ${sectorParaZoho}`,
-      }, true);
-
-    } else {
+    if (!reuse.leadConverted) {
       // ── CAMINO B: Crear Account o reusar existente ──
       let needCreateAccount = !existing.accountId;
 
