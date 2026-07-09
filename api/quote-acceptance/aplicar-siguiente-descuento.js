@@ -172,6 +172,7 @@ function subformACotizacionItems(quote, config) {
       tipo,
       id: codigo,
       nombre: String(row?.Nombre_Item || ""),
+      descripcion: String(row?.Descripcion_Item || ""),
       modalidad:
         modalidadZoho === "Recurrente"
           ? "Por usuario"

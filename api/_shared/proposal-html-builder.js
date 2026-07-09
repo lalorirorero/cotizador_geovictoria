@@ -112,6 +112,10 @@ function adaptarItemsVicky(items) {
         cantidad: Number(it.cantidad || 1),
         tipo,
         codigo: String(it.id || it.codigo || "").toLowerCase(),
+        // Descripción editada en Zoho (Descripcion_Item): si viene, GANA sobre
+        // las descripciones por código (ítems manuales como "Tarjetas ID"
+        // heredaban la descripción del reloj — caso real COT203, jul-2026).
+        descripcion: String(it.descripcion || "").trim(),
         precioUnit: Number(it.precioUnitarioUF || 0),
         subtotalUF: Number(it.subtotalUF || 0),
       });
@@ -368,11 +372,11 @@ function buildProposalHtml({
   );
   equipos.forEach((e) => {
     const rec = e.tipo === "Arriendo";
-    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", descEquipo(e), e.precioUnit, e.cantidad, e.subtotalUF, rec, {});
+    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", e.descripcion || descEquipo(e), e.precioUnit, e.cantidad, e.subtotalUF, rec, {});
   });
   accesorios.forEach((a) => {
     const rec = a.tipo === "Arriendo";
-    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", descEquipo(a), a.precioUnit, a.cantidad, a.subtotalUF, rec, {});
+    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", a.descripcion || descEquipo(a), a.precioUnit, a.cantidad, a.subtotalUF, rec, {});
   });
   serviciosAsoc.forEach((s) => {
     const nombre = s.zona ? `${s.nombre} (${s.zona})` : s.nombre;
