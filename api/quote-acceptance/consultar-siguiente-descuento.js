@@ -32,6 +32,7 @@ const { getRecord, updateRecord, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const {
   DISCOUNT_LADDER,
+  normalizarIndiceGuardado,
   siguienteEscalonAplicable,
   hayEscalonDespues,
   descuentosHasta,
@@ -106,9 +107,12 @@ module.exports = async function handler(req, res) {
     }
 
     // El puntero de negociación nunca retrocede por debajo de lo comiteado.
+    // Los índices guardados con la escalera vieja (pre jul-2026, largo 4) se
+    // re-derivan del % recurrente ya comiteado.
     stage = "elegir_escalon";
-    const commitIdx = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
-    const negocIdx = Math.max(0, Number(quote?.[config.quoteEscalonNegociacionField] || 0));
+    const recComiteado = Number(quote?.[config.quoteDiscountPctField] || 0);
+    const commitIdx = normalizarIndiceGuardado(quote?.[config.quoteEscalonField], recComiteado);
+    const negocIdx = normalizarIndiceGuardado(quote?.[config.quoteEscalonNegociacionField], recComiteado);
     const start = Math.max(commitIdx, negocIdx);
 
     const i = siguienteEscalonAplicable(quote, config, start);

@@ -39,6 +39,7 @@ const {
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { DISCOUNT_LADDER, MESES_DESCUENTO_PLAN } = require("../_shared/proposal-constants");
 const {
+  normalizarIndiceGuardado,
   siguienteEscalonAplicable,
   hayEscalonDespues,
   descuentosHasta,
@@ -66,18 +67,15 @@ function parseBody(req) {
 }
 
 // Índice del primer escalón recurrente (sobre el plan) cuyo pct cubre `pct`
-// (es decir, el menor escalón con pct >= pct pedido). Ignora los escalones de
-// instalación, que tienen su propia línea. Si `pct` supera el tope (40),
+// (es decir, el menor escalón con pct >= pct pedido). Si `pct` supera el tope,
 // devuelve el último escalón de la escalera. Devuelve -1 si pct <= 0.
 function idxEscalonRecurrentePorPct(pct) {
   const target = Number(pct) || 0;
   if (target <= 0) return -1;
   let ultimoRecurrente = -1;
   for (let i = 0; i < DISCOUNT_LADDER.length; i++) {
-    const e = DISCOUNT_LADDER[i];
-    if (e.tipo === "instalacion_rm" || e.tipo === "instalacion_region") continue;
     ultimoRecurrente = i;
-    if (e.pct >= target) return i;
+    if (DISCOUNT_LADDER[i].pct >= target) return i;
   }
   // Pidió más que el tope: comiteamos hasta el máximo recurrente disponible.
   return ultimoRecurrente;
@@ -100,8 +98,10 @@ function idxEscalonRecurrentePorPct(pct) {
 //
 // Devuelve { targetIdx, escalon } o null si no hay más escalones aplicables.
 function elegirNivelACommitear(quote, config, pctOfrecido) {
-  const commitIdx = Math.max(0, Number(quote?.[config.quoteEscalonField] || 0));
-  const negocIdx = Math.max(0, Number(quote?.[config.quoteEscalonNegociacionField] || 0));
+  // Índices guardados con la escalera vieja (pre jul-2026) → re-derivar.
+  const recComiteado = Number(quote?.[config.quoteDiscountPctField] || 0);
+  const commitIdx = normalizarIndiceGuardado(quote?.[config.quoteEscalonField], recComiteado);
+  const negocIdx = normalizarIndiceGuardado(quote?.[config.quoteEscalonNegociacionField], recComiteado);
 
   let targetIdx;
   if (negocIdx > commitIdx) {

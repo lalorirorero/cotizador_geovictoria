@@ -83,29 +83,20 @@ const ISO_ORIGINAL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1
 // avanza un solo paso por llamada de aplicar_siguiente_descuento, decidiendo
 // el próximo según el estado actual del quote:
 //
-//   - Los escalones de instalación se aplican solo si la cotización tiene
-//     ítems de instalación con la zona correspondiente. Si no aplica, se
-//     saltan automáticamente al siguiente.
 //   - Los escalones de recurrente se aplican secuencialmente: 10 → 20 %
 //     (tope 20%), cada uno con una ventana de contratación más corta.
-//   - Los descuentos son acumulativos sobre líneas distintas (instalación y
-//     recurrente conviven en el mismo PDF).
 //   - condicionDiscursiva es texto que Vicky comunica al cliente; no tiene
 //     enforcement técnico (el descuento queda aplicado aunque se venza).
+//
+// CAMBIO DE TARIFAS jul-2026: los escalones de instalación (RM 50% / regiones
+// 25%) se ELIMINARON de la escalera — los reemplazó la tarifa plana de
+// instalación por zona (RM 1 UF / IV-V-VI 3 UF / resto 5 UF, igual para
+// arriendo y compra), que ya viene en el precio del ítem. Las cotizaciones
+// antiguas con un descuento de instalación ya COMITEADO lo conservan:
+// descuentosHasta (discount-engine) lee los campos Descuento_Instalacion_*_Pct
+// del quote y los preserva al negociar y regenerar.
 // ───────────────────────────────────────────────────────────────────────────
 const DISCOUNT_LADDER = [
-  {
-    tipo: "instalacion_rm",
-    pct: 50,
-    condicionDiscursiva: null,
-    label: "50 % de descuento en instalación de equipos (Región Metropolitana)",
-  },
-  {
-    tipo: "instalacion_region",
-    pct: 25,
-    condicionDiscursiva: null,
-    label: "25 % de descuento en instalación de equipos (regiones)",
-  },
   {
     tipo: "recurrente_10",
     pct: 10,

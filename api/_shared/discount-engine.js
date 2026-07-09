@@ -16,9 +16,13 @@
  * Ambos índices se guardan en forma "siguiente índice a considerar" (i+1),
  * igual que el `Escalon_Descuento` original: 0 = nada ofrecido/comiteado.
  *
- * Los descuentos son acumulativos sobre líneas distintas: instalación (RM o
- * regiones) convive con el descuento recurrente. Caminar la escalera hasta un
- * índice N produce el set acumulado de descuentos vigente en ese nivel.
+ * CAMBIO DE TARIFAS jul-2026: la escalera quedó SOLO con los escalones del
+ * plan mensual (10 → 20%). Los descuentos de instalación desaparecieron
+ * (los reemplazó la tarifa plana por zona), pero los YA COMITEADOS en
+ * cotizaciones antiguas se preservan: descuentosHasta los lee de los campos
+ * Descuento_Instalacion_*_Pct del quote en vez de recalcularlos desde la
+ * escalera. Los índices guardados con la escalera vieja (largo 4) se
+ * re-derivan del % recurrente comiteado (normalizarIndiceGuardado).
  */
 
 const { DISCOUNT_LADDER, MESES_DESCUENTO_PLAN, PRICING_TIERS } = require("./proposal-constants");
@@ -45,38 +49,33 @@ function esMicroPlan(quote, config) {
   });
 }
 
-// Detecta si la cotización tiene ítems de instalación de la zona dada, leyendo
-// el subform. Si la zona no existe, ese escalón se salta automáticamente.
-function tieneInstalacionDeZona(quote, config, zona) {
-  const items = quote?.[config.quoteItemsSubformField];
-  if (!Array.isArray(items)) return false;
-  return items.some((row) => {
-    const codigo = String(row?.Codigo_Item || "").toLowerCase();
-    if (codigo !== "instalacion_reloj") return false;
-    const rowZona = String(row?.[config.quoteItemZonaTarifaField] || "")
-      .toLowerCase()
-      .trim();
-    if (zona === "RM") return rowZona === "rm";
-    if (zona === "regiones") return rowZona === "regiones" || rowZona === "region";
-    return false;
-  });
-}
-
-// ¿El escalón en `idx` aplica a esta cotización? Los de instalación requieren
-// que exista un ítem de instalación de la zona correspondiente.
+// ¿El escalón en `idx` aplica a esta cotización?
 function escalonAplica(quote, config, idx) {
   const escalon = DISCOUNT_LADDER[idx];
   if (!escalon) return false;
-  if (escalon.tipo === "instalacion_rm") {
-    return tieneInstalacionDeZona(quote, config, "RM");
-  }
-  if (escalon.tipo === "instalacion_region") {
-    return tieneInstalacionDeZona(quote, config, "regiones");
-  }
   // Escalón del plan mensual (recurrente): NO aplica en el micro-plan
   // (1 trabajador que marca). En ese tramo no hay descuento del servicio
-  // recurrente; los descuentos de instalación (cobro único) sí siguen vigentes.
+  // recurrente.
   return !esMicroPlan(quote, config);
+}
+
+// Los índices guardados en Zoho (Escalon_Descuento / Escalon_Negociacion)
+// apuntan a la escalera VIGENTE al momento de guardarse. La escalera vieja
+// (pre jul-2026) tenía 2 escalones de instalación adelante (largo 4); la nueva
+// solo tiene los del plan (largo 2). Un índice guardado MAYOR que el largo
+// actual viene de la escalera vieja: se re-deriva desde el % recurrente ya
+// comiteado — la única dimensión que sigue en la escalera. (Los valores 1-2 de
+// la escalera vieja se leen como nueva escala; a lo más adelantan un tramo del
+// plan en favor del cliente, nunca sobre el tope.)
+function normalizarIndiceGuardado(stored, recurrentePctComiteado) {
+  const idx = Math.max(0, Number(stored) || 0);
+  if (idx <= DISCOUNT_LADDER.length) return idx;
+  const rec = Number(recurrentePctComiteado) || 0;
+  let derivado = 0;
+  for (let i = 0; i < DISCOUNT_LADDER.length; i++) {
+    if (DISCOUNT_LADDER[i].pct <= rec) derivado = i + 1;
+  }
+  return derivado;
 }
 
 // Primer escalón aplicable cuyo índice sea >= fromIdx. Devuelve el índice o -1.
@@ -95,22 +94,27 @@ function hayEscalonDespues(quote, config, idx) {
 // Descuentos acumulados al aplicar los escalones aplicables de 0..targetIdx
 // (inclusive). Devuelve los 3 porcentajes + el último escalón efectivamente
 // aplicado (para componer el mensaje / condición discursiva).
+//
+// Los % de instalación NO salen de la escalera (ya no existen esos escalones):
+// se COPIAN de lo ya comiteado en el quote, para que una cotización antigua
+// con 50/25% de instalación no pierda ese descuento (ni en el preview ni al
+// regenerar el PDF) cuando negocia el plan. En quotes nuevos y pseudo-quotes
+// (flujo referencial) esos campos no existen → 0.
 function descuentosHasta(quote, config, targetIdx) {
   let recurrentePct = 0;
-  let instalacionRMPct = 0;
-  let instalacionRegionPct = 0;
   let lastIdx = -1;
   const top = Math.min(Number(targetIdx), DISCOUNT_LADDER.length - 1);
   for (let i = 0; i <= top; i++) {
     if (!escalonAplica(quote, config, i)) continue;
-    const escalon = DISCOUNT_LADDER[i];
-    if (escalon.tipo === "instalacion_rm") instalacionRMPct = escalon.pct;
-    else if (escalon.tipo === "instalacion_region") instalacionRegionPct = escalon.pct;
-    else recurrentePct = escalon.pct;
+    recurrentePct = DISCOUNT_LADDER[i].pct;
     lastIdx = i;
   }
   return {
-    descuentos: { recurrentePct, instalacionRMPct, instalacionRegionPct },
+    descuentos: {
+      recurrentePct,
+      instalacionRMPct: Number(quote?.[config.quoteDiscountInstRMPctField] || 0),
+      instalacionRegionPct: Number(quote?.[config.quoteDiscountInstRegionPctField] || 0),
+    },
     lastIdx,
     lastEscalon: lastIdx >= 0 ? DISCOUNT_LADDER[lastIdx] : null,
   };
@@ -199,8 +203,8 @@ function buildMensajeNegociacion(escalon, amounts, esUltimo = false, opts = {}) 
 
 module.exports = {
   DISCOUNT_LADDER,
-  tieneInstalacionDeZona,
   escalonAplica,
+  normalizarIndiceGuardado,
   siguienteEscalonAplicable,
   hayEscalonDespues,
   descuentosHasta,
