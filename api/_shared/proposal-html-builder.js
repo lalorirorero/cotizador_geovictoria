@@ -173,6 +173,16 @@ const DESC_UPS =
 // con add-ons (envío, UPS) que NO son relojes; sin esto todos heredaban la
 // descripción del reloj. Se resuelve por Codigo_Item (con respaldo por nombre);
 // el reloj biométrico queda como fallback.
+// Descripción manual del subform: vale solo si es una descripción REAL (una
+// oración), no un código de modelo interno ("Sense Face 3A") que el flujo de
+// creación deja en ese campo y que NUNCA debe mostrarse al cliente.
+function descManualValida(texto) {
+  const t = String(texto || "").trim();
+  if (t.length < 40) return "";
+  if (/sense\s*face|zk\s?teco|hikvision/i.test(t)) return "";
+  return t;
+}
+
 function descEquipo(e) {
   const cod = String(e.codigo || "").toLowerCase();
   const nom = String(e.nombre || "").toLowerCase();
@@ -372,11 +382,11 @@ function buildProposalHtml({
   );
   equipos.forEach((e) => {
     const rec = e.tipo === "Arriendo";
-    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", e.descripcion || descEquipo(e), e.precioUnit, e.cantidad, e.subtotalUF, rec, {});
+    pushFila(e.nombre, rec ? "Pago mensual" : "Pago único", descManualValida(e.descripcion) || descEquipo(e), e.precioUnit, e.cantidad, e.subtotalUF, rec, {});
   });
   accesorios.forEach((a) => {
     const rec = a.tipo === "Arriendo";
-    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", a.descripcion || descEquipo(a), a.precioUnit, a.cantidad, a.subtotalUF, rec, {});
+    pushFila(a.nombre, rec ? "Pago mensual" : "Pago único", descManualValida(a.descripcion) || descEquipo(a), a.precioUnit, a.cantidad, a.subtotalUF, rec, {});
   });
   serviciosAsoc.forEach((s) => {
     const nombre = s.zona ? `${s.nombre} (${s.zona})` : s.nombre;
