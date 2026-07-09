@@ -72,10 +72,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Carril de test: las preferencias sandbox setean notification_url con
-  // ?lane=test, para que aquí consultemos el pago en la cuenta MP de test.
-  const testLane = toText(req?.query?.lane) === "test";
-  const mpConfig = getMercadoPagoConfig(req, { testLane });
+  const mpConfig = getMercadoPagoConfig(req);
   const acceptanceConfig = getAcceptanceConfig(req);
 
   try {

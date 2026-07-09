@@ -36,11 +36,12 @@ function getBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
-// ── Carril de test por empresa ──
-// Permite probar el flujo completo (incluido el pago) con MercadoPago sandbox
-// SIN afectar a clientes reales: si la cotización es de la empresa de prueba
-// (HuelleroCompany, por ID de cuenta CRM o RUT), el pago usa credenciales de
-// test. Los IDs/RUTs se pueden configurar por env; por defecto HuelleroCompany.
+// ── Empresa de prueba (bypass de pago) ──
+// Identifica la cotización de prueba (HuelleroCompany, por ID de cuenta CRM,
+// RUT o nombre; configurable por env). confirm.js la usa para SALTARSE el pago
+// de MercadoPago y finalizar directo (crear el COT) — permite testear el flujo
+// completo sin pago, sin afectar a clientes reales (cualquier otra empresa paga
+// normal). Default: HuelleroCompany.
 function normalizeRut(value) {
   return toText(value).replace(/[.\s-]/g, "").toUpperCase();
 }
@@ -68,29 +69,18 @@ function isTestLaneQuote(quote, acceptanceConfig) {
   return false;
 }
 
-function getMercadoPagoConfig(req, opts = {}) {
+function getMercadoPagoConfig(req) {
   const baseUrl = getBaseUrl(req);
-  const testLane = opts.testLane === true;
-  const environment = testLane
-    ? "test"
-    : toText(process.env.MP_ENVIRONMENT || "test").toLowerCase();
+  const environment = toText(process.env.MP_ENVIRONMENT || "test").toLowerCase();
   const landingPath = toText(process.env.MP_PAYMENT_LANDING_PATH || "/pago.html");
-
-  // Carril de test: usa credenciales sandbox y marca la URL de notificación con
-  // ?lane=test para que el webhook consulte el pago en la cuenta MP correcta.
-  const baseNotificationUrl = toText(process.env.MP_NOTIFICATION_URL) || `${baseUrl}/api/payments/webhook`;
-  const notificationUrl = testLane
-    ? baseNotificationUrl + (baseNotificationUrl.includes("?") ? "&" : "?") + "lane=test"
-    : baseNotificationUrl;
 
   return {
     enabled: toBool(process.env.MP_PAYMENTS_ENABLED, false),
-    testLane,
     environment,
     isProduction: environment === "production" || environment === "prod",
     apiBase: MP_API_BASE,
-    accessToken: testLane ? toText(process.env.MP_TEST_ACCESS_TOKEN) : toText(process.env.MP_ACCESS_TOKEN),
-    publicKey: testLane ? toText(process.env.MP_TEST_PUBLIC_KEY) : toText(process.env.MP_PUBLIC_KEY),
+    accessToken: toText(process.env.MP_ACCESS_TOKEN),
+    publicKey: toText(process.env.MP_PUBLIC_KEY),
     webhookSecret: toText(process.env.MP_WEBHOOK_SECRET),
     currencyId: toText(process.env.MP_CURRENCY_ID || "CLP"),
     includeIva: toBool(process.env.MP_CHARGE_INCLUDE_IVA, true),
@@ -107,7 +97,7 @@ function getMercadoPagoConfig(req, opts = {}) {
     baseUrl,
     landingPath,
     landingUrl: `${baseUrl}${landingPath.startsWith("/") ? "" : "/"}${landingPath}`,
-    notificationUrl,
+    notificationUrl: toText(process.env.MP_NOTIFICATION_URL) || `${baseUrl}/api/payments/webhook`,
     // Valor (best-effort) que se escribe en el campo de estado del handoff de la
     // cotizacion mientras el pago esta pendiente.
     statusPaymentPending: toText(process.env.MP_QUOTE_STATUS_PAYMENT_PENDING || "Pago Pendiente"),

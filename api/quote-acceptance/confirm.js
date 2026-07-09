@@ -1,7 +1,7 @@
 const { verifyAcceptanceToken } = require("../_shared/acceptance-token");
 const { getRecord, updateRecordBestEffort, createRecord, toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
-const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
+const { getMercadoPagoConfig, isTestLaneQuote } = require("../_shared/mercadopago-config");
 const { runOnboardingHandoff } = require("../_shared/onboarding-handoff");
 const { runNdvHandoff } = require("../_shared/ndv-handoff");
 const { runNdvSubformSetup } = require("../_shared/ndv-subforms");
@@ -290,6 +290,10 @@ export default async function handler(req, res) {
     const mpConfig = getMercadoPagoConfig(req);
     const payload = verifyAcceptanceToken(token);
     const quote = await getRecord(config.quoteModule, payload.quoteId);
+    // Bypass de pago para la empresa de prueba (HuelleroCompany): en vez de ir a
+    // MercadoPago, se trata la cotización como pagada y se finaliza directo
+    // (mismo handoff que crea el COT). Permite testear el flujo completo sin pago.
+    const bypassPayment = isTestLaneQuote(quote, config);
     const currentOnboardingUrl = toText(quote?.[config.quoteOnboardingUrlField]);
     const currentOnboardingLookup = toText(quote?.[config.quoteOnboardingLookupField]?.id);
     const authoritativeContactEmail = normalizeEmail(quote?.[config.contactEmailField]);
@@ -344,7 +348,8 @@ export default async function handler(req, res) {
     if (alreadyAccepted) {
       // Con pagos habilitados, una cotizacion aceptada sin onboarding implica
       // que el pago/suscripcion aun esta pendiente: reanudamos el journey de pago.
-      if (mpConfig.enabled) {
+      // Excepción: empresa de prueba (bypassPayment) → recupera onboarding/COT sin pago.
+      if (mpConfig.enabled && !bypassPayment) {
         const sessionToken = buildPaymentSessionToken(mpConfig, {
           quoteId: payload.quoteId,
           dealId: payload.dealId,
@@ -530,7 +535,9 @@ export default async function handler(req, res) {
 
     // Pagos habilitados: se difiere el handoff a onboarding hasta que el pago
     // unico + la suscripcion recurrente queden confirmados (via webhook/status).
-    if (mpConfig.enabled) {
+    // Excepción: empresa de prueba (bypassPayment) → NO pasa por pago, cae al
+    // handoff directo de abajo (crea el COT), para testear sin MercadoPago.
+    if (mpConfig.enabled && !bypassPayment) {
       await updateRecordBestEffort(
         config.quoteModule,
         payload.quoteId,
