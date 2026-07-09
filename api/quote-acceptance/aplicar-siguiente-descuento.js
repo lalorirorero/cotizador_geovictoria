@@ -191,16 +191,7 @@ function subformACotizacionItems(quote, config) {
   });
 }
 
-async function getUFActualSafe() {
-  try {
-    const res = await fetch("https://mindicador.cl/api/uf", { cache: "no-store" });
-    if (!res.ok) return 0;
-    const data = await res.json();
-    return data?.serie?.[0]?.valor || 0;
-  } catch {
-    return 0;
-  }
-}
+const { getUFActualSafe } = require("../_shared/uf-actual");
 
 // Número de cotización para el PDF: correlativo de Zoho sin el prefijo "COT".
 function numeroParaPdf(numeroCotizacion, quoteId) {

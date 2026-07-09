@@ -26,6 +26,7 @@ const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { htmlToPdfBuffer } = require("../_shared/pdfshift-client");
 const { uploadPdfToSupabase } = require("../_shared/supabase-pdf-upload");
 const { buildProposalHtml } = require("../_shared/proposal-html-builder");
+const { getUFActualSafe } = require("../_shared/uf-actual");
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -114,17 +115,6 @@ function subformACotizacionItems(quote, config) {
   });
 }
 
-async function getUFActualSafe() {
-  try {
-    const res = await fetch("https://mindicador.cl/api/uf", { cache: "no-store" });
-    if (!res.ok) return 0;
-    const data = await res.json();
-    return data?.serie?.[0]?.valor || 0;
-  } catch {
-    return 0;
-  }
-}
-
 function numeroParaPdf(numeroCotizacion, quoteId) {
   const sinPrefijo = String(numeroCotizacion || "").replace(/^\s*COT[\s_-]*/i, "").trim();
   if (sinPrefijo) return sinPrefijo;
@@ -174,6 +164,13 @@ module.exports = async function handler(req, res) {
     stage = "render_pdf";
     const cliente = await buildClienteParaHtml(quote, config);
     const ufActual = await getUFActualSafe();
+    if (!(ufActual > 0)) {
+      // Sin UF, todos los montos CLP del PDF saldrían en $0: mejor fallar.
+      return sendJson(res, 502, {
+        ok: false,
+        error: "UF del día no disponible (mindicador.cl y respaldo caídos); reintenta en unos minutos.",
+      });
+    }
     const items = subformACotizacionItems(quote, config);
     const versionActual = Math.max(1, Number(quote?.[config.quoteVersionPdfField] || 1));
     const versionNueva = versionActual + 1;
