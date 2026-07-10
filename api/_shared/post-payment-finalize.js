@@ -17,7 +17,14 @@ const { runNdvHandoff } = require("./ndv-handoff");
 const { runNdvSubformSetup } = require("./ndv-subforms");
 const { normalizeEmail } = require("./verification-token");
 const { notifyQuoteEvent } = require("./quote-internal-notify");
-const { sanitizeItems, clampDescuentoPct, computePaymentAmounts } = require("./quote-pricing");
+const {
+  sanitizeItems,
+  clampDescuentoPct,
+  computePaymentAmounts,
+  computePaymentAmountsCO,
+} = require("./quote-pricing");
+const { getMercadoPagoConfigForQuoteCO } = require("./mercadopago-config");
+const { esCotizacionCO } = require("./payment-session");
 const {
   searchPaymentsByExternalReference,
   searchPreapprovalByExternalReference,
@@ -167,13 +174,32 @@ async function maybeFinalizeQuote({ mpConfig, acceptanceConfig, quoteId, dealId 
     throw new Error(`No se encontro la cotizacion ${quoteId}.`);
   }
 
+  // País: el webhook ya trae la config CO cuando la firma CO validó (fast
+  // path); los demás llamadores (reconcile-pending) pasan siempre la config
+  // chilena, así que detectamos por Deal/Territorio. Si es CO se recalcula la
+  // config (respetando el carril sandbox de la empresa de prueba) y los montos
+  // con IVA POR LÍNEA, para que oneShotApproved busque los pagos con el token
+  // correcto y compare contra el monto correcto.
+  const pais =
+    mpConfig?.pais === "co" || (await esCotizacionCO(quote, null, acceptanceConfig))
+      ? "co"
+      : "cl";
+  if (pais === "co") {
+    mpConfig = getMercadoPagoConfigForQuoteCO(null, quote, acceptanceConfig);
+  }
+
   const items = sanitizeItems(quote?.[acceptanceConfig.quoteItemsSubformField]);
   const descuentoPct = clampDescuentoPct(quote?.[acceptanceConfig.quoteDiscountPctField]);
-  const amounts = computePaymentAmounts(items, descuentoPct, { includeIva: mpConfig.includeIva });
+  const amounts =
+    pais === "co"
+      ? computePaymentAmountsCO(items)
+      : computePaymentAmounts(items, descuentoPct, { includeIva: mpConfig.includeIva });
 
   const hasOneShot = amounts.oneShotClp > 0;
   // La suscripcion recurrente esta desactivada hasta integrar usuarios activos/mes.
-  const hasSubscription = mpConfig.subscriptionEnabled && amounts.recurringClp > 0;
+  // CO: NUNCA hay suscripción MP (la mensualidad va por facturación a 30 días,
+  // COLOMBIA.md) — se excluye aunque algún día se encienda el env global.
+  const hasSubscription = pais !== "co" && mpConfig.subscriptionEnabled && amounts.recurringClp > 0;
 
   let oneShotApproved = !hasOneShot;
   if (hasOneShot) {
@@ -209,6 +235,12 @@ async function maybeFinalizeQuote({ mpConfig, acceptanceConfig, quoteId, dealId 
   let finalized = false;
 
   if (paymentsComplete && !onboardingUrl) {
+    // El finalize downstream (onboarding + NDV) corre IGUAL que Chile también
+    // para CO (decisión paso 4 COLOMBIA.md); si algo resulta Chile-específico
+    // se ajustará en fase 2 CO. Se deja traza para diagnosticar esos casos.
+    if (pais === "co") {
+      console.log(`[finalize] cotizacion CO ${quoteId}: pago confirmado, finalize estandar (fase 2 CO pendiente para pasos Chile-especificos).`);
+    }
     const result = await finalizeAfterPayment({
       config: acceptanceConfig,
       quoteId,

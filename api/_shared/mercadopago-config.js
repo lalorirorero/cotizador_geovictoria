@@ -132,6 +132,67 @@ function getMercadoPagoConfigCO(req) {
     publicKey: toText(process.env.MP_PUBLIC_KEY_CO),
     webhookSecret: toText(process.env.MP_WEBHOOK_SECRET_CO),
     currencyId: toText(process.env.MP_CURRENCY_ID_CO || "COP"),
+    // Título de la línea del checkout CO: en Colombia el pago único es la
+    // Activación (equivalente al primer mes), no "servicios iniciales".
+    oneShotTitle: toText(process.env.MP_ONESHOT_TITLE_CO || "Activación servicio GeoVictoria"),
+    // En CO el pago único NUNCA suma un "primer mes" extra: la Activación ya lo
+    // es. Se fuerza acá para que el env chileno MP_ONESHOT_INCLUDE_FIRST_MONTH
+    // no pueda encenderlo por accidente en cotizaciones CO.
+    oneShotIncludeFirstMonth: false,
+  };
+}
+
+// ── Carril de PRUEBA COLOMBIA ──
+// Espejo del patrón chileno isTestLaneQuote, pero con OTRO efecto: en Chile la
+// empresa de prueba se SALTA el pago (bypass en confirm.js); en CO la empresa
+// de prueba SÍ pasa por el checkout, solo que con las credenciales SANDBOX de
+// la app CO, para poder probar el flujo completo con tarjetas de prueba de
+// MercadoPago Colombia sin generar cobros reales.
+function isTestLaneQuoteCO(quote, acceptanceConfig) {
+  if (!quote) return false;
+  // NIT y nombre de la empresa sandbox CO (defaults del plan COLOMBIA paso 4;
+  // se normalizan igual que el RUT chileno: sin puntos, guiones ni espacios).
+  const testNits = (toText(process.env.TEST_LANE_CO_NIT) || "901.234.567-8")
+    .split(",").map((s) => normalizeRut(s)).filter(Boolean);
+  const testNames = (toText(process.env.TEST_LANE_CO_NAME) || "Prueba Vicky CO SAS")
+    .split(",").map((s) => s.trim().toLowerCase().replace(/\s+/g, "")).filter(Boolean);
+  // En la cotización CO el NIT vive en RUT_Cliente (convención "documento
+  // tributario del país en el mismo campo", ver create-from-vicky-co.js).
+  const nit = normalizeRut(
+    quote?.[acceptanceConfig?.companyRutField] || quote?.RUT_Cliente || quote?.RUT
+  );
+  const companyName = toText(
+    quote?.Cuenta_Asociada?.name || quote?.Account_Name?.name || quote?.CRM_ACCOUNT
+  ).toLowerCase().replace(/\s+/g, "");
+  if (nit && testNits.includes(nit)) return true;
+  if (companyName && testNames.includes(companyName)) return true;
+  return false;
+}
+
+// Config de MP a usar para UNA cotización CO concreta: producción por defecto;
+// si es la empresa de prueba, credenciales sandbox. FAIL-SAFE: si las envs de
+// sandbox no están cargadas se lanza un error explícito — JAMÁS caer a las
+// credenciales productivas en silencio, porque una prueba cobraría de verdad.
+function getMercadoPagoConfigForQuoteCO(req, quote, acceptanceConfig) {
+  const base = getMercadoPagoConfigCO(req);
+  if (!isTestLaneQuoteCO(quote, acceptanceConfig)) return base;
+
+  const testAccessToken = toText(process.env.MP_TEST_ACCESS_TOKEN_CO);
+  const testPublicKey = toText(process.env.MP_TEST_PUBLIC_KEY_CO);
+  if (!testAccessToken) {
+    throw new Error(
+      "Carril de prueba CO: la cotizacion es de la empresa de prueba pero faltan las credenciales " +
+        "sandbox (MP_TEST_ACCESS_TOKEN_CO / MP_TEST_PUBLIC_KEY_CO). No se usa produccion como fallback."
+    );
+  }
+  return {
+    ...base,
+    accessToken: testAccessToken,
+    publicKey: testPublicKey,
+    environment: "test",
+    // isProduction=false hace que pickInitPoint prefiera sandbox_init_point.
+    isProduction: false,
+    testLane: true,
   };
 }
 
@@ -139,7 +200,9 @@ module.exports = {
   MP_API_BASE,
   getMercadoPagoConfig,
   getMercadoPagoConfigCO,
+  getMercadoPagoConfigForQuoteCO,
   isTestLaneQuote,
+  isTestLaneQuoteCO,
   pickInitPoint,
   toBool,
 };

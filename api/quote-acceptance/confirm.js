@@ -78,10 +78,19 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toText(value).toLowerCase());
 }
 
-function buildPaymentSessionToken(mpConfig, { quoteId, dealId, billingEmail }) {
+function buildPaymentSessionToken(mpConfig, { quoteId, dealId, billingEmail, pais }) {
   const ttlMinutes = Math.max(5, Number(mpConfig.paymentSessionTtlMinutes) || 1440);
   return signVerificationPayload(
-    { quoteId, dealId, billingEmail, exp: Date.now() + ttlMinutes * 60 * 1000 },
+    {
+      quoteId,
+      dealId,
+      billingEmail,
+      // pais viaja SOLO cuando es "co" (viene del token de aceptación firmado
+      // por create-from-vicky-co): así payment-session sabe que debe cobrar con
+      // la app MP Colombia sin ir a Zoho, y el token chileno queda idéntico.
+      ...(toText(pais).toLowerCase() === "co" ? { pais: "co" } : {}),
+      exp: Date.now() + ttlMinutes * 60 * 1000,
+    },
     "payment_session"
   );
 }
@@ -354,6 +363,7 @@ export default async function handler(req, res) {
           quoteId: payload.quoteId,
           dealId: payload.dealId,
           billingEmail: normalizeEmail(quote?.[config.billingEmailField]),
+          pais: payload.pais,
         });
         sendJson(res, 200, {
           success: true,
@@ -548,6 +558,7 @@ export default async function handler(req, res) {
         quoteId: payload.quoteId,
         dealId: payload.dealId,
         billingEmail: billingEmailFromForm,
+        pais: payload.pais,
       });
       sendJson(res, 200, {
         success: true,

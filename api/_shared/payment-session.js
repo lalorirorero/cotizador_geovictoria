@@ -3,21 +3,48 @@
  * genera `confirm.js` (purpose "payment_session").
  *
  * Carga la cotizacion, valida coherencia del token vs. el Deal de la
- * cotizacion y calcula los montos a cobrar (one-shot y recurrente) usando la
- * configuracion de Mercado Pago (IVA segun `MP_CHARGE_INCLUDE_IVA`).
+ * cotizacion y calcula los montos a cobrar (one-shot y recurrente).
+ *
+ * MULTI-PAÍS: aquí se decide con qué app de MercadoPago se cobra. Una
+ * cotización COLOMBIA usa la config CO (cuenta MCO, moneda COP y — si es la
+ * empresa de prueba — credenciales sandbox) y montos con IVA POR LÍNEA; el
+ * resto sigue con la config chilena de siempre (Chile NO cambia).
  */
 
-const { getRecord, toText } = require("./zoho-crm");
+const { getRecord, getRecordWithFields, toText } = require("./zoho-crm");
 const { getAcceptanceConfig } = require("./quote-acceptance-config");
-const { getMercadoPagoConfig } = require("./mercadopago-config");
+const { getMercadoPagoConfig, getMercadoPagoConfigForQuoteCO } = require("./mercadopago-config");
 const { verifyVerificationToken, normalizeEmail } = require("./verification-token");
-const { sanitizeItems, clampDescuentoPct, computePaymentAmounts } = require("./quote-pricing");
+const {
+  sanitizeItems,
+  clampDescuentoPct,
+  computePaymentAmounts,
+  computePaymentAmountsCO,
+} = require("./quote-pricing");
 
 const PAYMENT_SESSION_PURPOSE = "payment_session";
 
+/**
+ * true si la cotización es COLOMBIA. Mecanismo primario: el token (de pago o
+ * de aceptación) viene firmado con pais:"co" — lo hace create-from-vicky-co y
+ * se propaga a los tokens de pago en confirm.js / session.js — así no hay
+ * llamadas extra a Zoho. Respaldo: Territorio del Deal = "Colombia" (el MISMO
+ * criterio que usa session.js), para tokens antiguos o re-minteados sin la
+ * marca. Chile no cambia: sin marca y sin territorio CO → false.
+ */
+async function esCotizacionCO(quote, tokenPayload, acceptanceConfig) {
+  if (toText(tokenPayload?.pais).toLowerCase() === "co") return true;
+  const dealField = toText(acceptanceConfig?.quoteDealLookupField) || "Deal_Asociado";
+  const dealId = toText(quote?.[dealField]?.id || quote?.[dealField]);
+  if (!dealId) return false;
+  // Best-effort: si Zoho falla en este respaldo, se asume Chile (el
+  // comportamiento previo), nunca se rompe la sesión de pago por esto.
+  const deal = await getRecordWithFields("Deals", dealId, ["id", "Territorio"]).catch(() => null);
+  return /colombia/i.test(toText(deal?.Territorio));
+}
+
 async function resolvePaymentSession(req, token) {
   const acceptanceConfig = getAcceptanceConfig(req);
-  const mpConfig = getMercadoPagoConfig(req);
 
   const payload = verifyVerificationToken(token, PAYMENT_SESSION_PURPOSE);
   const quoteId = toText(payload?.quoteId);
@@ -39,16 +66,29 @@ async function resolvePaymentSession(req, token) {
     throw new Error("El token de pago no corresponde a esta cotizacion.");
   }
 
+  // País de la cotización: define credenciales de MP (app CO en COP vs app CL
+  // en CLP) y la fórmula de montos (IVA por línea CO vs flag global chileno).
+  const pais = (await esCotizacionCO(quote, payload, acceptanceConfig)) ? "co" : "cl";
+  const mpConfig =
+    pais === "co"
+      ? getMercadoPagoConfigForQuoteCO(req, quote, acceptanceConfig)
+      : getMercadoPagoConfig(req);
+
   const items = sanitizeItems(quote?.[acceptanceConfig.quoteItemsSubformField]);
   const descuentos = {
     recurrentePct: clampDescuentoPct(quote?.[acceptanceConfig.quoteDiscountPctField]),
     instalacionRMPct: Number(quote?.[acceptanceConfig.quoteDiscountInstRMPctField] || 0),
     instalacionRegionPct: Number(quote?.[acceptanceConfig.quoteDiscountInstRegionPctField] || 0),
   };
-  const amounts = computePaymentAmounts(items, descuentos, {
-    includeIva: mpConfig.includeIva,
-    includeFirstMonth: mpConfig.oneShotIncludeFirstMonth,
-  });
+  const amounts =
+    pais === "co"
+      ? // CO: pago único = ítems no recurrentes con IVA por línea; la Activación
+        // ya es el primer mes → sin "primer mes" adicional. Sin descuentos v1.
+        computePaymentAmountsCO(items)
+      : computePaymentAmounts(items, descuentos, {
+          includeIva: mpConfig.includeIva,
+          includeFirstMonth: mpConfig.oneShotIncludeFirstMonth,
+        });
 
   const billingEmail =
     normalizeEmail(payload?.billingEmail) ||
@@ -58,6 +98,8 @@ async function resolvePaymentSession(req, token) {
   return {
     acceptanceConfig,
     mpConfig,
+    // "co" = Colombia (COP, IVA por línea); "cl" = Chile (sin cambios).
+    pais,
     quote,
     quoteId,
     dealId: quoteDealId || tokenDealId,
@@ -73,4 +115,5 @@ async function resolvePaymentSession(req, token) {
 module.exports = {
   PAYMENT_SESSION_PURPOSE,
   resolvePaymentSession,
+  esCotizacionCO,
 };

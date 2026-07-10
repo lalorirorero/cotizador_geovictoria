@@ -3,15 +3,27 @@ const { getRecord, getRecordWithFields, getUserById, toText } = require("../_sha
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
 const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
 const { signVerificationPayload } = require("../_shared/verification-token");
-const { computePaymentAmounts } = require("../_shared/quote-pricing");
+const {
+  computePaymentAmounts,
+  computePaymentAmountsCO,
+  computeTotalsCO,
+} = require("../_shared/quote-pricing");
 
 // Minteo del link de pago para un cliente que VUELVE a una cotización ya
 // aceptada pero sin pagar. Espejo de confirm.js (no se importa para no acoplar
 // session.js — lectura — al handler de aceptación). Mantener en sync si cambia.
-function buildPaymentUrlForQuote(mpConfig, { quoteId, dealId, billingEmail }) {
+function buildPaymentUrlForQuote(mpConfig, { quoteId, dealId, billingEmail, pais }) {
   const ttlMinutes = Math.max(5, Number(mpConfig.paymentSessionTtlMinutes) || 1440);
   const token = signVerificationPayload(
-    { quoteId, dealId, billingEmail, exp: Date.now() + ttlMinutes * 60 * 1000 },
+    {
+      quoteId,
+      dealId,
+      billingEmail,
+      // pais solo viaja cuando es "co": payment-session cobra con la app MP
+      // Colombia sin ir a Zoho; el token chileno queda idéntico al de siempre.
+      ...(toText(pais).toLowerCase() === "co" ? { pais: "co" } : {}),
+      exp: Date.now() + ttlMinutes * 60 * 1000,
+    },
     "payment_session"
   );
   return `${mpConfig.landingUrl}?${new URLSearchParams({ token }).toString()}`;
@@ -188,42 +200,10 @@ function computeTotals(items, descuentos = 0) {
   };
 }
 
-// ── Totales COLOMBIA (aditivo: solo se calcula/expone cuando pais === "co") ──
-// En CO el subform guarda COP en los campos *Clp (convención COLOMBIA.md) y el
-// IVA es POR LÍNEA (Afecto_IVA): el plan mensual está excluido (art. 476 E.T.)
-// y activación/equipos/envío/instalación llevan 19 %. Los buckets también
-// difieren de Chile: el "Pago inicial" CO son SOLO los pagos únicos (la
-// Activación ya ES el primer mes cobrado por adelantado — el recurrente NO se
-// suma al pago inicial); la "Mensualidad" son los recurrentes (plan sin IVA +
-// arriendos con IVA), facturada desde el mes siguiente. Sin descuentos en v1.
-function computeTotalsCO(items) {
-  const rows = Array.isArray(items) ? items : [];
-  let pagoInicialNetoCop = 0;
-  let pagoInicialIvaCop = 0;
-  let mensualidadNetaCop = 0;
-  let mensualidadIvaCop = 0;
-
-  rows.forEach((row) => {
-    const netoCop = Number(row?.subtotalClp || 0);
-    const ivaCop = row?.afectoIva === true ? netoCop * 0.19 : 0;
-    if (isRecurrentModalidad(row?.modalidad)) {
-      mensualidadNetaCop += netoCop;
-      mensualidadIvaCop += ivaCop;
-    } else {
-      pagoInicialNetoCop += netoCop;
-      pagoInicialIvaCop += ivaCop;
-    }
-  });
-
-  return {
-    pagoInicialNetoCop: Math.round(pagoInicialNetoCop),
-    pagoInicialIvaCop: Math.round(pagoInicialIvaCop),
-    pagoInicialCop: Math.round(pagoInicialNetoCop + pagoInicialIvaCop),
-    mensualidadNetaCop: Math.round(mensualidadNetaCop),
-    mensualidadIvaCop: Math.round(mensualidadIvaCop),
-    mensualidadCop: Math.round(mensualidadNetaCop + mensualidadIvaCop),
-  };
-}
+// Totales COLOMBIA (IVA por línea, buckets pago inicial / mensualidad): la
+// lógica vive ahora en _shared/quote-pricing.js (computeTotalsCO) porque el
+// flujo de pago (payment-session / finalize) la necesita también — un solo
+// lugar, cero duplicación. Acá solo se consume.
 
 async function getFallbackData(dealId) {
   const cleanDealId = toText(dealId);
@@ -364,16 +344,20 @@ export default async function handler(req, res) {
           quoteId: payload.quoteId,
           dealId: payload.dealId,
           billingEmail: toText(quote?.[config.billingEmailField]),
+          pais,
         })
       : "";
     // Monto del pago inicial (mismo cálculo que el checkout de MercadoPago en
     // resolvePaymentSession): one-shot + primer mes según config. Solo para
     // mostrarlo en la página; el cobro real lo recalcula el checkout.
+    // CO: pago único con IVA por línea, en COP (la Activación ya es el 1er mes).
     const pagoInicialClp = needsPayment
-      ? computePaymentAmounts(items, descuentos, {
-          includeIva: mpConfig.includeIva,
-          includeFirstMonth: mpConfig.oneShotIncludeFirstMonth,
-        }).oneShotClp
+      ? pais === "co"
+        ? computePaymentAmountsCO(items).oneShotClp
+        : computePaymentAmounts(items, descuentos, {
+            includeIva: mpConfig.includeIva,
+            includeFirstMonth: mpConfig.oneShotIncludeFirstMonth,
+          }).oneShotClp
       : 0;
 
     sendJson(res, 200, {

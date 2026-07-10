@@ -176,11 +176,17 @@
         var pollTimer = null;
         var busy = false;
 
-        function fmtCLP(value) {
+        // País/moneda de la sesión: los fija render() desde /api/payments/status.
+        // CO paga en COP, con trato de usted y SOLO tarjeta (no hay cuenta
+        // bancaria CO para transferencias aún); Chile queda idéntico (CLP).
+        var paisPago = "cl";
+        var monedaPago = "CLP";
+
+        function fmtMonto(value) {
           try {
-            return new Intl.NumberFormat("es-CL", {
+            return new Intl.NumberFormat(paisPago === "co" ? "es-CO" : "es-CL", {
               style: "currency",
-              currency: "CLP",
+              currency: monedaPago,
               maximumFractionDigits: 0,
             }).format(Number(value || 0));
           } catch (e) {
@@ -322,41 +328,59 @@
         }
 
         function renderOneShot(state) {
+          var esCO = paisPago === "co";
           var a = state.amounts;
           var hasFirstMonth = Number(a.firstMonthClp || 0) > 0;
           var rows = "";
           if (hasFirstMonth && Number(a.oneShotItemsClp || 0) > 0) {
-            rows += amountRow("Primer mes de servicio", fmtCLP(a.firstMonthClp));
-            rows += amountRow("Hardware + instalacion/envio", fmtCLP(a.oneShotItemsClp));
+            rows += amountRow("Primer mes de servicio", fmtMonto(a.firstMonthClp));
+            rows += amountRow("Hardware + instalacion/envio", fmtMonto(a.oneShotItemsClp));
           }
           rows += amountRow(
             "Pago inicial total",
-            "<strong>" + fmtCLP(a.oneShotClp) + "</strong>"
+            "<strong>" + fmtMonto(a.oneShotClp) + "</strong>"
           );
           if (state.subscription.required) {
-            rows += amountRow("Suscripcion mensual", fmtCLP(a.recurringClp) + " <small>/mes</small>");
+            rows += amountRow("Suscripcion mensual", fmtMonto(a.recurringClp) + " <small>/mes</small>");
           }
-          var lead = hasFirstMonth
+          // CO: textos en usted; el pago inicial ES la Activación (equivale al
+          // primer mes cobrado por adelantado, sin línea de "primer mes" extra).
+          var lead = esCO
+            ? "Realice el pago inicial de su cotización. La Activación equivale a su primer mes de servicio, cobrado por adelantado. Será redirigido a Mercado Pago para completarlo de forma segura."
+            : hasFirstMonth
             ? "Realiza el pago inicial, que incluye los servicios iniciales y el primer mes de servicio. Seras redirigido a Mercado Pago para completarlo de forma segura."
             : "Realiza el pago unico de los servicios iniciales. Seras redirigido a Mercado Pago para completarlo de forma segura.";
-          var monthlyNote = hasFirstMonth
+          var monthlyNote = esCO
+            ? '<p style="font-size:12px;color:var(--suave);margin:-4px 0 14px">' +
+              "La mensualidad del servicio se factura por separado desde el mes siguiente y varía según sus usuarios activos de cada período." +
+              "</p>"
+            : hasFirstMonth
             ? '<p style="font-size:12px;color:var(--suave);margin:-4px 0 14px">' +
               "El valor mensual del servicio se factura por separado a partir del 2&ordm; mes y es referencial: " +
               "se calcula sobre los usuarios de la cotización y varía según los usuarios activos de cada período." +
               "</p>"
             : "";
+          // CO: SOLO tarjeta — no hay cuenta bancaria CO configurada todavía
+          // (pendiente de negocio, COLOMBIA.md). JAMÁS mostrar los datos de
+          // transferencia chilenos (Victoria S.A / Banco de Chile) a un cliente CO.
+          var methodsHtml = esCO
+            ? '<div id="payMethods">' +
+              '<button class="btn" id="payCardBtn">Pagar con tarjeta ' + fmtMonto(a.oneShotClp) + "</button>" +
+              '<p class="pay-note">El pago con tarjeta es inmediato y seguro. Todo lo gestiona Mercado Pago.</p>' +
+              "</div>"
+            : '<div id="payMethods">' +
+              '<button class="btn" id="payCardBtn">Pagar con tarjeta ' + fmtMonto(a.oneShotClp) + "</button>" +
+              '<button class="btn secondary" id="payTransferBtn">Pagar por transferencia</button>' +
+              '<p class="pay-note">El pago con tarjeta es inmediato y seguro. ' +
+              "Por transferencia, te mostramos los datos y coordinas el comprobante con tu ejecutivo.</p>" +
+              "</div>" +
+              transferPanelHtml(state);
           contentEl.innerHTML =
             '<div class="amount-box">' + rows + "</div>" +
             monthlyNote +
             "<h2>Paso 1: Pago inicial</h2>" +
             '<p class="lead">' + lead + "</p>" +
-            '<div id="payMethods">' +
-            '<button class="btn" id="payCardBtn">Pagar con tarjeta ' + fmtCLP(a.oneShotClp) + "</button>" +
-            '<button class="btn secondary" id="payTransferBtn">Pagar por transferencia</button>' +
-            '<p class="pay-note">El pago con tarjeta es inmediato y seguro. ' +
-            "Por transferencia, te mostramos los datos y coordinas el comprobante con tu ejecutivo.</p>" +
-            "</div>" +
-            transferPanelHtml(state);
+            methodsHtml;
           document.getElementById("payCardBtn").addEventListener("click", function () {
             startStep("/api/payments/create-preference", "Conectando con Mercado Pago...");
           });
@@ -425,7 +449,7 @@
                 '<span class="value" style="color:var(--ok)">Pagado ✓</span></div>'
               : "") +
             '<div class="amount-row"><span class="label">Suscripcion mensual</span>' +
-            '<span class="value">' + fmtCLP(state.amounts.recurringClp) +
+            '<span class="value">' + fmtMonto(state.amounts.recurringClp) +
             ' <small>/mes</small></span></div>' +
             "</div>" +
             "<h2>Paso 2: Activa tu suscripcion</h2>" +
@@ -438,36 +462,60 @@
         }
 
         function renderDone(state) {
+          // CO: mismos estados que Chile pero en usted y sin mencionar
+          // "suscripción" (en Colombia no hay suscripción MP; se factura).
+          var esCO = paisPago === "co";
           if (state.onboarding.ready && state.onboarding.url) {
-            contentEl.innerHTML =
-              '<div class="center">' +
-              '<h2>¡Pago confirmado! 🎉</h2>' +
-              '<p class="lead">Tu pago y suscripcion estan activos. ' +
-              "En unos segundos te llevaremos a tu auto-onboarding para configurar tu plataforma.</p>" +
-              '<p class="lead">📧 Tambien te enviamos el link del auto-onboarding a tu correo: ' +
-              "puedes completarlo cuando quieras — mientras antes lo hagas, antes queda lista tu plataforma.</p>" +
-              '<button class="btn success" id="goOnboarding">Ir a mi onboarding ahora</button>' +
-              "</div>";
+            contentEl.innerHTML = esCO
+              ? '<div class="center">' +
+                '<h2>¡Pago confirmado! 🎉</h2>' +
+                '<p class="lead">Su pago fue confirmado. ' +
+                "En unos segundos lo llevaremos a su auto-onboarding para configurar su plataforma.</p>" +
+                '<p class="lead">📧 También le enviamos el link del auto-onboarding a su correo: ' +
+                "puede completarlo cuando quiera — mientras antes lo haga, antes queda lista su plataforma.</p>" +
+                '<button class="btn success" id="goOnboarding">Ir a mi onboarding ahora</button>' +
+                "</div>"
+              : '<div class="center">' +
+                '<h2>¡Pago confirmado! 🎉</h2>' +
+                '<p class="lead">Tu pago y suscripcion estan activos. ' +
+                "En unos segundos te llevaremos a tu auto-onboarding para configurar tu plataforma.</p>" +
+                '<p class="lead">📧 Tambien te enviamos el link del auto-onboarding a tu correo: ' +
+                "puedes completarlo cuando quieras — mientras antes lo hagas, antes queda lista tu plataforma.</p>" +
+                '<button class="btn success" id="goOnboarding">Ir a mi onboarding ahora</button>' +
+                "</div>";
             document.getElementById("goOnboarding").addEventListener("click", function () {
               window.location.href = state.onboarding.url;
             });
-            setMessage("Te redirigiremos automaticamente en unos segundos...", "ok");
+            setMessage(
+              esCO
+                ? "Lo redirigiremos automáticamente en unos segundos..."
+                : "Te redirigiremos automaticamente en unos segundos...",
+              "ok"
+            );
             // 8s: tiempo suficiente para leer el mensaje (antes 2,5s: ilegible).
             // El boton permite saltar de inmediato.
             window.setTimeout(function () {
               window.location.href = state.onboarding.url;
             }, 8000);
           } else {
-            contentEl.innerHTML =
-              '<div class="center">' +
-              '<div class="spinner"></div>' +
-              '<h2>Confirmando tu pago</h2>' +
-              '<p class="lead">Estamos validando tu pago y suscripcion con Mercado Pago. ' +
-              "Esto puede tardar unos segundos...</p>" +
-              "</div>";
+            contentEl.innerHTML = esCO
+              ? '<div class="center">' +
+                '<div class="spinner"></div>' +
+                '<h2>Confirmando su pago</h2>' +
+                '<p class="lead">Estamos validando su pago con Mercado Pago. ' +
+                "Esto puede tardar unos segundos...</p>" +
+                "</div>"
+              : '<div class="center">' +
+                '<div class="spinner"></div>' +
+                '<h2>Confirmando tu pago</h2>' +
+                '<p class="lead">Estamos validando tu pago y suscripcion con Mercado Pago. ' +
+                "Esto puede tardar unos segundos...</p>" +
+                "</div>";
             if (state.finalizeError) {
               setMessage(
-                "Tu pago fue recibido. Estamos generando tu onboarding; si demora, contacta a tu ejecutivo comercial.",
+                esCO
+                  ? "Su pago fue recibido. Estamos generando su onboarding; si demora, contacte a su ejecutiva comercial."
+                  : "Tu pago fue recibido. Estamos generando tu onboarding; si demora, contacta a tu ejecutivo comercial.",
                 "ok"
               );
             }
@@ -490,6 +538,10 @@
             // indicador de carga visible para no parpadear hacia un error.
             loadingEl.classList.remove("hidden");
             var state = await fetchStatusWithRetry();
+            // País/moneda ANTES de renderizar: todos los formatos y textos
+            // condicionados por CO dependen de estas dos variables.
+            paisPago = String(state.pais || "cl").toLowerCase();
+            monedaPago = String(state.currencyId || (paisPago === "co" ? "COP" : "CLP"));
             loadingEl.classList.add("hidden");
             contentEl.classList.remove("hidden");
             if (state.quote && state.quote.name) {
@@ -509,9 +561,14 @@
               renderDone(state);
             }
 
+            // CO: el IVA es por línea (el plan va exento), no un "incluido" plano.
             footEl.innerHTML =
               "Pagos procesados por Mercado Pago." +
-              (state.includeIva ? " Montos con IVA incluido." : "");
+              (paisPago === "co"
+                ? " Montos en pesos colombianos (COP), IVA incluido donde aplica."
+                : state.includeIva
+                ? " Montos con IVA incluido."
+                : "");
 
             schedulePoll(state);
           } catch (err) {

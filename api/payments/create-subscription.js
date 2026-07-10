@@ -64,6 +64,14 @@ export default async function handler(req, res) {
       return;
     }
 
+    // COLOMBIA: sin suscripciones de MP en v1 — la mensualidad se factura a 30
+    // días (COLOMBIA.md). Guardia explícita por si algún día se enciende
+    // MP_SUBSCRIPTION_ENABLED global: no debe arrastrar a las cotizaciones CO.
+    if (session.pais === "co") {
+      sendJson(res, 200, { success: true, skipped: true, reason: "co_sin_suscripcion" });
+      return;
+    }
+
     // Suscripcion recurrente desactivada por ahora (se cobra solo el pago unico).
     if (!mpConfig.subscriptionEnabled) {
       sendJson(res, 200, { success: true, skipped: true, reason: "subscription_disabled" });

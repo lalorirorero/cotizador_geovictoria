@@ -50,8 +50,11 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Country-aware: para una cotización CO la sesión trae la config de la app
+    // MP Colombia (sandbox si es la empresa de prueba), por lo que los pagos se
+    // consultan con el token CO y los montos ya vienen con IVA por línea.
     const session = await resolvePaymentSession(req, token);
-    const { mpConfig, acceptanceConfig, quote, quoteId, dealId, amounts, quoteName } = session;
+    const { mpConfig, acceptanceConfig, quote, quoteId, dealId, amounts, quoteName, pais } = session;
 
     if (!mpConfig.enabled) {
       sendJson(res, 409, { success: false, error: "Pagos con Mercado Pago no habilitados." });
@@ -60,7 +63,8 @@ export default async function handler(req, res) {
 
     const hasOneShot = amounts.oneShotClp > 0;
     // La suscripcion recurrente esta desactivada hasta integrar usuarios activos/mes.
-    const hasSubscription = mpConfig.subscriptionEnabled && amounts.recurringClp > 0;
+    // CO: NUNCA hay suscripción MP (mensualidad por facturación a 30 días).
+    const hasSubscription = pais !== "co" && mpConfig.subscriptionEnabled && amounts.recurringClp > 0;
 
     let oneShotApproved = !hasOneShot;
     let oneShotStatus = hasOneShot ? "pending" : "not_required";
@@ -104,8 +108,10 @@ export default async function handler(req, res) {
     // Solo se necesita el bloque de transferencia cuando el cliente aun debe
     // pagar (es el estado en que pago.html muestra el selector de metodo). En
     // los demas estados se omite el fetch del ejecutivo para no recargar el poll.
+    // CO: sin transferencia (aún no hay cuenta bancaria CO; pago.html solo
+    // ofrece tarjeta) → se omite también el fetch del ejecutivo.
     const transfer =
-      hasOneShot && !oneShotApproved
+      hasOneShot && !oneShotApproved && pais !== "co"
         ? await buildTransferInfo(quote)
         : { executiveName: "", whatsappPhone: "", quoteNumber: "" };
 
@@ -124,6 +130,8 @@ export default async function handler(req, res) {
     sendJson(res, 200, {
       success: true,
       quote: { id: quoteId, name: quoteName },
+      // "co" = Colombia: pago.html muestra COP, trato de usted y solo tarjeta.
+      pais,
       currencyId: mpConfig.currencyId,
       includeIva: amounts.includeIva,
       amounts: {

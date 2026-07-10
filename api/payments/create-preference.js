@@ -53,6 +53,12 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Country-aware vía resolvePaymentSession: para una cotización CO,
+    // mpConfig es la app MP Colombia (COP, sandbox si es la empresa de prueba,
+    // oneShotTitle "Activación") y amounts viene con IVA por línea SIN primer
+    // mes extra (firstMonthClp=0: la Activación ya lo es) → la preferencia sale
+    // en COP con una sola línea. Chile sigue idéntico. back_urls/notification
+    // no cambian: el webhook es compartido y decide país por la firma.
     const session = await resolvePaymentSession(req, token);
     const { mpConfig, quoteId, dealId, billingEmail, quoteName, amounts } = session;
 

@@ -196,6 +196,79 @@ function computePaymentAmounts(items, descuentos = 0, options = {}) {
   };
 }
 
+// ── COLOMBIA ────────────────────────────────────────────────────────────────
+// Totales CO con IVA POR LÍNEA (Afecto_IVA del subform): el plan mensual va
+// exento (art. 476 E.T.) y activación/equipos/envío/instalación llevan 19 %.
+// Convención COLOMBIA.md: en CO el subform guarda COP en los campos *_CLP, por
+// eso acá `subtotalClp` se lee como COP. Buckets distintos de Chile: el "Pago
+// inicial" son SOLO los pagos únicos (la Activación ya ES el primer mes cobrado
+// por adelantado); la "Mensualidad" son los recurrentes, facturada desde el mes
+// siguiente. Sin descuentos en CO v1.
+// (Extraída de session.js para compartirla con el flujo de pago sin duplicar.)
+function computeTotalsCO(items) {
+  const rows = Array.isArray(items) ? items : [];
+  let pagoInicialNetoCop = 0;
+  let pagoInicialIvaCop = 0;
+  let mensualidadNetaCop = 0;
+  let mensualidadIvaCop = 0;
+
+  rows.forEach((row) => {
+    const netoCop = toNumber(row?.subtotalClp);
+    const ivaCop = row?.afectoIva === true ? netoCop * IVA_RATE : 0;
+    if (isRecurrentModalidad(row?.modalidad)) {
+      mensualidadNetaCop += netoCop;
+      mensualidadIvaCop += ivaCop;
+    } else {
+      pagoInicialNetoCop += netoCop;
+      pagoInicialIvaCop += ivaCop;
+    }
+  });
+
+  return {
+    pagoInicialNetoCop: Math.round(pagoInicialNetoCop),
+    pagoInicialIvaCop: Math.round(pagoInicialIvaCop),
+    pagoInicialCop: Math.round(pagoInicialNetoCop + pagoInicialIvaCop),
+    mensualidadNetaCop: Math.round(mensualidadNetaCop),
+    mensualidadIvaCop: Math.round(mensualidadIvaCop),
+    mensualidadCop: Math.round(mensualidadNetaCop + mensualidadIvaCop),
+  };
+}
+
+/**
+ * Montos a cobrar de una cotización COLOMBIA, en el MISMO shape que
+ * computePaymentAmounts para que el resto del flujo de pago (preferencia,
+ * status, finalize, pago.html) lea los montos sin ramas por país.
+ *
+ * POR QUÉ difiere de Chile:
+ *  - El pago único CO = solo ítems NO recurrentes: neto + IVA de las líneas
+ *    afectas. La fila de Activación (pago único, afecta) YA equivale al primer
+ *    mes cobrado por adelantado → NUNCA se agrega un "primer mes" adicional
+ *    (firstMonthClp = 0 siempre, ignora MP_ONESHOT_INCLUDE_FIRST_MONTH).
+ *  - IVA POR LÍNEA (Afecto_IVA), no el flag global chileno MP_CHARGE_INCLUDE_IVA.
+ *  - Sin descuentos en CO v1.
+ * Los campos *Clp del resultado llevan COP (misma convención del subform).
+ */
+function computePaymentAmountsCO(items) {
+  const totals = computeTotalsCO(items);
+  return {
+    oneShotClp: totals.pagoInicialCop,
+    oneShotItemsClp: totals.pagoInicialCop,
+    firstMonthClp: 0,
+    recurringClp: totals.mensualidadCop,
+    includeIva: true,
+    includeFirstMonth: false,
+    descuentoPct: 0,
+    descuentos: { recurrentePct: 0, instalacionRMPct: 0, instalacionRegionPct: 0 },
+    breakdown: {
+      oneShotNetClp: totals.pagoInicialNetoCop,
+      oneShotIvaClp: totals.pagoInicialIvaCop,
+      recurringNetClp: totals.mensualidadNetaCop,
+      recurringIvaClp: totals.mensualidadIvaCop,
+    },
+    co: totals,
+  };
+}
+
 module.exports = {
   IVA_RATE,
   DEFAULT_FIELD_MAP,
@@ -207,4 +280,6 @@ module.exports = {
   isInstalacionItem,
   getZonaTarifa,
   computePaymentAmounts,
+  computeTotalsCO,
+  computePaymentAmountsCO,
 };
