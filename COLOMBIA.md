@@ -82,6 +82,30 @@ CO + planilla de tropicalización); lo que sigue es ejecución.
    prueba MP CO (panel: Tarjetas de prueba) → webhook → finalize. Limpiar
    registros de prueba al terminar.
 
+## Paridad de capacidades con Vicky Chile (10-jul)
+
+Directiva de Lalo: Vicky CO debe tener las mismas capacidades que Vicky CL.
+Estado (repo agente, rama vicky-v3):
+
+- ✅ Cotización referencial, cotización formal online (link + pago), derivar
+  a ejecutivo (lead CO por tómbola determinista).
+- ✅ Soporte operativo con el agente Foundry (mismo de Chile; escalamiento
+  con canales CO — pendiente confirmar WhatsApp/teléfono de soporte CO).
+- ✅ Opt-out / pérdida declarada (marcar_no_contactar) con cierre de ciclo.
+- ✅ Seguimiento consensuado (programar_seguimiento, zona America/Bogota).
+  NOTA: el TOQUE único consensuado CO no se envía aún (requiere HSM CO);
+  la cadencia automática sí se apaga.
+- ✅ Re-engagement 1h/23h (texto libre, ventana 24h): nudges en usted por el
+  canal CO (vic-followup-cron country-aware).
+- ⛔ Reactivación 47h/7d/15d: EXCLUIDA para CO hasta tener HSM CO aprobadas
+  (el cron filtra country='co' — jamás enviará plantillas chilenas).
+- ⏳ Agendar reuniones (Cal.com): requiere crear el event type del equipo CO
+  en Cal.com (calendario de Laura / round robin CO) — pedir a Lalo.
+- ⏳ Descuentos: sin escalera CO por decisión de negocio v1 (las 3 tools de
+  descuento chilenas se agregan cuando exista la escalera CO).
+- ⏳ enviar_certificacion: el certificado es de la Dirección del Trabajo
+  (Chile); definir con el equipo CO si existe documento equivalente.
+
 ## Fase 2 — Backlog CO (detectado en pruebas E2E, 10-jul)
 
 - **Catálogos de facturación por país** (detectado por Lalo en la prueba de
