@@ -200,7 +200,8 @@ function computeTotals(items, descuentos = 0) {
   };
 }
 
-// Totales COLOMBIA (IVA por línea, buckets pago inicial / mensualidad): la
+// Totales COLOMBIA (montos finales SIN IVA — decisión precios finales 10-jul;
+// buckets pago inicial / mensualidad): la
 // lógica vive ahora en _shared/quote-pricing.js (computeTotalsCO) porque el
 // flujo de pago (payment-session / finalize) la necesita también — un solo
 // lugar, cero duplicación. Acá solo se consume.
@@ -350,7 +351,8 @@ export default async function handler(req, res) {
     // Monto del pago inicial (mismo cálculo que el checkout de MercadoPago en
     // resolvePaymentSession): one-shot + primer mes según config. Solo para
     // mostrarlo en la página; el cobro real lo recalcula el checkout.
-    // CO: pago único con IVA por línea, en COP (la Activación ya es el 1er mes).
+    // CO: pago único con montos FINALES en COP, sin IVA (precios finales
+    // 10-jul; la Activación ya es el 1er mes).
     const pagoInicialClp = needsPayment
       ? pais === "co"
         ? computePaymentAmountsCO(items).oneShotClp
@@ -362,7 +364,7 @@ export default async function handler(req, res) {
 
     sendJson(res, 200, {
       success: true,
-      // "co" = Colombia (montos COP, IVA por línea); "cl" = Chile (sin cambios).
+      // "co" = Colombia (montos COP finales, sin IVA); "cl" = Chile (sin cambios).
       pais,
       quote: {
         id: payload.quoteId,
@@ -424,8 +426,9 @@ export default async function handler(req, res) {
         supportEmail: config.supportContactEmail,
       },
       items,
-      // Chile: totales de siempre. Colombia: además el bloque `co` con IVA por
-      // línea y buckets pago inicial / mensualidad (el front CO usa solo `co`).
+      // Chile: totales de siempre. Colombia: además el bloque `co` con montos
+      // finales sin IVA (precios finales 10-jul) y buckets pago inicial /
+      // mensualidad (el front CO usa solo `co`).
       totals: {
         ...computeTotals(items, descuentos),
         ...(pais === "co" ? { co: computeTotalsCO(items) } : {}),

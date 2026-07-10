@@ -52,7 +52,8 @@ export default async function handler(req, res) {
 
     // Country-aware: para una cotización CO la sesión trae la config de la app
     // MP Colombia (sandbox si es la empresa de prueba), por lo que los pagos se
-    // consultan con el token CO y los montos ya vienen con IVA por línea.
+    // consultan con el token CO y los montos ya vienen FINALES (sin IVA —
+    // precios finales 10-jul).
     const session = await resolvePaymentSession(req, token);
     const { mpConfig, acceptanceConfig, quote, quoteId, dealId, amounts, quoteName, pais } = session;
 

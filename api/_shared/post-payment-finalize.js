@@ -178,8 +178,8 @@ async function maybeFinalizeQuote({ mpConfig, acceptanceConfig, quoteId, dealId 
   // path); los demás llamadores (reconcile-pending) pasan siempre la config
   // chilena, así que detectamos por Deal/Territorio. Si es CO se recalcula la
   // config (respetando el carril sandbox de la empresa de prueba) y los montos
-  // con IVA POR LÍNEA, para que oneShotApproved busque los pagos con el token
-  // correcto y compare contra el monto correcto.
+  // FINALES CO (sin IVA — precios finales 10-jul), para que oneShotApproved
+  // busque los pagos con el token correcto y compare contra el monto correcto.
   const pais =
     mpConfig?.pais === "co" || (await esCotizacionCO(quote, null, acceptanceConfig))
       ? "co"

@@ -561,11 +561,12 @@
               renderDone(state);
             }
 
-            // CO: el IVA es por línea (el plan va exento), no un "incluido" plano.
+            // CO — precios finales (10-jul): el IVA no existe en la experiencia
+            // del cliente; los montos se muestran tal cual, sin mencionarlo.
             footEl.innerHTML =
               "Pagos procesados por Mercado Pago." +
               (paisPago === "co"
-                ? " Montos en pesos colombianos (COP), IVA incluido donde aplica."
+                ? " Montos en pesos colombianos (COP)."
                 : state.includeIva
                 ? " Montos con IVA incluido."
                 : "");

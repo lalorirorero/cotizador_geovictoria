@@ -30,10 +30,12 @@
  *       "descripcion":       string?,  // opcional; si viene se muestra en el PDF
  *       "modalidad":         "Por usuario" | "Fijo" | "Arriendo mensual" | "Venta única" | "Cobro único",
  *       "cantidad":          number >= 1,
- *       "precioUnitarioCOP": number,   // COP neto (sin IVA)
- *       "subtotalCOP":       number,   // COP neto (sin IVA) = precioUnitarioCOP * cantidad
+ *       "precioUnitarioCOP": number,   // COP FINAL (precios finales, 10-jul)
+ *       "subtotalCOP":       number,   // COP FINAL = precioUnitarioCOP * cantidad
  *       "esRecurrente":      boolean,  // true = se factura mes a mes
- *       "afectoIva":         boolean   // plan mensual: false (art. 476 E.T.); resto: true
+ *       "afectoIva":         boolean   // desde el 10-jul el agente envía SIEMPRE
+ *                                      // false (precios finales: el IVA no existe
+ *                                      // en la experiencia del cliente CO)
  *     }
  *   ]
  * }
@@ -50,12 +52,14 @@
  *     crean desambiguados como "Empresa (NIT)".
  *   - Subform Detalle_Items_Cotizacion: Precio_Unitario_UF / Subtotal_UF
  *     guardan el valor en COP (convención "unidad de pricing del país") y
- *     Precio_Unitario_CLP / Subtotal_CLP el MISMO valor COP. Afecto_IVA por
- *     línea según el item (plan false, resto true).
- *   - Fila de "Activación" (= 1 mes del plan, Afecto_IVA true, no recurrente)
- *     se agrega SIEMPRE si no viene en items. El monto se toma de la suma de
- *     los items recurrentes SIN IVA (el plan es el único recurrente exento);
- *     si no hay plan en la cotización, no se agrega (no hay qué cobrar).
+ *     Precio_Unitario_CLP / Subtotal_CLP el MISMO valor COP. Afecto_IVA se
+ *     guarda tal cual viene del agente (desde el 10-jul llega SIEMPRE false:
+ *     decisión "precios finales" — el tratamiento tributario vive en la
+ *     factura electrónica, no en la cotización).
+ *   - Fila de "Activación" (= 1 mes del plan, Afecto_IVA false, no recurrente)
+ *     se agrega SIEMPRE si no viene en items. El monto es la suma de los
+ *     items recurrentes del plan (tipo "plan"); si no hay plan en la
+ *     cotización, no se agrega (no hay qué cobrar).
  *   - RUT_Cliente (cabecera) = NIT. Estado "Enviada". Version_PDF 1.
  *     Numero_Cotizacion es el correlativo automático de Zoho.
  *   - El token de aceptación se firma con pais:"co": session.js lo usa para
@@ -68,7 +72,8 @@
  *     es informativa; su user id de Zoho no está confirmado.
  *   - Monda_del_trato (picklist obligatorio del Deal): env VICKY_MONEDA_CO,
  *     default "COP". Si el picklist del org rechazara el valor, ajustar la env.
- *   - Amount del Deal = total neto de la cotización (suma de subtotalCOP).
+ *   - Amount del Deal = total de la cotización (suma de subtotalCOP, montos
+ *     finales — precios finales 10-jul).
  */
 
 const crypto = require("crypto");
@@ -290,16 +295,21 @@ function esItemActivacion(item) {
 }
 
 /**
- * Garantiza la fila de "Activación" (= 1 mes del plan, CON IVA, pago único).
+ * Garantiza la fila de "Activación" (= 1 mes del plan, pago único).
  * Es el "pago inicial" CO — NO existe el esquema chileno de primer mes con
  * descuento. Si el agente ya la mandó, se respeta la suya. El monto es la suma
- * de los recurrentes SIN IVA (el plan es el único recurrente exento; los
- * arriendos de equipos son recurrentes CON IVA y no forman parte del plan).
+ * de los recurrentes del PLAN (tipo "plan"); los arriendos de equipos son
+ * recurrentes pero no forman parte del plan.
+ *
+ * Precios finales (10-jul): la fila se crea con afectoIva=false — el IVA no
+ * existe en la experiencia del cliente CO. Además, el plan ya NO puede
+ * identificarse como "recurrente exento" (todos los items llegan con
+ * afectoIva=false), por eso se identifica por tipo.
  */
 function ensureActivacion(items) {
   if (items.some(esItemActivacion)) return items;
   const planMensualCOP = items.reduce((acc, it) => {
-    if (it.esRecurrente === true && it.afectoIva === false) {
+    if (it.esRecurrente === true && String(it.tipo || "").toLowerCase() === "plan") {
       return acc + Number(it.subtotalCOP || 0);
     }
     return acc;
@@ -322,7 +332,8 @@ function ensureActivacion(items) {
       precioUnitarioCOP: monto,
       subtotalCOP: monto,
       esRecurrente: false,
-      afectoIva: true,
+      // Precios finales (10-jul): sin IVA en ninguna superficie del cliente CO.
+      afectoIva: false,
     },
   ];
 }
@@ -426,7 +437,8 @@ module.exports = async function handler(req, res) {
     // La fila de Activación va SIEMPRE (pago inicial CO): en Zoho, en el PDF y
     // en la página de aceptación, así los tres muestran los mismos números.
     const items = ensureActivacion(body.items);
-    const totalNetoCOP = items.reduce((acc, it) => acc + Number(it.subtotalCOP || 0), 0);
+    // Total con montos finales (precios finales 10-jul: no hay IVA que sumar).
+    const totalCOP = items.reduce((acc, it) => acc + Number(it.subtotalCOP || 0), 0);
 
     // ── Account: dedup por NIT antes de crear ──
     stage = "find_account_by_nit";
@@ -515,8 +527,8 @@ module.exports = async function handler(req, res) {
       Stage: VICKY_CO_DEAL_STAGE,
       Pipeline: "Standard (Standard)",
       Lead_Source: VICKY_CO_LEAD_SOURCE,
-      Amount: totalNetoCOP || undefined,
-      Description: `Deal creado por Vicky CO para cotización WhatsApp.\nUsuarios: ${userCount || "-"}\nTotal neto: ${totalNetoCOP} COP`,
+      Amount: totalCOP || undefined,
+      Description: `Deal creado por Vicky CO para cotización WhatsApp.\nUsuarios: ${userCount || "-"}\nTotal: ${totalCOP} COP`,
       // Obligatorios del layout de Deals del org (mismo set que Chile: sin
       // ellos el create devuelve MANDATORY_NOT_FOUND).
       Territorio: VICKY_CO_TERRITORIO,

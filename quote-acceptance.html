@@ -2031,12 +2031,14 @@
         // Tabla de tramos de asistencia: es la lista de precios chilena en UF.
         var pricingSection = document.getElementById("sectionPricing");
         if (pricingSection) pricingSection.style.display = "none";
-        // Cabecera de la tabla de costos: 7 columnas, sin UF, con IVA por línea.
+        // Cabecera de la tabla de costos: 6 columnas, sin UF y SIN columna de
+        // IVA (precios finales 10-jul: el IVA no existe en la experiencia del
+        // cliente CO).
         var costHead = document.querySelector("#sectionCosts .cost-table thead tr");
         if (costHead) {
           costHead.innerHTML =
             "<th>Item</th><th>Tipo</th><th>Modalidad</th><th>Cant.</th>" +
-            "<th>Precio Unit.</th><th>IVA</th><th>Subtotal (COP)</th>";
+            "<th>Precio Unit.</th><th>Subtotal (COP)</th>";
         }
         // Términos resumidos CO (sin UF, sin Dirección del Trabajo, sin multa;
         // arriendo = equipos de GeoVictoria con devolución; sin permanencia).
@@ -2044,7 +2046,7 @@
         if (summary) {
           summary.innerHTML = [
             "El pago inicial corresponde a los conceptos de pago único e incluye la Activación, equivalente al primer mes de servicio cobrado por adelantado. La mensualidad se factura desde el mes siguiente.",
-            "Valores en pesos colombianos (COP); no incluyen IVA salvo donde se indique. El plan mensual del servicio está excluido de IVA (servicio de computación en la nube, art. 476 del Estatuto Tributario); los demás conceptos aplican IVA del 19%.",
+            "Valores en pesos colombianos (COP).",
             "La mensualidad está sujeta a la cantidad de usuarios de esta cotización: la variación de usuarios activos ajusta el cobro en la facturación del período siguiente.",
             "Para los equipos en modalidad arriendo: el servicio incluye mantención y reposición por falla técnica; los equipos son propiedad de GeoVictoria y deben devolverse al término del servicio.",
             "Sin cláusula de permanencia: usted puede terminar el servicio avisando con 30 días de anticipación.",
@@ -2326,14 +2328,12 @@
 
           function itemRowHtml(row) {
             if (esCO) {
-              // Colombia: 7 columnas sin UF; subtotalClp guarda COP (convención
-              // "unidad de pricing del país") e IVA por línea — el plan mensual
-              // va "Excluido de IVA" (art. 476 E.T.). Sin descuentos en v1.
-              const netoCop = Number(row.subtotalClp || 0);
-              const ivaCell =
-                row.afectoIva === true
-                  ? fmtCOP(Math.round(netoCop * 0.19))
-                  : '<span style="font-size:11px;color:#6b7280">Excluido de IVA</span>';
+              // Colombia: 6 columnas sin UF; subtotalClp guarda COP (convención
+              // "unidad de pricing del país"). Precios finales (10-jul): SIN
+              // celda de IVA ni marca "Excluido de IVA" — se ignora
+              // row.afectoIva (las filas viejas, ej. COT218/COT219, pueden
+              // traer true y la vista no debe romperse). Sin descuentos en v1.
+              const montoCop = Number(row.subtotalClp || 0);
               return (
                 "<tr>" +
                 "<td>" + (row.nombre || "-") + "</td>" +
@@ -2341,8 +2341,7 @@
                 "<td>" + normalizeModalidadLabel(row) + "</td>" +
                 "<td>" + Number(row.cantidad || 0) + "</td>" +
                 "<td>" + fmtCOP(row.precioUnitarioClp) + "</td>" +
-                "<td>" + ivaCell + "</td>" +
-                "<td>" + fmtCOP(netoCop) + "</td>" +
+                "<td>" + fmtCOP(montoCop) + "</td>" +
                 "</tr>"
               );
             }
@@ -2378,7 +2377,7 @@
 
           const itemRowsHtml = rows.length
             ? rows.map(itemRowHtml).join("")
-            : '<tr><td colspan="' + (esCO ? 7 : 8) + '">Sin datos.</td></tr>';
+            : '<tr><td colspan="' + (esCO ? 6 : 8) + '">Sin datos.</td></tr>';
 
           // Valor mensual: el servidor ya entrega el recurrente NETO (con el
           // descuento aplicado). Mostramos el bruto tachado cuando hay descuento.
@@ -2393,25 +2392,26 @@
 
           let totalsRowsHtml;
           if (esCO) {
-            // Colombia: totales del bloque `co` del servidor (IVA por línea).
+            // Colombia: totales del bloque `co` del servidor. Precios finales
+            // (10-jul): SIN filas ni etiquetas de IVA — solo montos finales
+            // (computeTotalsCO ya ignora el IVA para CO, así las cotizaciones
+            // viejas con Afecto_IVA=true muestran los montos netos tal cual).
             // El "Pago inicial" son SOLO los pagos únicos: la Activación ya ES
-            // el primer mes cobrado por adelantado. La mensualidad (plan sin
-            // IVA + arriendos con IVA) se factura desde el mes siguiente.
+            // el primer mes cobrado por adelantado. La mensualidad se factura
+            // desde el mes siguiente.
             const co = totals.co || {};
             totalsRowsHtml =
-              '<tr class="cost-row-sub"><td colspan="6">Pago único (sin IVA, incluye Activación)</td><td>' +
-              fmtCOP(co.pagoInicialNetoCop) + "</td></tr>" +
-              '<tr class="cost-row-sub"><td colspan="6">IVA (19%)</td><td>' +
-              fmtCOP(co.pagoInicialIvaCop) + "</td></tr>" +
-              '<tr class="cost-row-total"><td colspan="6">Pago inicial — al aceptar</td><td>' +
+              '<tr class="cost-row-sub"><td colspan="5">Pago único (incluye Activación)</td><td>' +
+              fmtCOP(co.pagoInicialCop) + "</td></tr>" +
+              '<tr class="cost-row-total"><td colspan="5">Pago inicial — al aceptar</td><td>' +
               fmtCOP(co.pagoInicialCop) + "</td></tr>";
             if (Number(co.mensualidadCop || 0) > 0) {
               totalsRowsHtml +=
-                '<tr class="cost-row-sub"><td colspan="6">Mensualidad — desde el mes siguiente (IVA incluido donde aplica)</td><td>' +
+                '<tr class="cost-row-sub"><td colspan="5">Mensualidad — desde el mes siguiente</td><td>' +
                 fmtCOP(co.mensualidadCop) + "/mes</td></tr>";
             }
             totalsRowsHtml +=
-              '<tr><td colspan="7" style="font-size:11px;color:#6b7280;padding-top:6px;line-height:1.5">' +
+              '<tr><td colspan="6" style="font-size:11px;color:#6b7280;padding-top:6px;line-height:1.5">' +
               "El <b>Pago inicial</b> se cobra al aceptar; la <b>Activaci&oacute;n</b> equivale al primer mes de servicio, cobrado por adelantado. " +
               "La <b>mensualidad</b> se factura desde el mes siguiente; la variaci&oacute;n de usuarios activos la ajusta en la facturaci&oacute;n del per&iacute;odo siguiente." +
               "</td></tr>";
@@ -2479,7 +2479,8 @@
           if (costHighlight) {
             let chHtml;
             if (esCO) {
-              // Colombia: pago inicial (únicos + IVA por línea) y mensualidad.
+              // Colombia: pago inicial (pagos únicos, montos finales sin IVA
+              // — precios finales 10-jul) y mensualidad.
               const co = totals.co || {};
               chHtml =
                 '<div class="ch-item"><span>Pago inicial — al aceptar (incluye la Activación)</span><strong>' +
@@ -2504,9 +2505,10 @@
 
           const ufNote = document.getElementById("ufReferenceNote");
           if (ufNote) {
-            // CO: sin referencia a UF — nota tributaria del plan (art. 476).
+            // CO: sin referencia a UF y sin nota tributaria (precios finales
+            // 10-jul: el IVA no se menciona en ninguna superficie del cliente).
             ufNote.textContent = esCO
-              ? "* Valores en pesos colombianos (COP). El plan mensual del servicio está excluido de IVA (servicio de computación en la nube, art. 476 del Estatuto Tributario)."
+              ? "* Valores en pesos colombianos (COP)."
               : formatCLPReferenceNote(q, data.totals || {});
           }
 

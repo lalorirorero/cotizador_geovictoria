@@ -6,14 +6,15 @@
  *   - Encabezado: Geovictoria Colombia SAS / NIT 901.367.959-1 / Bogotá.
  *   - Montos SOLO en COP con formato $1.234.567 (es-CO). Sin columna UF ni
  *     "UF del día": en Colombia el precio de lista YA es en pesos.
- *   - IVA POR LÍNEA: el plan mensual está excluido de IVA (servicio de
- *     computación en la nube, art. 476 del Estatuto Tributario — así factura
- *     GeoVictoria CO hoy); activación, equipos, envío e instalación llevan
- *     IVA 19 %. Cada fila muestra su IVA o la marca "Excluido de IVA".
- *   - Bloque de totales: "Pago inicial (al aceptar)" = pagos únicos (neto +
- *     IVA por línea), con la Activación explicada como el primer mes del plan
- *     cobrado por adelantado; "Mensualidad desde el mes siguiente" =
- *     recurrentes (plan sin IVA + arriendos con IVA).
+ *   - PRECIOS FINALES (decisión de negocio de Lalo, 10-jul, definitiva): el
+ *     IVA NO existe en la experiencia del cliente CO — sin columna de IVA,
+ *     sin marcas "Excluido de IVA", sin notas tributarias (art. 476). El
+ *     tratamiento del IVA vive en la factura electrónica de GeoVictoria
+ *     Colombia, no en la cotización.
+ *   - Bloque de totales: "Pago inicial (al aceptar)" = suma de los pagos
+ *     únicos (montos tal cual), con la Activación explicada como el primer
+ *     mes del plan cobrado por adelantado; "Mensualidad — desde el mes
+ *     siguiente" = suma de los recurrentes. Sin líneas de IVA.
  *   - Línea fija de "Capacitación online" valorizada en $95.000, tachada con
  *     100 % de descuento (misma mecánica comercial que Chile).
  *   - T&C adaptados: sin UF, sin Dirección del Trabajo, sin multa de arriendo.
@@ -37,8 +38,6 @@ const { ONEPAGER_CSS } = require("./proposal-html-builder");
 // Ventana de validez de la cotización (días) — decisión de negocio CO.
 const VALIDEZ_DIAS_CO = 30;
 
-const IVA_CO = 0.19;
-
 // Capacitación online: valorizada en $95.000 COP con 100 % de descuento.
 const CAPACITACION_COP = 95000;
 
@@ -58,9 +57,8 @@ const EJEC_CO = {
   telefono: "+57 310 609 5259",
 };
 
-// Nota tributaria del plan (decisión de negocio cerrada: así factura CO hoy).
-const NOTA_ART_476 =
-  "El plan mensual del servicio está excluido de IVA (servicio de computación en la nube, art. 476 del Estatuto Tributario).";
+// Precios finales (10-jul): se eliminó la nota tributaria del art. 476 — el
+// IVA no se menciona en ninguna superficie del cliente CO.
 
 // ───────────────────────────────────────────────────────────────────────────
 // Helpers de formato (locales al archivo: el chileno no exporta los suyos y
@@ -135,13 +133,6 @@ function descripcionItemCO(item) {
   return DESC_PLAN_CO;
 }
 
-// CSS extra CO: columna de IVA por línea y marca de exención. Se apila sobre
-// el ONEPAGER_CSS chileno (mismo layout base).
-const EXTRA_CSS_CO = `
-.c-iva{text-align:right;white-space:nowrap;font-size:9px}
-.iva-exento{display:inline-block;font-size:8px;font-weight:700;color:#646464;background:rgba(100,100,100,.12);padding:1px 5px;border-radius:3px;letter-spacing:.2px}
-`;
-
 // ───────────────────────────────────────────────────────────────────────────
 // Builder principal CO
 // ───────────────────────────────────────────────────────────────────────────
@@ -168,9 +159,10 @@ function buildProposalHtmlCO({
     : formatFechaCorta(new Date(hoy.getTime() + VALIDEZ_DIAS_CO * 24 * 60 * 60 * 1000));
 
   // ── Filas de la tabla (una por item + capacitación fija) ──
+  // Precios finales (10-jul): los montos se muestran tal cual, sin IVA por
+  // línea. Se ignora item.afectoIva (filas viejas pueden traer true).
   const filas = (Array.isArray(items) ? items : []).map((item) => {
     const subtotal = Math.round(Number(item.subtotalCOP || 0));
-    const afectoIva = item.afectoIva === true;
     return {
       nombre: escapeHtml(item.nombre || ""),
       modalidad: item.esRecurrente === true ? "Pago mensual" : "Pago único",
@@ -178,15 +170,13 @@ function buildProposalHtmlCO({
       puCOP: Math.round(Number(item.precioUnitarioCOP || 0)),
       cant: Number(item.cantidad || 1),
       subtotal,
-      afectoIva,
-      iva: afectoIva ? Math.round(subtotal * IVA_CO) : 0,
       recurrente: item.esRecurrente === true,
       descLineaPct: 0,
     };
   });
 
   // Línea fija: capacitación online valorizada y tachada (100 % dcto). No suma
-  // al total ni lleva IVA porque su neto es 0.
+  // al total porque su neto es 0.
   filas.push({
     nombre: "Capacitación online",
     modalidad: "Pago único",
@@ -195,27 +185,17 @@ function buildProposalHtmlCO({
     cant: 1,
     subtotal: 0,
     subtotalBruto: CAPACITACION_COP,
-    afectoIva: true,
-    iva: 0,
     recurrente: false,
     descLineaPct: 100,
   });
 
   // ── Totales CO: únicos (pago inicial) vs recurrentes (mensualidad) ──
-  // IVA por línea: solo las filas con afectoIva suman IVA. El plan (recurrente
-  // sin IVA) queda fuera; los arriendos (recurrentes con IVA) sí lo llevan.
-  let uniNeto = 0, uniIva = 0, recNeto = 0, recIva = 0;
+  // Precios finales (10-jul): se suman los montos tal cual, sin líneas de IVA.
+  let uniTot = 0, recTot = 0;
   for (const f of filas) {
-    if (f.recurrente) {
-      recNeto += f.subtotal;
-      recIva += f.iva;
-    } else {
-      uniNeto += f.subtotal;
-      uniIva += f.iva;
-    }
+    if (f.recurrente) recTot += f.subtotal;
+    else uniTot += f.subtotal;
   }
-  const uniTot = uniNeto + uniIva;
-  const recTot = recNeto + recIva;
 
   const rowItem = (f) => {
     // Fila con descuento por línea (hoy solo la capacitación al 100 %):
@@ -229,9 +209,6 @@ function buildProposalHtmlCO({
     } else {
       totalCellInner = formatCOP(f.subtotal);
     }
-    const ivaCell = f.afectoIva
-      ? (f.iva > 0 ? formatCOP(f.iva) : "—")
-      : `<span class="iva-exento">Excluido de IVA</span>`;
     return (
       `<tr>` +
       `<td class="c-nom">${f.nombre}</td>` +
@@ -239,26 +216,21 @@ function buildProposalHtmlCO({
       `<td class="c-desc">${f.desc}</td>` +
       `<td class="c-num">${formatCOP(f.puCOP)}</td>` +
       `<td class="c-num">${f.cant}</td>` +
-      `<td class="c-iva">${ivaCell}</td>` +
       `<td class="c-num c-tot">${totalCellInner}</td>` +
       `</tr>`
     );
   };
   const rowsHtml = filas.map(rowItem).join("");
-  const netoTotal = uniNeto + recNeto;
+  const totalTabla = uniTot + recTot;
 
   // ── Caja de totales ──
+  // Precios finales (10-jul): sin líneas de IVA — solo los totales a pagar.
   let totHtml = "";
   totHtml += `<div class="tot-h">Pago inicial — al aceptar</div>`;
-  totHtml += `<div class="tr"><span>Pago único (incluye Activación)</span><span>${formatCOP(uniNeto)}</span></div>`;
-  totHtml += `<div class="tr"><span>IVA (19%)</span><span>${formatCOP(uniIva)}</span></div>`;
+  totHtml += `<div class="tr"><span>Conceptos de pago único (incluye Activación)</span><span>${formatCOP(uniTot)}</span></div>`;
   totHtml += `<div class="tr grand"><span>Total a pagar ahora</span><span>${formatCOP(uniTot)}</span></div>`;
-  if (recNeto > 0) {
+  if (recTot > 0) {
     totHtml += `<div class="tot-h" style="margin-top:6px">Mensualidad — desde el mes siguiente</div>`;
-    totHtml += `<div class="tr"><span>Neto mensual</span><span>${formatCOP(recNeto)}</span></div>`;
-    if (recIva > 0) {
-      totHtml += `<div class="tr"><span>IVA (19%, arriendo de equipos)</span><span>${formatCOP(recIva)}</span></div>`;
-    }
     totHtml += `<div class="tr grand"><span>Total mensual</span><span>${formatCOP(recTot)}/mes</span></div>`;
   }
   totHtml +=
@@ -269,12 +241,14 @@ function buildProposalHtmlCO({
     `</div>`;
 
   const ctaHref = escapeHtml(acceptanceUrl || "#");
-  const notaTexto = `Valores en pesos colombianos (COP). ${NOTA_ART_476}`;
+  const notaTexto = "Valores en pesos colombianos (COP).";
 
   // T&C CO (sin UF, sin Dirección del Trabajo, sin multa de arriendo).
+  // Precios finales (10-jul): el bullet tributario se reemplazó por la moneda
+  // a secas — cero menciones a IVA en el texto al cliente.
   const TYC_CO = [
     "El pago inicial —al aceptar esta cotización— corresponde a los conceptos de pago único e incluye la Activación, equivalente al primer mes de servicio cobrado por adelantado. La mensualidad se factura desde el mes siguiente.",
-    "Valores en pesos colombianos (COP); no incluyen IVA salvo donde se indique. " + NOTA_ART_476 + " Los demás conceptos aplican IVA del 19 %.",
+    "Valores en pesos colombianos (COP).",
     "La mensualidad está sujeta a la cantidad de usuarios de esta cotización: la variación de usuarios activos ajusta el cobro en la facturación del período siguiente.",
     "Para los equipos en modalidad arriendo: el servicio incluye mantención y reposición por falla técnica; los equipos son propiedad de GeoVictoria y deben devolverse al término del servicio.",
     "Sin cláusula de permanencia: usted puede terminar el servicio avisando con 30 días de anticipación.",
@@ -292,7 +266,7 @@ function buildProposalHtmlCO({
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <title>Cotización ${cotizNumero} — ${empresa}</title>
-<style>${ONEPAGER_CSS}${EXTRA_CSS_CO}</style></head>
+<style>${ONEPAGER_CSS}</style></head>
 <body>
 <div class="page"><div class="sheet">
 
@@ -328,10 +302,10 @@ function buildProposalHtmlCO({
   <div class="band">Productos y Servicios</div>
   <table>
     <thead>
-      <tr><th>Nombre</th><th>Modalidad</th><th>Descripción</th><th class="r">P. Unitario</th><th class="r">Cant.</th><th class="r">IVA (19%)</th><th class="r">Total Neto</th></tr>
+      <tr><th>Nombre</th><th>Modalidad</th><th>Descripción</th><th class="r">P. Unitario</th><th class="r">Cant.</th><th class="r">Total</th></tr>
     </thead>
     <tbody>${rowsHtml}
-      <tr class="sub"><td colspan="6">Subtotal (sin IVA)</td><td class="c-num">${formatCOP(netoTotal)}</td></tr>
+      <tr class="sub"><td colspan="5">Subtotal</td><td class="c-num">${formatCOP(totalTabla)}</td></tr>
     </tbody>
   </table>
 
@@ -381,4 +355,4 @@ function buildProposalHtmlCO({
 </body></html>`;
 }
 
-module.exports = { buildProposalHtmlCO, CAPACITACION_COP, NOTA_ART_476 };
+module.exports = { buildProposalHtmlCO, CAPACITACION_COP };

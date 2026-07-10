@@ -11,11 +11,12 @@ CO + planilla de tropicalización); lo que sigue es ejecución.
   Envío venta $42.000 capital / $69.000 resto (arriendo $0). Instalación
   venta $67.000 / $92.000 (arriendo $0; $0 si auto-instala). "Capital" =
   capital de departamento (clasificador en el agente: lib/paises/co/geografia).
-- **IVA POR LÍNEA:** plan mensual SIN IVA (cloud excluido art. 476 E.T. —
-  así factura GeoVictoria CO hoy); activación, equipos, envío e instalación
-  +19%. Retenciones NUNCA en la cotización.
-- **Activación** = 1 mes del plan cobrado por adelantado, concepto único CON
-  IVA. Es el "pago inicial" CO. NO existe el esquema mes-2-con-30%-dcto.
+- **PRECIOS FINALES (10-jul):** el IVA no existe en la experiencia del
+  cliente (chat, cotización, PDF, pago); tratamiento tributario en la
+  factura electrónica de GeoVictoria Colombia. Retenciones tampoco se
+  mencionan jamás.
+- **Activación** = 1 mes del plan cobrado por adelantado, concepto de pago
+  único. Es el "pago inicial" CO. NO existe el esquema mes-2-con-30%-dcto.
 - **Capacitación:** $95.000 con 100% dcto (tachada), como Chile.
 - **Sin descuentos en CO v1** (escalera 10→20% pendiente de confirmación).
 - **Sin suscripciones MP**: checkout = pago único (activación + one-offs).
@@ -55,13 +56,14 @@ CO + planilla de tropicalización); lo que sigue es ejecución.
    los crea derivar_a_ejecutivo; enlazar si viene leadId es fase 2).
 2. **`api/_shared/proposal-html-builder-co.js`** — PDF colombiano: mismo
    layout que Chile pero encabezado Geovictoria Colombia SAS/NIT, montos en
-   COP sin columna UF ni "UF del día", IVA POR LÍNEA (plan sin IVA con nota
-   art. 476; únicos +19%), bloque "Pago inicial" = activación (+equipos si
-   hay), "Mensualidad desde el mes siguiente", capacitación tachada
+   COP sin columna UF ni "UF del día", montos finales (precios finales
+   10-jul: sin columna, notas ni menciones de IVA), bloque "Pago inicial" =
+   activación (+equipos si hay), "Mensualidad desde el mes siguiente",
+   capacitación tachada
    ($95.000, 100% dcto), T&C CO (sin DT, sin UF; permanencia: aviso 30 días;
    soporte L-V 8:30-18:30; Azure 99,5%), vigencia 30 días, ejecutiva Laura.
 3. **Aceptación online country-aware:** `session.js` agrega `pais` (desde
-   Territorio del quote o campo nuevo) y totales con IVA por línea para CO;
+   Territorio del quote o campo nuevo) y totales CO (montos finales);
    `quote-acceptance.html` oculta columnas UF y muestra COP cuando
    `pais==='co'` (mínimo cambio: flag en el payload de sesión).
 4. **Pago CO:** `payment-session.js`/`create-preference.js` usan
