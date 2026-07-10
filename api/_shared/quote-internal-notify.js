@@ -13,6 +13,7 @@
 const { zohoApiFetch } = require("./zoho-auth");
 const { getRecordWithFields, toText } = require("./zoho-crm");
 const { getMercadoPagoConfig } = require("./mercadopago-config");
+const { esCotizacionCO } = require("./payment-session");
 const {
   searchPaymentsByExternalReference,
   buildExternalReference,
@@ -22,6 +23,16 @@ const NOTIFY_FROM = toText(process.env.VICKY_FROM_EMAIL) || "vicky@geovictoria.c
 const NOTIFY_RECIPIENTS = (
   process.env.QUOTE_NOTIFY_RECIPIENTS ||
   "egomez@geovictoria.com,adiazg@geovictoria.com,rlewit@geovictoria.com"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+// Multi-país: en Colombia la ejecutiva a cargo es Laura Vargas — reemplaza a
+// Anderson (Chile) en las notificaciones de cotizaciones CO. Mismo formato env.
+const NOTIFY_RECIPIENTS_CO = (
+  process.env.QUOTE_NOTIFY_RECIPIENTS_CO ||
+  "egomez@geovictoria.com,lvargash@geovictoria.com,rlewit@geovictoria.com"
 )
   .split(",")
   .map((s) => s.trim())
@@ -133,9 +144,9 @@ function seccionPagosMp(pagos) {
 </table>`;
 }
 
-async function sendInternalMail({ quoteModule, quoteId, subject, htmlBody }) {
+async function sendInternalMail({ quoteModule, quoteId, subject, htmlBody, recipients }) {
   const path = `/crm/v3/${encodeURIComponent(quoteModule)}/${encodeURIComponent(quoteId)}/actions/send_mail`;
-  const [first, ...rest] = NOTIFY_RECIPIENTS;
+  const [first, ...rest] = recipients && recipients.length ? recipients : NOTIFY_RECIPIENTS;
   if (!first) return;
   const dataPayload = {
     from: { email: NOTIFY_FROM },
@@ -226,8 +237,11 @@ async function notifyQuoteEvent({ config, quote, quoteId, evento }) {
       evento === "pagada" ? "PAGADA" : "ACEPTADA"
     } — ${empresa || "cliente"}`;
     const htmlBody = buildHtml({ evento, empresa, numero, clientEmail, rut, montoClp, dealId, pagosMp });
-    await sendInternalMail({ quoteModule: config.quoteModule, quoteId, subject, htmlBody });
-    console.log(`[quote-notify] enviado evento=${evento} quote=${numero || quoteId} → ${NOTIFY_RECIPIENTS.join(", ")}`);
+    // Multi-país: en cotizaciones CO la ejecutiva es Laura (no Anderson).
+    const esCO = await esCotizacionCO(quote, null, config).catch(() => false);
+    const recipients = esCO ? NOTIFY_RECIPIENTS_CO : NOTIFY_RECIPIENTS;
+    await sendInternalMail({ quoteModule: config.quoteModule, quoteId, subject, htmlBody, recipients });
+    console.log(`[quote-notify] enviado evento=${evento} quote=${numero || quoteId} pais=${esCO ? "co" : "cl"} → ${recipients.join(", ")}`);
     // Además del correo: aviso por WhatsApp (best-effort, no bloquea).
     await notifyWhatsApp({ evento, empresa, numero, montoClp });
   } catch (err) {
