@@ -2329,11 +2329,12 @@
           function itemRowHtml(row) {
             if (esCO) {
               // Colombia: 6 columnas sin UF; subtotalClp guarda COP (convención
-              // "unidad de pricing del país"). Precios finales (10-jul): SIN
-              // celda de IVA ni marca "Excluido de IVA" — se ignora
-              // row.afectoIva (las filas viejas, ej. COT218/COT219, pueden
-              // traer true y la vista no debe romperse). Sin descuentos en v1.
+              // "unidad de pricing del país"). IVA (10-jul refinado): SOLO el
+              // hardware (Afecto_IVA=true) lleva 19% — la fila lo marca
+              // "+ IVA" y los totales lo desglosan; el resto son precios
+              // finales. Sin descuentos en v1.
               const montoCop = Number(row.subtotalClp || 0);
+              const marcaIva = row.afectoIva === true ? " + IVA" : "";
               return (
                 "<tr>" +
                 "<td>" + (row.nombre || "-") + "</td>" +
@@ -2341,7 +2342,7 @@
                 "<td>" + normalizeModalidadLabel(row) + "</td>" +
                 "<td>" + Number(row.cantidad || 0) + "</td>" +
                 "<td>" + fmtCOP(row.precioUnitarioClp) + "</td>" +
-                "<td>" + fmtCOP(montoCop) + "</td>" +
+                "<td>" + fmtCOP(montoCop) + marcaIva + "</td>" +
                 "</tr>"
               );
             }
@@ -2392,20 +2393,32 @@
 
           let totalsRowsHtml;
           if (esCO) {
-            // Colombia: totales del bloque `co` del servidor. Precios finales
-            // (10-jul): SIN filas ni etiquetas de IVA — solo montos finales
-            // (computeTotalsCO ya ignora el IVA para CO, así las cotizaciones
-            // viejas con Afecto_IVA=true muestran los montos netos tal cual).
-            // El "Pago inicial" son SOLO los pagos únicos: la Activación ya ES
-            // el primer mes cobrado por adelantado. La mensualidad se factura
-            // desde el mes siguiente.
+            // Colombia: totales del bloque `co` del servidor (computeTotalsCO
+            // aplica IVA 19% SOLO a las líneas Afecto_IVA=true — hardware; el
+            // resto son precios finales). Las filas de IVA aparecen solo si
+            // hay hardware. El "Pago inicial" son SOLO los pagos únicos: la
+            // Activación ya ES el primer mes cobrado por adelantado. La
+            // mensualidad se factura desde el mes siguiente.
             const co = totals.co || {};
             totalsRowsHtml =
               '<tr class="cost-row-sub"><td colspan="5">Pago único (incluye Activación)</td><td>' +
-              fmtCOP(co.pagoInicialCop) + "</td></tr>" +
+              fmtCOP(co.pagoInicialNetoCop) + "</td></tr>";
+            if (Number(co.pagoInicialIvaCop || 0) > 0) {
+              totalsRowsHtml +=
+                '<tr class="cost-row-sub"><td colspan="5">IVA equipos (19 %)</td><td>' +
+                fmtCOP(co.pagoInicialIvaCop) + "</td></tr>";
+            }
+            totalsRowsHtml +=
               '<tr class="cost-row-total"><td colspan="5">Pago inicial — al aceptar</td><td>' +
               fmtCOP(co.pagoInicialCop) + "</td></tr>";
             if (Number(co.mensualidadCop || 0) > 0) {
+              if (Number(co.mensualidadIvaCop || 0) > 0) {
+                totalsRowsHtml +=
+                  '<tr class="cost-row-sub"><td colspan="5">Mensualidad: servicio y equipos</td><td>' +
+                  fmtCOP(co.mensualidadNetaCop) + "</td></tr>" +
+                  '<tr class="cost-row-sub"><td colspan="5">IVA equipos (19 %)</td><td>' +
+                  fmtCOP(co.mensualidadIvaCop) + "</td></tr>";
+              }
               totalsRowsHtml +=
                 '<tr class="cost-row-sub"><td colspan="5">Mensualidad — desde el mes siguiente</td><td>' +
                 fmtCOP(co.mensualidadCop) + "/mes</td></tr>";
@@ -2479,8 +2492,8 @@
           if (costHighlight) {
             let chHtml;
             if (esCO) {
-              // Colombia: pago inicial (pagos únicos, montos finales sin IVA
-              // — precios finales 10-jul) y mensualidad.
+              // Colombia: pago inicial y mensualidad ya vienen con el IVA del
+              // hardware incluido desde computeTotalsCO.
               const co = totals.co || {};
               chHtml =
                 '<div class="ch-item"><span>Pago inicial — al aceptar (incluye la Activación)</span><strong>' +

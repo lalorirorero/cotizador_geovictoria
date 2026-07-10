@@ -11,10 +11,12 @@ CO + planilla de tropicalización); lo que sigue es ejecución.
   Envío venta $42.000 capital / $69.000 resto (arriendo $0). Instalación
   venta $67.000 / $92.000 (arriendo $0; $0 si auto-instala). "Capital" =
   capital de departamento (clasificador en el agente: lib/paises/co/geografia).
-- **PRECIOS FINALES (10-jul):** el IVA no existe en la experiencia del
-  cliente (chat, cotización, PDF, pago); tratamiento tributario en la
-  factura electrónica de GeoVictoria Colombia. Retenciones tampoco se
-  mencionan jamás.
+- **IMPUESTOS (10-jul, refinado el mismo día):** precios FINALES en todo
+  EXCEPTO el hardware — el reloj (arriendo y venta) lleva IVA 19%, marcado
+  por línea (`Afecto_IVA`/`afectoIva` true solo en reloj) y desglosado en
+  chat, cotización, PDF y cobro. Plan, activación, envío e instalación van
+  con precio final. Retenciones y artículos tributarios no se mencionan
+  jamás.
 - **Activación** = 1 mes del plan cobrado por adelantado, concepto de pago
   único. Es el "pago inicial" CO. NO existe el esquema mes-2-con-30%-dcto.
 - **Capacitación:** $95.000 con 100% dcto (tachada), como Chile.

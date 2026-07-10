@@ -197,42 +197,43 @@ function computePaymentAmounts(items, descuentos = 0, options = {}) {
 }
 
 // ── COLOMBIA ────────────────────────────────────────────────────────────────
-// Totales CO — PRECIOS FINALES (decisión de negocio de Lalo, 10-jul,
-// definitiva): en Colombia el IVA NO existe en la experiencia del cliente
-// (chat, cotización, PDF, pago); el tratamiento tributario vive en la factura
-// electrónica de GeoVictoria Colombia. Por eso acá el IVA se IGNORA por
-// completo (total = monto tal cual), incluso si filas antiguas del subform
-// traen Afecto_IVA=true (cotizaciones de prueba COT218/COT219): las viejas
-// muestran/cobran los montos netos y las nuevas ya vienen con montos finales
-// (el agente envía todo con afectoIva=false).
+// Totales CO — IMPUESTOS (decisión de negocio de Lalo, 10-jul, refinada el
+// mismo día): los precios son FINALES en todo EXCEPTO el hardware — el reloj
+// (arriendo y venta) lleva IVA 19%. El IVA se aplica POR LÍNEA según el flag
+// Afecto_IVA del subform (el agente lo marca true solo en las filas de reloj;
+// plan, activación, envío e instalación van false = precio final). Retenciones
+// y artículos tributarios no se mencionan jamás.
 // Convención COLOMBIA.md: en CO el subform guarda COP en los campos *_CLP, por
 // eso acá `subtotalClp` se lee como COP. Buckets distintos de Chile: el "Pago
 // inicial" son SOLO los pagos únicos (la Activación ya ES el primer mes cobrado
 // por adelantado); la "Mensualidad" son los recurrentes, facturada desde el mes
 // siguiente. Sin descuentos en CO v1.
-// Se mantienen los campos *IvaCop (siempre 0) para no romper el shape que
-// consumen session.js / payment-session / post-payment-finalize.
 function computeTotalsCO(items) {
   const rows = Array.isArray(items) ? items : [];
-  let pagoInicialCop = 0;
-  let mensualidadCop = 0;
+  let pagoInicialNeto = 0;
+  let pagoInicialIva = 0;
+  let mensualidadNeta = 0;
+  let mensualidadIva = 0;
 
   rows.forEach((row) => {
     const montoCop = toNumber(row?.subtotalClp);
+    const ivaCop = row?.afectoIva === true ? montoCop * IVA_RATE : 0;
     if (isRecurrentModalidad(row?.modalidad)) {
-      mensualidadCop += montoCop;
+      mensualidadNeta += montoCop;
+      mensualidadIva += ivaCop;
     } else {
-      pagoInicialCop += montoCop;
+      pagoInicialNeto += montoCop;
+      pagoInicialIva += ivaCop;
     }
   });
 
   return {
-    pagoInicialNetoCop: Math.round(pagoInicialCop),
-    pagoInicialIvaCop: 0,
-    pagoInicialCop: Math.round(pagoInicialCop),
-    mensualidadNetaCop: Math.round(mensualidadCop),
-    mensualidadIvaCop: 0,
-    mensualidadCop: Math.round(mensualidadCop),
+    pagoInicialNetoCop: Math.round(pagoInicialNeto),
+    pagoInicialIvaCop: Math.round(pagoInicialIva),
+    pagoInicialCop: Math.round(pagoInicialNeto + pagoInicialIva),
+    mensualidadNetaCop: Math.round(mensualidadNeta),
+    mensualidadIvaCop: Math.round(mensualidadIva),
+    mensualidadCop: Math.round(mensualidadNeta + mensualidadIva),
   };
 }
 
@@ -242,10 +243,9 @@ function computeTotalsCO(items) {
  * status, finalize, pago.html) lea los montos sin ramas por país.
  *
  * POR QUÉ difiere de Chile:
- *  - El pago único CO = solo ítems NO recurrentes, con montos FINALES
- *    (decisión precios finales 10-jul: el IVA no existe en la experiencia del
- *    cliente CO; NINGÚN camino agrega 19 % — ni el flag global chileno
- *    MP_CHARGE_INCLUDE_IVA ni Afecto_IVA del subform, que se ignora).
+ *  - El pago único CO = solo ítems NO recurrentes. IVA 19% SOLO en las líneas
+ *    con Afecto_IVA=true (hardware: reloj arriendo/venta); el resto son
+ *    precios finales. El flag global chileno MP_CHARGE_INCLUDE_IVA no aplica.
  *  - La fila de Activación (pago único) YA equivale al primer mes cobrado por
  *    adelantado → NUNCA se agrega un "primer mes" adicional (firstMonthClp = 0
  *    siempre, ignora MP_ONESHOT_INCLUDE_FIRST_MONTH).
@@ -259,8 +259,8 @@ function computePaymentAmountsCO(items) {
     oneShotItemsClp: totals.pagoInicialCop,
     firstMonthClp: 0,
     recurringClp: totals.mensualidadCop,
-    // Compat de shape: en CO el monto ya es FINAL (nada se agrega después);
-    // los campos *Iva* del breakdown quedan en 0 (precios finales 10-jul).
+    // Compat de shape: los montos oneShot/recurring ya traen el IVA del
+    // hardware sumado (nada se agrega después); el breakdown lo desglosa.
     includeIva: true,
     includeFirstMonth: false,
     descuentoPct: 0,

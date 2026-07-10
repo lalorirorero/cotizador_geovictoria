@@ -561,8 +561,8 @@
               renderDone(state);
             }
 
-            // CO — precios finales (10-jul): el IVA no existe en la experiencia
-            // del cliente; los montos se muestran tal cual, sin mencionarlo.
+            // CO: el monto a pagar ya trae el IVA del hardware incluido (el
+            // desglose vive en la cotización/PDF); acá solo se indica la moneda.
             footEl.innerHTML =
               "Pagos procesados por Mercado Pago." +
               (paisPago === "co"

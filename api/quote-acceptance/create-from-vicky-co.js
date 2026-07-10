@@ -30,12 +30,12 @@
  *       "descripcion":       string?,  // opcional; si viene se muestra en el PDF
  *       "modalidad":         "Por usuario" | "Fijo" | "Arriendo mensual" | "Venta única" | "Cobro único",
  *       "cantidad":          number >= 1,
- *       "precioUnitarioCOP": number,   // COP FINAL (precios finales, 10-jul)
- *       "subtotalCOP":       number,   // COP FINAL = precioUnitarioCOP * cantidad
+ *       "precioUnitarioCOP": number,   // COP neto (los afectos suman IVA aparte)
+ *       "subtotalCOP":       number,   // COP neto = precioUnitarioCOP * cantidad
  *       "esRecurrente":      boolean,  // true = se factura mes a mes
- *       "afectoIva":         boolean   // desde el 10-jul el agente envía SIEMPRE
- *                                      // false (precios finales: el IVA no existe
- *                                      // en la experiencia del cliente CO)
+ *       "afectoIva":         boolean   // true SOLO para hardware (reloj arriendo/
+ *                                      // venta): lleva IVA 19%. El resto false
+ *                                      // (precio final, decisión 10-jul refinada)
  *     }
  *   ]
  * }
@@ -72,8 +72,8 @@
  *     es informativa; su user id de Zoho no está confirmado.
  *   - Monda_del_trato (picklist obligatorio del Deal): env VICKY_MONEDA_CO,
  *     default "COP". Si el picklist del org rechazara el valor, ajustar la env.
- *   - Amount del Deal = total de la cotización (suma de subtotalCOP, montos
- *     finales — precios finales 10-jul).
+ *   - Amount del Deal = total de la cotización (suma de subtotalCOP + IVA 19%
+ *     de las líneas afectas — hardware).
  */
 
 const crypto = require("crypto");
@@ -301,10 +301,9 @@ function esItemActivacion(item) {
  * de los recurrentes del PLAN (tipo "plan"); los arriendos de equipos son
  * recurrentes pero no forman parte del plan.
  *
- * Precios finales (10-jul): la fila se crea con afectoIva=false — el IVA no
- * existe en la experiencia del cliente CO. Además, el plan ya NO puede
- * identificarse como "recurrente exento" (todos los items llegan con
- * afectoIva=false), por eso se identifica por tipo.
+ * La fila se crea con afectoIva=false (la Activación es un mes del plan, y el
+ * IVA solo aplica al hardware). El plan se identifica por TIPO, no por su flag
+ * de IVA: el arriendo de reloj también es recurrente pero es hardware afecto.
  */
 function ensureActivacion(items) {
   if (items.some(esItemActivacion)) return items;
@@ -332,7 +331,8 @@ function ensureActivacion(items) {
       precioUnitarioCOP: monto,
       subtotalCOP: monto,
       esRecurrente: false,
-      // Precios finales (10-jul): sin IVA en ninguna superficie del cliente CO.
+      // La Activación es un mes del plan: precio final, sin IVA (el IVA solo
+      // aplica al hardware).
       afectoIva: false,
     },
   ];
@@ -437,8 +437,11 @@ module.exports = async function handler(req, res) {
     // La fila de Activación va SIEMPRE (pago inicial CO): en Zoho, en el PDF y
     // en la página de aceptación, así los tres muestran los mismos números.
     const items = ensureActivacion(body.items);
-    // Total con montos finales (precios finales 10-jul: no hay IVA que sumar).
-    const totalCOP = items.reduce((acc, it) => acc + Number(it.subtotalCOP || 0), 0);
+    // Total a pagar: netos + IVA 19% de las líneas afectas (solo hardware).
+    const totalCOP = items.reduce((acc, it) => {
+      const subtotal = Number(it.subtotalCOP || 0);
+      return acc + subtotal + (it.afectoIva === true ? subtotal * 0.19 : 0);
+    }, 0);
 
     // ── Account: dedup por NIT antes de crear ──
     stage = "find_account_by_nit";

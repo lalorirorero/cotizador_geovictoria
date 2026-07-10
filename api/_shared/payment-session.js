@@ -67,8 +67,8 @@ async function resolvePaymentSession(req, token) {
   }
 
   // País de la cotización: define credenciales de MP (app CO en COP vs app CL
-  // en CLP) y la fórmula de montos (CO montos finales sin IVA — precios
-  // finales 10-jul — vs flag global chileno).
+  // en CLP) y la fórmula de montos (CO: IVA 19% solo en líneas de hardware,
+  // resto precios finales — vs flag global chileno).
   const pais = (await esCotizacionCO(quote, payload, acceptanceConfig)) ? "co" : "cl";
   const mpConfig =
     pais === "co"
@@ -83,9 +83,9 @@ async function resolvePaymentSession(req, token) {
   };
   const amounts =
     pais === "co"
-      ? // CO: pago único = ítems no recurrentes con montos finales (sin IVA,
-        // precios finales 10-jul); la Activación ya es el primer mes → sin
-        // "primer mes" adicional. Sin descuentos v1.
+      ? // CO: pago único = ítems no recurrentes (+IVA 19% solo en los de
+        // hardware); la Activación ya es el primer mes → sin "primer mes"
+        // adicional. Sin descuentos v1.
         computePaymentAmountsCO(items)
       : computePaymentAmounts(items, descuentos, {
           includeIva: mpConfig.includeIva,
@@ -100,7 +100,7 @@ async function resolvePaymentSession(req, token) {
   return {
     acceptanceConfig,
     mpConfig,
-    // "co" = Colombia (COP, montos finales sin IVA); "cl" = Chile (sin cambios).
+    // "co" = Colombia (COP, IVA solo en hardware); "cl" = Chile (sin cambios).
     pais,
     quote,
     quoteId,

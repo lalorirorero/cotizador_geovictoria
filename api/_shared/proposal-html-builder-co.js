@@ -57,8 +57,10 @@ const EJEC_CO = {
   telefono: "+57 310 609 5259",
 };
 
-// Precios finales (10-jul): se eliminó la nota tributaria del art. 476 — el
-// IVA no se menciona en ninguna superficie del cliente CO.
+// IVA (decisión 10-jul refinada): SOLO el hardware (reloj arriendo/venta,
+// afectoIva=true) lleva IVA 19%; el resto son precios finales. Retenciones y
+// artículos tributarios (ej. art. 476) no se mencionan jamás.
+const IVA_CO = 0.19;
 
 // ───────────────────────────────────────────────────────────────────────────
 // Helpers de formato (locales al archivo: el chileno no exporta los suyos y
@@ -159,10 +161,12 @@ function buildProposalHtmlCO({
     : formatFechaCorta(new Date(hoy.getTime() + VALIDEZ_DIAS_CO * 24 * 60 * 60 * 1000));
 
   // ── Filas de la tabla (una por item + capacitación fija) ──
-  // Precios finales (10-jul): los montos se muestran tal cual, sin IVA por
-  // línea. Se ignora item.afectoIva (filas viejas pueden traer true).
+  // IVA (decisión 10-jul refinada): SOLO el hardware (afectoIva=true) lleva
+  // IVA 19% — su fila lo marca "+ IVA" y los totales lo desglosan. El resto
+  // son precios finales, sin mención de impuestos.
   const filas = (Array.isArray(items) ? items : []).map((item) => {
     const subtotal = Math.round(Number(item.subtotalCOP || 0));
+    const afectoIva = item.afectoIva === true;
     return {
       nombre: escapeHtml(item.nombre || ""),
       modalidad: item.esRecurrente === true ? "Pago mensual" : "Pago único",
@@ -170,6 +174,8 @@ function buildProposalHtmlCO({
       puCOP: Math.round(Number(item.precioUnitarioCOP || 0)),
       cant: Number(item.cantidad || 1),
       subtotal,
+      iva: afectoIva ? Math.round(subtotal * IVA_CO) : 0,
+      afectoIva,
       recurrente: item.esRecurrente === true,
       descLineaPct: 0,
     };
@@ -185,17 +191,26 @@ function buildProposalHtmlCO({
     cant: 1,
     subtotal: 0,
     subtotalBruto: CAPACITACION_COP,
+    iva: 0,
+    afectoIva: false,
     recurrente: false,
     descLineaPct: 100,
   });
 
   // ── Totales CO: únicos (pago inicial) vs recurrentes (mensualidad) ──
-  // Precios finales (10-jul): se suman los montos tal cual, sin líneas de IVA.
-  let uniTot = 0, recTot = 0;
+  // Netos + IVA de las líneas afectas (solo hardware).
+  let uniNeto = 0, uniIva = 0, recNeto = 0, recIva = 0;
   for (const f of filas) {
-    if (f.recurrente) recTot += f.subtotal;
-    else uniTot += f.subtotal;
+    if (f.recurrente) {
+      recNeto += f.subtotal;
+      recIva += f.iva;
+    } else {
+      uniNeto += f.subtotal;
+      uniIva += f.iva;
+    }
   }
+  const uniTot = uniNeto + uniIva;
+  const recTot = recNeto + recIva;
 
   const rowItem = (f) => {
     // Fila con descuento por línea (hoy solo la capacitación al 100 %):
@@ -206,6 +221,8 @@ function buildProposalHtmlCO({
         `<span class="line-old">${formatCOP(f.subtotalBruto)}</span> ` +
         `${formatCOP(f.subtotal)}` +
         `<span class="line-disc">−${f.descLineaPct}%</span>`;
+    } else if (f.afectoIva) {
+      totalCellInner = `${formatCOP(f.subtotal)} + IVA`;
     } else {
       totalCellInner = formatCOP(f.subtotal);
     }
@@ -221,16 +238,25 @@ function buildProposalHtmlCO({
     );
   };
   const rowsHtml = filas.map(rowItem).join("");
-  const totalTabla = uniTot + recTot;
+  // La fila "Subtotal" de la tabla suma los netos visibles; el IVA del
+  // hardware se desglosa en la caja de totales.
+  const totalTabla = uniNeto + recNeto;
 
   // ── Caja de totales ──
-  // Precios finales (10-jul): sin líneas de IVA — solo los totales a pagar.
+  // El IVA aparece SOLO si hay hardware (única familia afecta).
   let totHtml = "";
   totHtml += `<div class="tot-h">Pago inicial — al aceptar</div>`;
-  totHtml += `<div class="tr"><span>Conceptos de pago único (incluye Activación)</span><span>${formatCOP(uniTot)}</span></div>`;
+  totHtml += `<div class="tr"><span>Conceptos de pago único (incluye Activación)</span><span>${formatCOP(uniNeto)}</span></div>`;
+  if (uniIva > 0) {
+    totHtml += `<div class="tr"><span>IVA equipos (19 %)</span><span>${formatCOP(uniIva)}</span></div>`;
+  }
   totHtml += `<div class="tr grand"><span>Total a pagar ahora</span><span>${formatCOP(uniTot)}</span></div>`;
   if (recTot > 0) {
     totHtml += `<div class="tot-h" style="margin-top:6px">Mensualidad — desde el mes siguiente</div>`;
+    if (recIva > 0) {
+      totHtml += `<div class="tr"><span>Servicio y equipos</span><span>${formatCOP(recNeto)}</span></div>`;
+      totHtml += `<div class="tr"><span>IVA equipos (19 %)</span><span>${formatCOP(recIva)}</span></div>`;
+    }
     totHtml += `<div class="tr grand"><span>Total mensual</span><span>${formatCOP(recTot)}/mes</span></div>`;
   }
   totHtml +=
