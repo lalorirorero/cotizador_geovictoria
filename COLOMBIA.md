@@ -1,0 +1,87 @@
+# Cotizador Colombia — diseño y estado (10-jul-2026)
+
+Plan de implementación del flujo de cotización formal CO. Las decisiones de
+negocio están CERRADAS (Lalo + evidencia de 15 cotizaciones reales de Creator
+CO + planilla de tropicalización); lo que sigue es ejecución.
+
+## Decisiones de negocio (NO reabrir)
+
+- **Precios (COP, lista canónica de Vicky):** plan 1-10 = $315.000 fijo ·
+  11-50 = $13.700/usuario. Reloj: arriendo $86.000/mes · venta $620.000.
+  Envío venta $42.000 capital / $69.000 resto (arriendo $0). Instalación
+  venta $67.000 / $92.000 (arriendo $0; $0 si auto-instala). "Capital" =
+  capital de departamento (clasificador en el agente: lib/paises/co/geografia).
+- **IVA POR LÍNEA:** plan mensual SIN IVA (cloud excluido art. 476 E.T. —
+  así factura GeoVictoria CO hoy); activación, equipos, envío e instalación
+  +19%. Retenciones NUNCA en la cotización.
+- **Activación** = 1 mes del plan cobrado por adelantado, concepto único CON
+  IVA. Es el "pago inicial" CO. NO existe el esquema mes-2-con-30%-dcto.
+- **Capacitación:** $95.000 con 100% dcto (tachada), como Chile.
+- **Sin descuentos en CO v1** (escalera 10→20% pendiente de confirmación).
+- **Sin suscripciones MP**: checkout = pago único (activación + one-offs).
+  Mensualidad por facturación (30 días, como opera CO).
+- **Entidad del PDF:** Geovictoria Colombia SAS · NIT 901.367.959-1 ·
+  Carrera 14 # 89-48 Of. 201, Edificio Novanta, Bogotá. Ejecutiva: Laura
+  Vargas (lvargash@geovictoria.com, +57 310 609 5259 — correo por confirmar).
+- **Vigencia 30 días. Registro de usted en todo texto al cliente.**
+
+## Infraestructura YA lista
+
+- **MP Colombia:** app Checkout Pro creada (cuenta GEOVICTORIA COLOMBIA SAS,
+  site MCO). Envs en Vercel: `MP_ACCESS_TOKEN_CO`, `MP_PUBLIC_KEY_CO`,
+  `MP_WEBHOOK_SECRET_CO`. ⚠️ Rotar el access token antes del go-live de
+  cobros reales (quedó expuesto en chat) y revocar el token de Vercel usado.
+- **Webhook multi-país:** `api/payments/webhook.js` valida la firma CL y, si
+  no calza, la CO (`getMercadoPagoConfigCO` en `_shared/mercadopago-config`);
+  la app que firma define las credenciales. Simulación esperada: 200.
+- **Agente (repo geovictoria-whatsapp-agent, rama vicky-v3):** Vicky CO viva
+  en `/api/vic-botmaker-co` (línea +57 318 107 0737, flag `VICKY_CO_ENABLED`),
+  pipeline asíncrono endurecido, motor de precios `lib/paises/co/cotizar.ts`
+  (testeado), perfil `lib/paises/co/`. Hoy al aceptar deriva a ejecutivo
+  (tools.ts: `derivar_a_ejecutivo`); cuando este cotizador CO exista, se le
+  agrega la tool `generar_link_cotizadora` CO.
+
+## Pasos de implementación (en orden)
+
+1. **`api/quote-acceptance/create-from-vicky-co.js`** — endpoint espejo
+   simplificado del chileno (auth x-vicky-secret): recibe
+   `{empresa, contacto, contactoEmail, nit, contactoTelefono, items[]}` con
+   los items YA calculados por el motor CO del agente (misma confianza que
+   Chile). Crea en Zoho: Account (dedup por NIT en RUT_Empresa), Contact,
+   Deal (Territorio Colombia) y Cotización con subform: los campos
+   `Precio_Unitario_UF/Subtotal_UF` guardan el valor en COP (convención
+   "unidad de pricing del país") y `*_CLP` el MISMO valor COP; fila extra
+   de Activación; `Moneda`/nota COP. SIN convert de leads en v1 (leads CO
+   los crea derivar_a_ejecutivo; enlazar si viene leadId es fase 2).
+2. **`api/_shared/proposal-html-builder-co.js`** — PDF colombiano: mismo
+   layout que Chile pero encabezado Geovictoria Colombia SAS/NIT, montos en
+   COP sin columna UF ni "UF del día", IVA POR LÍNEA (plan sin IVA con nota
+   art. 476; únicos +19%), bloque "Pago inicial" = activación (+equipos si
+   hay), "Mensualidad desde el mes siguiente", capacitación tachada
+   ($95.000, 100% dcto), T&C CO (sin DT, sin UF; permanencia: aviso 30 días;
+   soporte L-V 8:30-18:30; Azure 99,5%), vigencia 30 días, ejecutiva Laura.
+3. **Aceptación online country-aware:** `session.js` agrega `pais` (desde
+   Territorio del quote o campo nuevo) y totales con IVA por línea para CO;
+   `quote-acceptance.html` oculta columnas UF y muestra COP cuando
+   `pais==='co'` (mínimo cambio: flag en el payload de sesión).
+4. **Pago CO:** `payment-session.js`/`create-preference.js` usan
+   `getMercadoPagoConfigCO` cuando la cotización es CO (currency COP, monto
+   = pago inicial CO). `post-payment-finalize` calcula paymentsComplete con
+   el one-shot CO (sin suscripción). Transferencia CO: mostrar datos
+   bancarios CO (PENDIENTE: pedir cuenta bancaria CO a Lalo) o solo tarjeta
+   en v1.
+5. **Agente:** tool `generar_link_cotizadora` CO en `lib/paises/co/tools.ts`
+   que llama a create-from-vicky-co con los items de cotizarCO + NIT
+   validado; prompt CO: reemplazar el paso 7 (derivar) por generar link,
+   manteniendo derivar como fallback.
+6. **E2E:** cotización de prueba CO → aceptación → pago con tarjeta de
+   prueba MP CO (panel: Tarjetas de prueba) → webhook → finalize. Limpiar
+   registros de prueba al terminar.
+
+## Pendientes de negocio (no bloquean 1-2)
+
+- Cuenta bancaria CO para transferencias (página de pago).
+- Confirmar correo Laura (lvargas@ vs lvargash@).
+- Escalera de descuentos CO → habilita negociación (fase 2).
+- HSM CO en Botmaker → outbound CO (fase 2, textos ya entregados).
+- Crons (followup/reactivación/cadencia) country-aware antes del outbound CO.
