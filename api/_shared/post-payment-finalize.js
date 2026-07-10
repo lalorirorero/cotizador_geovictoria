@@ -193,7 +193,18 @@ async function maybeFinalizeQuote({ mpConfig, acceptanceConfig, quoteId, dealId 
     subscriptionAuthorized = (preapprovals || []).some(isPreapprovalActive);
   }
 
-  const paymentsComplete = oneShotApproved && subscriptionAuthorized;
+  // GUARDA (caso real Aitas COT215, 10-jul): si NO hay ningún cobro online
+  // que verificar (monto $0 por configuración o por la naturaleza de la
+  // cotización), ambas condiciones quedarían "cumplidas" en el vacío y la
+  // cotización se declararía PAGADA sin que exista NINGÚN pago en Mercado
+  // Pago — con NDV, onboarding y correo "PAGADA" gatillados solos. Eso pasó
+  // con una cotización solo-software mientras un env apagaba el cobro del
+  // primer mes: la clienta pagó por transferencia y el sistema "confirmó" un
+  // pago que nunca vio. Regla: la finalización AUTOMÁTICA exige al menos una
+  // confirmación real de MP; sin nada que cobrar online (ej. transferencia),
+  // la finalización es manual/conciliación.
+  const hayCobroOnline = hasOneShot || hasSubscription;
+  const paymentsComplete = hayCobroOnline && oneShotApproved && subscriptionAuthorized;
   let onboardingUrl = toText(quote?.[acceptanceConfig.quoteOnboardingUrlField]);
   let finalized = false;
 
