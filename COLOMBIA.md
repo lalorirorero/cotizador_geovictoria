@@ -78,6 +78,28 @@ CO + planilla de tropicalización); lo que sigue es ejecución.
    prueba MP CO (panel: Tarjetas de prueba) → webhook → finalize. Limpiar
    registros de prueba al terminar.
 
+## Fase 2 — Backlog CO (detectado en pruebas E2E, 10-jul)
+
+- **Catálogos de facturación por país** (detectado por Lalo en la prueba de
+  aceptación): los combobox de "Actividad económica" y "Ciudad/Municipio" de
+  quote-acceptance.html sirven los datos CHILENOS (giros SII + comunas) para
+  todos los países. Para CO deben ser actividades CIIU (DIAN) y
+  ciudades/municipios de Colombia (la planilla de tropicalización ya lo
+  anticipaba: "Giro/actividad: CIIU – DIAN · archivo giros.json del
+  cotizador"). Mientras tanto son texto libre, no bloquea.
+- **URLs por país (/co, /mx, /pe)**: vanity path por país vía rewrites de
+  Vercel — percepción local + analítica por país + puede servir para cargar
+  el bundle de datos de facturación correcto (catálogos de arriba) sin
+  esperar al token. Aditivo (las URLs actuales siguen funcionando).
+- **Conversaciones por (teléfono, país)**: hoy la conversación es única por
+  teléfono; un mismo número que habla con la línea CL y la CO comparte hilo
+  (contaminación de contexto). Migración: unique index (contact, country) +
+  fetchHistory/getOrCreate country-aware. Prioridad alta antes del go-live CO.
+- **Rescate/regeneración de PDF CO** (backfill-pdf hoy salta las CO a propósito).
+- **Datos bancarios CO** para transferencia en la página de pago.
+- **Cuenta de prueba CO canónica única** (la desambiguación creó dos; dejar
+  una con NIT 901.234.567-7 al limpiar registros de prueba).
+
 ## Pendientes de negocio (no bloquean 1-2)
 
 - Cuenta bancaria CO para transferencias (página de pago).
