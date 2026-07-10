@@ -117,9 +117,28 @@ function pickInitPoint(resource, config) {
   return resource.init_point || resource.sandbox_init_point || "";
 }
 
+
+// ── Multi-país: COLOMBIA ────────────────────────────────────────────────────
+// Variante de la config para la cuenta de MercadoPago de Geovictoria Colombia
+// SAS (site MCO). Misma base operativa que Chile, con credenciales, clave de
+// webhook y moneda propias (envs *_CO cargadas en Vercel el 10-jul-2026).
+// El webhook decide el país validando la firma contra ambas claves.
+function getMercadoPagoConfigCO(req) {
+  const base = getMercadoPagoConfig(req);
+  return {
+    ...base,
+    pais: "co",
+    accessToken: toText(process.env.MP_ACCESS_TOKEN_CO),
+    publicKey: toText(process.env.MP_PUBLIC_KEY_CO),
+    webhookSecret: toText(process.env.MP_WEBHOOK_SECRET_CO),
+    currencyId: toText(process.env.MP_CURRENCY_ID_CO || "COP"),
+  };
+}
+
 module.exports = {
   MP_API_BASE,
   getMercadoPagoConfig,
+  getMercadoPagoConfigCO,
   isTestLaneQuote,
   pickInitPoint,
   toBool,

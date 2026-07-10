@@ -1,6 +1,6 @@
 const { toText } = require("../_shared/zoho-crm");
 const { getAcceptanceConfig } = require("../_shared/quote-acceptance-config");
-const { getMercadoPagoConfig } = require("../_shared/mercadopago-config");
+const { getMercadoPagoConfig, getMercadoPagoConfigCO } = require("../_shared/mercadopago-config");
 const {
   getPayment,
   getPreapproval,
@@ -72,7 +72,11 @@ export default async function handler(req, res) {
     return;
   }
 
-  const mpConfig = getMercadoPagoConfig(req);
+  // Multi-país: la MISMA URL recibe los webhooks de las apps de Chile y de
+  // Colombia. El país se determina por CUÁL clave valida la firma (cada app
+  // firma con su propia clave secreta); las credenciales para consultar el
+  // pago y finalizar salen de la config de ese país.
+  let mpConfig = getMercadoPagoConfig(req);
   const acceptanceConfig = getAcceptanceConfig(req);
 
   try {
@@ -88,12 +92,23 @@ export default async function handler(req, res) {
       query["data.id"] || query.id || body?.data?.id || body?.resource
     );
 
-    const signature = validateWebhookSignature({
+    const firmaArgs = {
       xSignature: firstHeader(req?.headers?.["x-signature"]),
       xRequestId: firstHeader(req?.headers?.["x-request-id"]),
       dataId: toText(query["data.id"] || query.id || body?.data?.id),
-      secret: mpConfig.webhookSecret,
-    });
+    };
+    let signature = validateWebhookSignature({ ...firmaArgs, secret: mpConfig.webhookSecret });
+    if (!signature.valid) {
+      const mpConfigCO = getMercadoPagoConfigCO(req);
+      if (mpConfigCO.webhookSecret) {
+        const firmaCO = validateWebhookSignature({ ...firmaArgs, secret: mpConfigCO.webhookSecret });
+        if (firmaCO.valid) {
+          signature = firmaCO;
+          mpConfig = mpConfigCO;
+          console.log("[mp-webhook] firma validada con la app de COLOMBIA");
+        }
+      }
+    }
 
     if (!signature.valid) {
       sendJson(res, 401, { received: false, error: "Firma invalida.", reason: signature.reason });
