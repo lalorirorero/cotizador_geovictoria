@@ -1,0 +1,5612 @@
+[
+{
+"codigo": "91263",
+"municipio": "El Encanto",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91405",
+"municipio": "La Chorrera",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91407",
+"municipio": "La Pedrera",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91430",
+"municipio": "La Victoria",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91001",
+"municipio": "Leticia",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91460",
+"municipio": "Miriti Paraná",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91530",
+"municipio": "Puerto Alegría",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91536",
+"municipio": "Puerto Arica",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91540",
+"municipio": "Puerto Nariño",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91669",
+"municipio": "Puerto Santander",
+"departamento": "Amazonas"
+},
+{
+"codigo": "91798",
+"municipio": "Tarapacá",
+"departamento": "Amazonas"
+},
+{
+"codigo": "5002",
+"municipio": "Abejorral",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5004",
+"municipio": "Abriaquí",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5021",
+"municipio": "Alejandría",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5030",
+"municipio": "Amagá",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5031",
+"municipio": "Amalfi",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5034",
+"municipio": "Andes",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5036",
+"municipio": "Angelópolis",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5038",
+"municipio": "Angostura",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5040",
+"municipio": "Anorí",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5044",
+"municipio": "Anza",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5045",
+"municipio": "Apartadó",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5051",
+"municipio": "Arboletes",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5055",
+"municipio": "Argelia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5059",
+"municipio": "Armenia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5079",
+"municipio": "Barbosa",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5088",
+"municipio": "Bello",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5086",
+"municipio": "Belmira",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5091",
+"municipio": "Betania",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5093",
+"municipio": "Betulia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5107",
+"municipio": "Briceño",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5113",
+"municipio": "Buriticá",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5125",
+"municipio": "Caicedo",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5129",
+"municipio": "Caldas",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5134",
+"municipio": "Campamento",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5142",
+"municipio": "Caracolí",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5145",
+"municipio": "Caramanta",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5147",
+"municipio": "Carepa",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5150",
+"municipio": "Carolina",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5154",
+"municipio": "Caucasia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5138",
+"municipio": "Cañasgordas",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5172",
+"municipio": "Chigorodó",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5190",
+"municipio": "Cisneros",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5101",
+"municipio": "Ciudad Bolívar",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5197",
+"municipio": "Cocorná",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5206",
+"municipio": "Concepción",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5209",
+"municipio": "Concordia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5212",
+"municipio": "Copacabana",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5120",
+"municipio": "Cáceres",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5234",
+"municipio": "Dabeiba",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5237",
+"municipio": "Don Matías",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5240",
+"municipio": "Ebéjico",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5250",
+"municipio": "El Bagre",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5148",
+"municipio": "El Carmen De Viboral",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5697",
+"municipio": "El Santuario",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5264",
+"municipio": "Entrerrios",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5266",
+"municipio": "Envigado",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5282",
+"municipio": "Fredonia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5284",
+"municipio": "Frontino",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5306",
+"municipio": "Giraldo",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5308",
+"municipio": "Girardota",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5313",
+"municipio": "Granada",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5315",
+"municipio": "Guadalupe",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5318",
+"municipio": "Guarne",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5321",
+"municipio": "Guatape",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5310",
+"municipio": "Gómez Plata",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5347",
+"municipio": "Heliconia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5353",
+"municipio": "Hispania",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5360",
+"municipio": "Itagui",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5361",
+"municipio": "Ituango",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5364",
+"municipio": "Jardín",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5368",
+"municipio": "Jericó",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5376",
+"municipio": "La Ceja",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5380",
+"municipio": "La Estrella",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5390",
+"municipio": "La Pintada",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5400",
+"municipio": "La Unión",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5411",
+"municipio": "Liborina",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5425",
+"municipio": "Maceo",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5440",
+"municipio": "Marinilla",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5001",
+"municipio": "Medellín",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5467",
+"municipio": "Montebello",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5475",
+"municipio": "Murindó",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5480",
+"municipio": "Mutatá",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5483",
+"municipio": "Nariño",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5495",
+"municipio": "Nechí",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5490",
+"municipio": "Necoclí",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5501",
+"municipio": "Olaya",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5543",
+"municipio": "Peque",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5541",
+"municipio": "Peñol",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5576",
+"municipio": "Pueblorrico",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5579",
+"municipio": "Puerto Berrío",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5585",
+"municipio": "Puerto Nare",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5591",
+"municipio": "Puerto Triunfo",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5604",
+"municipio": "Remedios",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5607",
+"municipio": "Retiro",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5615",
+"municipio": "Rionegro",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5628",
+"municipio": "Sabanalarga",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5631",
+"municipio": "Sabaneta",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5642",
+"municipio": "Salgar",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5647",
+"municipio": "San Andrés De Cuerquía",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5649",
+"municipio": "San Carlos",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5652",
+"municipio": "San Francisco",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5656",
+"municipio": "San Jerónimo",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5658",
+"municipio": "San José De La Montaña",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5659",
+"municipio": "San Juan De Urabá",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5660",
+"municipio": "San Luis",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5664",
+"municipio": "San Pedro",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5665",
+"municipio": "San Pedro De Uraba",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5667",
+"municipio": "San Rafael",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5670",
+"municipio": "San Roque",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5674",
+"municipio": "San Vicente",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5679",
+"municipio": "Santa Bárbara",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5686",
+"municipio": "Santa Rosa De Osos",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5042",
+"municipio": "Santafé De Antioquia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5690",
+"municipio": "Santo Domingo",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5736",
+"municipio": "Segovia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5756",
+"municipio": "Sonson",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5761",
+"municipio": "Sopetrán",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5790",
+"municipio": "Tarazá",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5792",
+"municipio": "Tarso",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5809",
+"municipio": "Titiribí",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5819",
+"municipio": "Toledo",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5837",
+"municipio": "Turbo",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5789",
+"municipio": "Támesis",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5842",
+"municipio": "Uramita",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5847",
+"municipio": "Urrao",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5854",
+"municipio": "Valdivia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5856",
+"municipio": "Valparaíso",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5858",
+"municipio": "Vegachí",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5861",
+"municipio": "Venecia",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5873",
+"municipio": "Vigía Del Fuerte",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5885",
+"municipio": "Yalí",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5887",
+"municipio": "Yarumal",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5890",
+"municipio": "Yolombó",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5893",
+"municipio": "Yondó",
+"departamento": "Antioquia"
+},
+{
+"codigo": "5895",
+"municipio": "Zaragoza",
+"departamento": "Antioquia"
+},
+{
+"codigo": "81001",
+"municipio": "Arauca",
+"departamento": "Arauca"
+},
+{
+"codigo": "81065",
+"municipio": "Arauquita",
+"departamento": "Arauca"
+},
+{
+"codigo": "81220",
+"municipio": "Cravo Norte",
+"departamento": "Arauca"
+},
+{
+"codigo": "81300",
+"municipio": "Fortul",
+"departamento": "Arauca"
+},
+{
+"codigo": "81591",
+"municipio": "Puerto Rondón",
+"departamento": "Arauca"
+},
+{
+"codigo": "81736",
+"municipio": "Saravena",
+"departamento": "Arauca"
+},
+{
+"codigo": "81794",
+"municipio": "Tame",
+"departamento": "Arauca"
+},
+{
+"codigo": "8078",
+"municipio": "Baranoa",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8001",
+"municipio": "Barranquilla",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8137",
+"municipio": "Campo De La Cruz",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8141",
+"municipio": "Candelaria",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8296",
+"municipio": "Galapa",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8372",
+"municipio": "Juan De Acosta",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8421",
+"municipio": "Luruaco",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8433",
+"municipio": "Malambo",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8436",
+"municipio": "Manatí",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8520",
+"municipio": "Palmar De Varela",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8549",
+"municipio": "Piojó",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8558",
+"municipio": "Polonuevo",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8560",
+"municipio": "Ponedera",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8573",
+"municipio": "Puerto Colombia",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8606",
+"municipio": "Repelón",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8634",
+"municipio": "Sabanagrande",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8638",
+"municipio": "Sabanalarga",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8675",
+"municipio": "Santa Lucía",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8685",
+"municipio": "Santo Tomás",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8758",
+"municipio": "Soledad",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8770",
+"municipio": "Suan",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8832",
+"municipio": "Tubará",
+"departamento": "Atlántico"
+},
+{
+"codigo": "8849",
+"municipio": "Usiacurí",
+"departamento": "Atlántico"
+},
+{
+"codigo": "11001",
+"municipio": "Bogotá D.C.",
+"departamento": "Bogotá D.C."
+},
+{
+"codigo": "13006",
+"municipio": "Achí",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13030",
+"municipio": "Altos Del Rosario",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13042",
+"municipio": "Arenal",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13052",
+"municipio": "Arjona",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13062",
+"municipio": "Arroyohondo",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13074",
+"municipio": "Barranco De Loba",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13140",
+"municipio": "Calamar",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13160",
+"municipio": "Cantagallo",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13001",
+"municipio": "Cartagena",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13188",
+"municipio": "Cicuco",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13222",
+"municipio": "Clemencia",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13212",
+"municipio": "Córdoba",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13244",
+"municipio": "El Carmen De Bolívar",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13248",
+"municipio": "El Guamo",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13268",
+"municipio": "El Peñón",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13300",
+"municipio": "Hatillo De Loba",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13430",
+"municipio": "Magangué",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13433",
+"municipio": "Mahates",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13440",
+"municipio": "Margarita",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13442",
+"municipio": "María La Baja",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13468",
+"municipio": "Mompós",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13458",
+"municipio": "Montecristo",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13473",
+"municipio": "Morales",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13490",
+"municipio": "Norosí",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13549",
+"municipio": "Pinillos",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13580",
+"municipio": "Regidor",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13600",
+"municipio": "Río Viejo",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13620",
+"municipio": "San Cristóbal",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13647",
+"municipio": "San Estanislao",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13650",
+"municipio": "San Fernando",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13654",
+"municipio": "San Jacinto",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13655",
+"municipio": "San Jacinto Del Cauca",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13657",
+"municipio": "San Juan Nepomuceno",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13667",
+"municipio": "San Martín De Loba",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13670",
+"municipio": "San Pablo",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13673",
+"municipio": "Santa Catalina",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13683",
+"municipio": "Santa Rosa",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13688",
+"municipio": "Santa Rosa Del Sur",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13744",
+"municipio": "Simití",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13760",
+"municipio": "Soplaviento",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13780",
+"municipio": "Talaigua Nuevo",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13810",
+"municipio": "Tiquisio",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13836",
+"municipio": "Turbaco",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13838",
+"municipio": "Turbaná",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13873",
+"municipio": "Villanueva",
+"departamento": "Bolívar"
+},
+{
+"codigo": "13894",
+"municipio": "Zambrano",
+"departamento": "Bolívar"
+},
+{
+"codigo": "15022",
+"municipio": "Almeida",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15047",
+"municipio": "Aquitania",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15051",
+"municipio": "Arcabuco",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15087",
+"municipio": "Belén",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15090",
+"municipio": "Berbeo",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15092",
+"municipio": "Betéitiva",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15097",
+"municipio": "Boavita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15104",
+"municipio": "Boyacá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15106",
+"municipio": "Briceño",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15109",
+"municipio": "Buenavista",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15114",
+"municipio": "Busbanzá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15131",
+"municipio": "Caldas",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15135",
+"municipio": "Campohermoso",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15162",
+"municipio": "Cerinza",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15172",
+"municipio": "Chinavita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15176",
+"municipio": "Chiquinquirá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15180",
+"municipio": "Chiscas",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15183",
+"municipio": "Chita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15185",
+"municipio": "Chitaraque",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15187",
+"municipio": "Chivatá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15236",
+"municipio": "Chivor",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15232",
+"municipio": "Chíquiza",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15189",
+"municipio": "Ciénega",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15212",
+"municipio": "Coper",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15215",
+"municipio": "Corrales",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15218",
+"municipio": "Covarachía",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15223",
+"municipio": "Cubará",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15224",
+"municipio": "Cucaita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15226",
+"municipio": "Cuítiva",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15204",
+"municipio": "Cómbita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15238",
+"municipio": "Duitama",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15244",
+"municipio": "El Cocuy",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15248",
+"municipio": "El Espino",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15272",
+"municipio": "Firavitoba",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15276",
+"municipio": "Floresta",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15293",
+"municipio": "Gachantivá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15296",
+"municipio": "Gameza",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15299",
+"municipio": "Garagoa",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15317",
+"municipio": "Guacamayas",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15322",
+"municipio": "Guateque",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15325",
+"municipio": "Guayatá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15332",
+"municipio": "Güicán",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15362",
+"municipio": "Iza",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15367",
+"municipio": "Jenesano",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15368",
+"municipio": "Jericó",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15380",
+"municipio": "La Capilla",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15403",
+"municipio": "La Uvita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15401",
+"municipio": "La Victoria",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15377",
+"municipio": "Labranzagrande",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15425",
+"municipio": "Macanal",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15442",
+"municipio": "Maripí",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15455",
+"municipio": "Miraflores",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15464",
+"municipio": "Mongua",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15466",
+"municipio": "Monguí",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15469",
+"municipio": "Moniquirá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15476",
+"municipio": "Motavita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15480",
+"municipio": "Muzo",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15491",
+"municipio": "Nobsa",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15494",
+"municipio": "Nuevo Colón",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15500",
+"municipio": "Oicatá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15507",
+"municipio": "Otanche",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15511",
+"municipio": "Pachavita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15516",
+"municipio": "Paipa",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15518",
+"municipio": "Pajarito",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15522",
+"municipio": "Panqueba",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15531",
+"municipio": "Pauna",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15533",
+"municipio": "Paya",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15537",
+"municipio": "Paz De Río",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15542",
+"municipio": "Pesca",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15550",
+"municipio": "Pisba",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15572",
+"municipio": "Puerto Boyacá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15514",
+"municipio": "Páez",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15580",
+"municipio": "Quípama",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15599",
+"municipio": "Ramiriquí",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15621",
+"municipio": "Rondón",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15600",
+"municipio": "Ráquira",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15632",
+"municipio": "Saboyá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15646",
+"municipio": "Samacá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15660",
+"municipio": "San Eduardo",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15664",
+"municipio": "San José De Pare",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15667",
+"municipio": "San Luis De Gaceno",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15673",
+"municipio": "San Mateo",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15676",
+"municipio": "San Miguel De Sema",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15681",
+"municipio": "San Pablo De Borbur",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15690",
+"municipio": "Santa María",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15693",
+"municipio": "Santa Rosa De Viterbo",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15696",
+"municipio": "Santa Sofía",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15686",
+"municipio": "Santana",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15720",
+"municipio": "Sativanorte",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15723",
+"municipio": "Sativasur",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15740",
+"municipio": "Siachoque",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15753",
+"municipio": "Soatá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15757",
+"municipio": "Socha",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15755",
+"municipio": "Socotá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15759",
+"municipio": "Sogamoso",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15761",
+"municipio": "Somondoco",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15762",
+"municipio": "Sora",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15764",
+"municipio": "Soracá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15763",
+"municipio": "Sotaquirá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15774",
+"municipio": "Susacón",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15776",
+"municipio": "Sutamarchán",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15778",
+"municipio": "Sutatenza",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15638",
+"municipio": "Sáchica",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15790",
+"municipio": "Tasco",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15798",
+"municipio": "Tenza",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15804",
+"municipio": "Tibaná",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15806",
+"municipio": "Tibasosa",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15808",
+"municipio": "Tinjacá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15810",
+"municipio": "Tipacoque",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15814",
+"municipio": "Toca",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15816",
+"municipio": "Togüí",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15822",
+"municipio": "Tota",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15001",
+"municipio": "Tunja",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15832",
+"municipio": "Tununguá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15835",
+"municipio": "Turmequé",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15837",
+"municipio": "Tuta",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15839",
+"municipio": "Tutazá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15820",
+"municipio": "Tópaga",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15842",
+"municipio": "Umbita",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15861",
+"municipio": "Ventaquemada",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15407",
+"municipio": "Villa De Leyva",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15879",
+"municipio": "Viracachá",
+"departamento": "Boyacá"
+},
+{
+"codigo": "15897",
+"municipio": "Zetaquira",
+"departamento": "Boyacá"
+},
+{
+"codigo": "17013",
+"municipio": "Aguadas",
+"departamento": "Caldas"
+},
+{
+"codigo": "17042",
+"municipio": "Anserma",
+"departamento": "Caldas"
+},
+{
+"codigo": "17050",
+"municipio": "Aranzazu",
+"departamento": "Caldas"
+},
+{
+"codigo": "17088",
+"municipio": "Belalcázar",
+"departamento": "Caldas"
+},
+{
+"codigo": "17174",
+"municipio": "Chinchiná",
+"departamento": "Caldas"
+},
+{
+"codigo": "17272",
+"municipio": "Filadelfia",
+"departamento": "Caldas"
+},
+{
+"codigo": "17380",
+"municipio": "La Dorada",
+"departamento": "Caldas"
+},
+{
+"codigo": "17388",
+"municipio": "La Merced",
+"departamento": "Caldas"
+},
+{
+"codigo": "17001",
+"municipio": "Manizales",
+"departamento": "Caldas"
+},
+{
+"codigo": "17433",
+"municipio": "Manzanares",
+"departamento": "Caldas"
+},
+{
+"codigo": "17442",
+"municipio": "Marmato",
+"departamento": "Caldas"
+},
+{
+"codigo": "17444",
+"municipio": "Marquetalia",
+"departamento": "Caldas"
+},
+{
+"codigo": "17446",
+"municipio": "Marulanda",
+"departamento": "Caldas"
+},
+{
+"codigo": "17486",
+"municipio": "Neira",
+"departamento": "Caldas"
+},
+{
+"codigo": "17495",
+"municipio": "Norcasia",
+"departamento": "Caldas"
+},
+{
+"codigo": "17524",
+"municipio": "Palestina",
+"departamento": "Caldas"
+},
+{
+"codigo": "17541",
+"municipio": "Pensilvania",
+"departamento": "Caldas"
+},
+{
+"codigo": "17513",
+"municipio": "Pácora",
+"departamento": "Caldas"
+},
+{
+"codigo": "17614",
+"municipio": "Riosucio",
+"departamento": "Caldas"
+},
+{
+"codigo": "17616",
+"municipio": "Risaralda",
+"departamento": "Caldas"
+},
+{
+"codigo": "17653",
+"municipio": "Salamina",
+"departamento": "Caldas"
+},
+{
+"codigo": "17662",
+"municipio": "Samaná",
+"departamento": "Caldas"
+},
+{
+"codigo": "17665",
+"municipio": "San José",
+"departamento": "Caldas"
+},
+{
+"codigo": "17777",
+"municipio": "Supía",
+"departamento": "Caldas"
+},
+{
+"codigo": "17867",
+"municipio": "Victoria",
+"departamento": "Caldas"
+},
+{
+"codigo": "17873",
+"municipio": "Villamaría",
+"departamento": "Caldas"
+},
+{
+"codigo": "17877",
+"municipio": "Viterbo",
+"departamento": "Caldas"
+},
+{
+"codigo": "18029",
+"municipio": "Albania",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18094",
+"municipio": "Belén De Los Andaquies",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18150",
+"municipio": "Cartagena Del Chairá",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18205",
+"municipio": "Curillo",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18247",
+"municipio": "El Doncello",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18256",
+"municipio": "El Paujil",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18001",
+"municipio": "Florencia",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18410",
+"municipio": "La Montañita",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18460",
+"municipio": "Milán",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18479",
+"municipio": "Morelia",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18592",
+"municipio": "Puerto Rico",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18610",
+"municipio": "San José Del Fragua",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18753",
+"municipio": "San Vicente Del Caguán",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18756",
+"municipio": "Solano",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18785",
+"municipio": "Solita",
+"departamento": "Caquetá"
+},
+{
+"codigo": "18860",
+"municipio": "Valparaíso",
+"departamento": "Caquetá"
+},
+{
+"codigo": "85010",
+"municipio": "Aguazul",
+"departamento": "Casanare"
+},
+{
+"codigo": "85015",
+"municipio": "Chameza",
+"departamento": "Casanare"
+},
+{
+"codigo": "85125",
+"municipio": "Hato Corozal",
+"departamento": "Casanare"
+},
+{
+"codigo": "85136",
+"municipio": "La Salina",
+"departamento": "Casanare"
+},
+{
+"codigo": "85139",
+"municipio": "Maní",
+"departamento": "Casanare"
+},
+{
+"codigo": "85162",
+"municipio": "Monterrey",
+"departamento": "Casanare"
+},
+{
+"codigo": "85225",
+"municipio": "Nunchía",
+"departamento": "Casanare"
+},
+{
+"codigo": "85230",
+"municipio": "Orocué",
+"departamento": "Casanare"
+},
+{
+"codigo": "85250",
+"municipio": "Paz De Ariporo",
+"departamento": "Casanare"
+},
+{
+"codigo": "85263",
+"municipio": "Pore",
+"departamento": "Casanare"
+},
+{
+"codigo": "85279",
+"municipio": "Recetor",
+"departamento": "Casanare"
+},
+{
+"codigo": "85300",
+"municipio": "Sabanalarga",
+"departamento": "Casanare"
+},
+{
+"codigo": "85325",
+"municipio": "San Luis De Palenque",
+"departamento": "Casanare"
+},
+{
+"codigo": "85315",
+"municipio": "Sácama",
+"departamento": "Casanare"
+},
+{
+"codigo": "85410",
+"municipio": "Tauramena",
+"departamento": "Casanare"
+},
+{
+"codigo": "85430",
+"municipio": "Trinidad",
+"departamento": "Casanare"
+},
+{
+"codigo": "85400",
+"municipio": "Támara",
+"departamento": "Casanare"
+},
+{
+"codigo": "85440",
+"municipio": "Villanueva",
+"departamento": "Casanare"
+},
+{
+"codigo": "85001",
+"municipio": "Yopal",
+"departamento": "Casanare"
+},
+{
+"codigo": "19022",
+"municipio": "Almaguer",
+"departamento": "Cauca"
+},
+{
+"codigo": "19050",
+"municipio": "Argelia",
+"departamento": "Cauca"
+},
+{
+"codigo": "19075",
+"municipio": "Balboa",
+"departamento": "Cauca"
+},
+{
+"codigo": "19100",
+"municipio": "Bolívar",
+"departamento": "Cauca"
+},
+{
+"codigo": "19110",
+"municipio": "Buenos Aires",
+"departamento": "Cauca"
+},
+{
+"codigo": "19130",
+"municipio": "Cajibío",
+"departamento": "Cauca"
+},
+{
+"codigo": "19137",
+"municipio": "Caldono",
+"departamento": "Cauca"
+},
+{
+"codigo": "19142",
+"municipio": "Caloto",
+"departamento": "Cauca"
+},
+{
+"codigo": "19212",
+"municipio": "Corinto",
+"departamento": "Cauca"
+},
+{
+"codigo": "19256",
+"municipio": "El Tambo",
+"departamento": "Cauca"
+},
+{
+"codigo": "19290",
+"municipio": "Florencia",
+"departamento": "Cauca"
+},
+{
+"codigo": "19300",
+"municipio": "Guachené",
+"departamento": "Cauca"
+},
+{
+"codigo": "19318",
+"municipio": "Guapi",
+"departamento": "Cauca"
+},
+{
+"codigo": "19355",
+"municipio": "Inzá",
+"departamento": "Cauca"
+},
+{
+"codigo": "19364",
+"municipio": "Jambaló",
+"departamento": "Cauca"
+},
+{
+"codigo": "19392",
+"municipio": "La Sierra",
+"departamento": "Cauca"
+},
+{
+"codigo": "19397",
+"municipio": "La Vega",
+"departamento": "Cauca"
+},
+{
+"codigo": "19418",
+"municipio": "López",
+"departamento": "Cauca"
+},
+{
+"codigo": "19450",
+"municipio": "Mercaderes",
+"departamento": "Cauca"
+},
+{
+"codigo": "19455",
+"municipio": "Miranda",
+"departamento": "Cauca"
+},
+{
+"codigo": "19473",
+"municipio": "Morales",
+"departamento": "Cauca"
+},
+{
+"codigo": "19513",
+"municipio": "Padilla",
+"departamento": "Cauca"
+},
+{
+"codigo": "19517",
+"municipio": "Paez",
+"departamento": "Cauca"
+},
+{
+"codigo": "19532",
+"municipio": "Patía",
+"departamento": "Cauca"
+},
+{
+"codigo": "19533",
+"municipio": "Piamonte",
+"departamento": "Cauca"
+},
+{
+"codigo": "19548",
+"municipio": "Piendamó",
+"departamento": "Cauca"
+},
+{
+"codigo": "19001",
+"municipio": "Popayán",
+"departamento": "Cauca"
+},
+{
+"codigo": "19573",
+"municipio": "Puerto Tejada",
+"departamento": "Cauca"
+},
+{
+"codigo": "19585",
+"municipio": "Puracé",
+"departamento": "Cauca"
+},
+{
+"codigo": "19622",
+"municipio": "Rosas",
+"departamento": "Cauca"
+},
+{
+"codigo": "19693",
+"municipio": "San Sebastián",
+"departamento": "Cauca"
+},
+{
+"codigo": "19701",
+"municipio": "Santa Rosa",
+"departamento": "Cauca"
+},
+{
+"codigo": "19698",
+"municipio": "Santander De Quilichao",
+"departamento": "Cauca"
+},
+{
+"codigo": "19743",
+"municipio": "Silvia",
+"departamento": "Cauca"
+},
+{
+"codigo": "19760",
+"municipio": "Sotara",
+"departamento": "Cauca"
+},
+{
+"codigo": "19785",
+"municipio": "Sucre",
+"departamento": "Cauca"
+},
+{
+"codigo": "19780",
+"municipio": "Suárez",
+"departamento": "Cauca"
+},
+{
+"codigo": "19809",
+"municipio": "Timbiquí",
+"departamento": "Cauca"
+},
+{
+"codigo": "19807",
+"municipio": "Timbío",
+"departamento": "Cauca"
+},
+{
+"codigo": "19821",
+"municipio": "Toribio",
+"departamento": "Cauca"
+},
+{
+"codigo": "19824",
+"municipio": "Totoró",
+"departamento": "Cauca"
+},
+{
+"codigo": "19845",
+"municipio": "Villa Rica",
+"departamento": "Cauca"
+},
+{
+"codigo": "20011",
+"municipio": "Aguachica",
+"departamento": "Cesar"
+},
+{
+"codigo": "20013",
+"municipio": "Agustín Codazzi",
+"departamento": "Cesar"
+},
+{
+"codigo": "20032",
+"municipio": "Astrea",
+"departamento": "Cesar"
+},
+{
+"codigo": "20045",
+"municipio": "Becerril",
+"departamento": "Cesar"
+},
+{
+"codigo": "20060",
+"municipio": "Bosconia",
+"departamento": "Cesar"
+},
+{
+"codigo": "20175",
+"municipio": "Chimichagua",
+"departamento": "Cesar"
+},
+{
+"codigo": "20178",
+"municipio": "Chiriguaná",
+"departamento": "Cesar"
+},
+{
+"codigo": "20228",
+"municipio": "Curumaní",
+"departamento": "Cesar"
+},
+{
+"codigo": "20238",
+"municipio": "El Copey",
+"departamento": "Cesar"
+},
+{
+"codigo": "20250",
+"municipio": "El Paso",
+"departamento": "Cesar"
+},
+{
+"codigo": "20295",
+"municipio": "Gamarra",
+"departamento": "Cesar"
+},
+{
+"codigo": "20310",
+"municipio": "González",
+"departamento": "Cesar"
+},
+{
+"codigo": "20383",
+"municipio": "La Gloria",
+"departamento": "Cesar"
+},
+{
+"codigo": "20400",
+"municipio": "La Jagua De Ibirico",
+"departamento": "Cesar"
+},
+{
+"codigo": "20621",
+"municipio": "La Paz",
+"departamento": "Cesar"
+},
+{
+"codigo": "20443",
+"municipio": "Manaure",
+"departamento": "Cesar"
+},
+{
+"codigo": "20517",
+"municipio": "Pailitas",
+"departamento": "Cesar"
+},
+{
+"codigo": "20550",
+"municipio": "Pelaya",
+"departamento": "Cesar"
+},
+{
+"codigo": "20570",
+"municipio": "Pueblo Bello",
+"departamento": "Cesar"
+},
+{
+"codigo": "20614",
+"municipio": "Río De Oro",
+"departamento": "Cesar"
+},
+{
+"codigo": "20710",
+"municipio": "San Alberto",
+"departamento": "Cesar"
+},
+{
+"codigo": "20750",
+"municipio": "San Diego",
+"departamento": "Cesar"
+},
+{
+"codigo": "20770",
+"municipio": "San Martín",
+"departamento": "Cesar"
+},
+{
+"codigo": "20787",
+"municipio": "Tamalameque",
+"departamento": "Cesar"
+},
+{
+"codigo": "20001",
+"municipio": "Valledupar",
+"departamento": "Cesar"
+},
+{
+"codigo": "27006",
+"municipio": "Acandí",
+"departamento": "Chocó"
+},
+{
+"codigo": "27025",
+"municipio": "Alto Baudó",
+"departamento": "Chocó"
+},
+{
+"codigo": "27050",
+"municipio": "Atrato",
+"departamento": "Chocó"
+},
+{
+"codigo": "27073",
+"municipio": "Bagadó",
+"departamento": "Chocó"
+},
+{
+"codigo": "27075",
+"municipio": "Bahía Solano",
+"departamento": "Chocó"
+},
+{
+"codigo": "27077",
+"municipio": "Bajo Baudó",
+"departamento": "Chocó"
+},
+{
+"codigo": "27086",
+"municipio": "Belén De Bajirá",
+"departamento": "Chocó"
+},
+{
+"codigo": "27099",
+"municipio": "Bojaya",
+"departamento": "Chocó"
+},
+{
+"codigo": "27150",
+"municipio": "Carmen Del Darien",
+"departamento": "Chocó"
+},
+{
+"codigo": "27205",
+"municipio": "Condoto",
+"departamento": "Chocó"
+},
+{
+"codigo": "27160",
+"municipio": "Cértegui",
+"departamento": "Chocó"
+},
+{
+"codigo": "27135",
+"municipio": "El Cantón Del San Pablo",
+"departamento": "Chocó"
+},
+{
+"codigo": "27245",
+"municipio": "El Carmen De Atrato",
+"departamento": "Chocó"
+},
+{
+"codigo": "27250",
+"municipio": "El Litoral Del San Juan",
+"departamento": "Chocó"
+},
+{
+"codigo": "27361",
+"municipio": "Istmina",
+"departamento": "Chocó"
+},
+{
+"codigo": "27372",
+"municipio": "Juradó",
+"departamento": "Chocó"
+},
+{
+"codigo": "27413",
+"municipio": "Lloró",
+"departamento": "Chocó"
+},
+{
+"codigo": "27425",
+"municipio": "Medio Atrato",
+"departamento": "Chocó"
+},
+{
+"codigo": "27430",
+"municipio": "Medio Baudó",
+"departamento": "Chocó"
+},
+{
+"codigo": "27450",
+"municipio": "Medio San Juan",
+"departamento": "Chocó"
+},
+{
+"codigo": "27495",
+"municipio": "Nuquí",
+"departamento": "Chocó"
+},
+{
+"codigo": "27491",
+"municipio": "Nóvita",
+"departamento": "Chocó"
+},
+{
+"codigo": "27001",
+"municipio": "Quibdó",
+"departamento": "Chocó"
+},
+{
+"codigo": "27615",
+"municipio": "Riosucio",
+"departamento": "Chocó"
+},
+{
+"codigo": "27580",
+"municipio": "Río Iro",
+"departamento": "Chocó"
+},
+{
+"codigo": "27600",
+"municipio": "Río Quito",
+"departamento": "Chocó"
+},
+{
+"codigo": "27660",
+"municipio": "San José Del Palmar",
+"departamento": "Chocó"
+},
+{
+"codigo": "27745",
+"municipio": "Sipí",
+"departamento": "Chocó"
+},
+{
+"codigo": "27787",
+"municipio": "Tadó",
+"departamento": "Chocó"
+},
+{
+"codigo": "27800",
+"municipio": "Unguía",
+"departamento": "Chocó"
+},
+{
+"codigo": "27810",
+"municipio": "Unión Panamericana",
+"departamento": "Chocó"
+},
+{
+"codigo": "25001",
+"municipio": "Agua De Dios",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25019",
+"municipio": "Albán",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25035",
+"municipio": "Anapoima",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25040",
+"municipio": "Anolaima",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25599",
+"municipio": "Apulo",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25053",
+"municipio": "Arbeláez",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25086",
+"municipio": "Beltrán",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25095",
+"municipio": "Bituima",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25099",
+"municipio": "Bojacá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25120",
+"municipio": "Cabrera",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25123",
+"municipio": "Cachipay",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25126",
+"municipio": "Cajicá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25148",
+"municipio": "Caparrapí",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25151",
+"municipio": "Caqueza",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25154",
+"municipio": "Carmen De Carupa",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25168",
+"municipio": "Chaguaní",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25178",
+"municipio": "Chipaque",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25181",
+"municipio": "Choachí",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25183",
+"municipio": "Chocontá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25175",
+"municipio": "Chía",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25200",
+"municipio": "Cogua",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25214",
+"municipio": "Cota",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25224",
+"municipio": "Cucunubá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25245",
+"municipio": "El Colegio",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25258",
+"municipio": "El Peñón",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25260",
+"municipio": "El Rosal",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25269",
+"municipio": "Facatativá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25279",
+"municipio": "Fomeque",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25281",
+"municipio": "Fosca",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25286",
+"municipio": "Funza",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25290",
+"municipio": "Fusagasugá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25288",
+"municipio": "Fúquene",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25293",
+"municipio": "Gachala",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25295",
+"municipio": "Gachancipá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25297",
+"municipio": "Gachetá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25299",
+"municipio": "Gama",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25307",
+"municipio": "Girardot",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25312",
+"municipio": "Granada",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25317",
+"municipio": "Guachetá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25320",
+"municipio": "Guaduas",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25322",
+"municipio": "Guasca",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25324",
+"municipio": "Guataquí",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25326",
+"municipio": "Guatavita",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25328",
+"municipio": "Guayabal De Siquima",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25335",
+"municipio": "Guayabetal",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25339",
+"municipio": "Gutiérrez",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25368",
+"municipio": "Jerusalén",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25372",
+"municipio": "Junín",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25377",
+"municipio": "La Calera",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25386",
+"municipio": "La Mesa",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25394",
+"municipio": "La Palma",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25398",
+"municipio": "La Peña",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25402",
+"municipio": "La Vega",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25407",
+"municipio": "Lenguazaque",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25426",
+"municipio": "Macheta",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25430",
+"municipio": "Madrid",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25436",
+"municipio": "Manta",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25438",
+"municipio": "Medina",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25473",
+"municipio": "Mosquera",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25483",
+"municipio": "Nariño",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25486",
+"municipio": "Nemocón",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25488",
+"municipio": "Nilo",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25489",
+"municipio": "Nimaima",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25491",
+"municipio": "Nocaima",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25513",
+"municipio": "Pacho",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25518",
+"municipio": "Paime",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25524",
+"municipio": "Pandi",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25530",
+"municipio": "Paratebueno",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25535",
+"municipio": "Pasca",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25572",
+"municipio": "Puerto Salgar",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25580",
+"municipio": "Pulí",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25592",
+"municipio": "Quebradanegra",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25594",
+"municipio": "Quetame",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25596",
+"municipio": "Quipile",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25612",
+"municipio": "Ricaurte",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25645",
+"municipio": "San Antonio Del Tequendama",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25649",
+"municipio": "San Bernardo",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25653",
+"municipio": "San Cayetano",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25658",
+"municipio": "San Francisco",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25662",
+"municipio": "San Juan De Río Seco",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25718",
+"municipio": "Sasaima",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25736",
+"municipio": "Sesquilé",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25740",
+"municipio": "Sibaté",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25743",
+"municipio": "Silvania",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25745",
+"municipio": "Simijaca",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25754",
+"municipio": "Soacha",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25758",
+"municipio": "Sopó",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25769",
+"municipio": "Subachoque",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25772",
+"municipio": "Suesca",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25777",
+"municipio": "Supatá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25779",
+"municipio": "Susa",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25781",
+"municipio": "Sutatausa",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25785",
+"municipio": "Tabio",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25793",
+"municipio": "Tausa",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25797",
+"municipio": "Tena",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25799",
+"municipio": "Tenjo",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25805",
+"municipio": "Tibacuy",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25807",
+"municipio": "Tibirita",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25815",
+"municipio": "Tocaima",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25817",
+"municipio": "Tocancipá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25823",
+"municipio": "Topaipí",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25839",
+"municipio": "Ubalá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25841",
+"municipio": "Ubaque",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25845",
+"municipio": "Une",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25506",
+"municipio": "Venecia",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25862",
+"municipio": "Vergara",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25867",
+"municipio": "Vianí",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25843",
+"municipio": "Villa De San Diego De Ubate",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25871",
+"municipio": "Villagómez",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25873",
+"municipio": "Villapinzón",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25875",
+"municipio": "Villeta",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25878",
+"municipio": "Viotá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25885",
+"municipio": "Yacopí",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25898",
+"municipio": "Zipacón",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25899",
+"municipio": "Zipaquirá",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "25851",
+"municipio": "Útica",
+"departamento": "Cundinamarca"
+},
+{
+"codigo": "23068",
+"municipio": "Ayapel",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23079",
+"municipio": "Buenavista",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23090",
+"municipio": "Canalete",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23162",
+"municipio": "Cereté",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23168",
+"municipio": "Chimá",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23182",
+"municipio": "Chinú",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23189",
+"municipio": "Ciénaga De Oro",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23300",
+"municipio": "Cotorra",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23350",
+"municipio": "La Apartada",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23417",
+"municipio": "Lorica",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23419",
+"municipio": "Los Córdobas",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23464",
+"municipio": "Momil",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23466",
+"municipio": "Montelíbano",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23001",
+"municipio": "Montería",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23500",
+"municipio": "Moñitos",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23555",
+"municipio": "Planeta Rica",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23570",
+"municipio": "Pueblo Nuevo",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23574",
+"municipio": "Puerto Escondido",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23580",
+"municipio": "Puerto Libertador",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23586",
+"municipio": "Purísima",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23660",
+"municipio": "Sahagún",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23670",
+"municipio": "San Andrés Sotavento",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23672",
+"municipio": "San Antero",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23675",
+"municipio": "San Bernardo Del Viento",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23678",
+"municipio": "San Carlos",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23682",
+"municipio": "San José De Uré",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23686",
+"municipio": "San Pelayo",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23807",
+"municipio": "Tierralta",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23815",
+"municipio": "Tuchín",
+"departamento": "Córdoba"
+},
+{
+"codigo": "23855",
+"municipio": "Valencia",
+"departamento": "Córdoba"
+},
+{
+"codigo": "94343",
+"municipio": "Barranco Minas",
+"departamento": "Guainía"
+},
+{
+"codigo": "94886",
+"municipio": "Cacahual",
+"departamento": "Guainía"
+},
+{
+"codigo": "94001",
+"municipio": "Inírida",
+"departamento": "Guainía"
+},
+{
+"codigo": "94663",
+"municipio": "Mapiripana",
+"departamento": "Guainía"
+},
+{
+"codigo": "94888",
+"municipio": "Morichal",
+"departamento": "Guainía"
+},
+{
+"codigo": "94887",
+"municipio": "Pana Pana",
+"departamento": "Guainía"
+},
+{
+"codigo": "94884",
+"municipio": "Puerto Colombia",
+"departamento": "Guainía"
+},
+{
+"codigo": "94883",
+"municipio": "San Felipe",
+"departamento": "Guainía"
+},
+{
+"codigo": "95015",
+"municipio": "Calamar",
+"departamento": "Guaviare"
+},
+{
+"codigo": "95025",
+"municipio": "El Retorno",
+"departamento": "Guaviare"
+},
+{
+"codigo": "95200",
+"municipio": "Miraflores",
+"departamento": "Guaviare"
+},
+{
+"codigo": "95001",
+"municipio": "San José Del Guaviare",
+"departamento": "Guaviare"
+},
+{
+"codigo": "41006",
+"municipio": "Acevedo",
+"departamento": "Huila"
+},
+{
+"codigo": "41013",
+"municipio": "Agrado",
+"departamento": "Huila"
+},
+{
+"codigo": "41016",
+"municipio": "Aipe",
+"departamento": "Huila"
+},
+{
+"codigo": "41020",
+"municipio": "Algeciras",
+"departamento": "Huila"
+},
+{
+"codigo": "41026",
+"municipio": "Altamira",
+"departamento": "Huila"
+},
+{
+"codigo": "41078",
+"municipio": "Baraya",
+"departamento": "Huila"
+},
+{
+"codigo": "41132",
+"municipio": "Campoalegre",
+"departamento": "Huila"
+},
+{
+"codigo": "41206",
+"municipio": "Colombia",
+"departamento": "Huila"
+},
+{
+"codigo": "41244",
+"municipio": "Elías",
+"departamento": "Huila"
+},
+{
+"codigo": "41298",
+"municipio": "Garzón",
+"departamento": "Huila"
+},
+{
+"codigo": "41306",
+"municipio": "Gigante",
+"departamento": "Huila"
+},
+{
+"codigo": "41319",
+"municipio": "Guadalupe",
+"departamento": "Huila"
+},
+{
+"codigo": "41349",
+"municipio": "Hobo",
+"departamento": "Huila"
+},
+{
+"codigo": "41357",
+"municipio": "Iquira",
+"departamento": "Huila"
+},
+{
+"codigo": "41359",
+"municipio": "Isnos",
+"departamento": "Huila"
+},
+{
+"codigo": "41378",
+"municipio": "La Argentina",
+"departamento": "Huila"
+},
+{
+"codigo": "41396",
+"municipio": "La Plata",
+"departamento": "Huila"
+},
+{
+"codigo": "41001",
+"municipio": "Neiva",
+"departamento": "Huila"
+},
+{
+"codigo": "41483",
+"municipio": "Nátaga",
+"departamento": "Huila"
+},
+{
+"codigo": "41503",
+"municipio": "Oporapa",
+"departamento": "Huila"
+},
+{
+"codigo": "41518",
+"municipio": "Paicol",
+"departamento": "Huila"
+},
+{
+"codigo": "41524",
+"municipio": "Palermo",
+"departamento": "Huila"
+},
+{
+"codigo": "41530",
+"municipio": "Palestina",
+"departamento": "Huila"
+},
+{
+"codigo": "41548",
+"municipio": "Pital",
+"departamento": "Huila"
+},
+{
+"codigo": "41551",
+"municipio": "Pitalito",
+"departamento": "Huila"
+},
+{
+"codigo": "41615",
+"municipio": "Rivera",
+"departamento": "Huila"
+},
+{
+"codigo": "41660",
+"municipio": "Saladoblanco",
+"departamento": "Huila"
+},
+{
+"codigo": "41668",
+"municipio": "San Agustín",
+"departamento": "Huila"
+},
+{
+"codigo": "41676",
+"municipio": "Santa María",
+"departamento": "Huila"
+},
+{
+"codigo": "41770",
+"municipio": "Suaza",
+"departamento": "Huila"
+},
+{
+"codigo": "41791",
+"municipio": "Tarqui",
+"departamento": "Huila"
+},
+{
+"codigo": "41799",
+"municipio": "Tello",
+"departamento": "Huila"
+},
+{
+"codigo": "41801",
+"municipio": "Teruel",
+"departamento": "Huila"
+},
+{
+"codigo": "41797",
+"municipio": "Tesalia",
+"departamento": "Huila"
+},
+{
+"codigo": "41807",
+"municipio": "Timaná",
+"departamento": "Huila"
+},
+{
+"codigo": "41872",
+"municipio": "Villavieja",
+"departamento": "Huila"
+},
+{
+"codigo": "41885",
+"municipio": "Yaguará",
+"departamento": "Huila"
+},
+{
+"codigo": "44035",
+"municipio": "Albania",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44078",
+"municipio": "Barrancas",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44090",
+"municipio": "Dibulla",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44098",
+"municipio": "Distracción",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44110",
+"municipio": "El Molino",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44279",
+"municipio": "Fonseca",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44378",
+"municipio": "Hatonuevo",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44420",
+"municipio": "La Jagua Del Pilar",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44430",
+"municipio": "Maicao",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44560",
+"municipio": "Manaure",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44001",
+"municipio": "Riohacha",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44650",
+"municipio": "San Juan Del Cesar",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44847",
+"municipio": "Uribia",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44855",
+"municipio": "Urumita",
+"departamento": "La Guajira"
+},
+{
+"codigo": "44874",
+"municipio": "Villanueva",
+"departamento": "La Guajira"
+},
+{
+"codigo": "47030",
+"municipio": "Algarrobo",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47053",
+"municipio": "Aracataca",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47058",
+"municipio": "Ariguaní",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47161",
+"municipio": "Cerro San Antonio",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47170",
+"municipio": "Chibolo",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47189",
+"municipio": "Ciénaga",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47205",
+"municipio": "Concordia",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47245",
+"municipio": "El Banco",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47258",
+"municipio": "El Piñon",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47268",
+"municipio": "El Retén",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47288",
+"municipio": "Fundación",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47318",
+"municipio": "Guamal",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47460",
+"municipio": "Nueva Granada",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47541",
+"municipio": "Pedraza",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47545",
+"municipio": "Pijiño Del Carmen",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47551",
+"municipio": "Pivijay",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47555",
+"municipio": "Plato",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47570",
+"municipio": "Puebloviejo",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47605",
+"municipio": "Remolino",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47660",
+"municipio": "Sabanas De San Angel",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47675",
+"municipio": "Salamina",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47692",
+"municipio": "San Sebastián De Buenavista",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47703",
+"municipio": "San Zenón",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47707",
+"municipio": "Santa Ana",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47720",
+"municipio": "Santa Bárbara De Pinto",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47001",
+"municipio": "Santa Marta",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47745",
+"municipio": "Sitionuevo",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47798",
+"municipio": "Tenerife",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47960",
+"municipio": "Zapayán",
+"departamento": "Magdalena"
+},
+{
+"codigo": "47980",
+"municipio": "Zona Bananera",
+"departamento": "Magdalena"
+},
+{
+"codigo": "50006",
+"municipio": "Acacías",
+"departamento": "Meta"
+},
+{
+"codigo": "50110",
+"municipio": "Barranca De Upía",
+"departamento": "Meta"
+},
+{
+"codigo": "50124",
+"municipio": "Cabuyaro",
+"departamento": "Meta"
+},
+{
+"codigo": "50150",
+"municipio": "Castilla La Nueva",
+"departamento": "Meta"
+},
+{
+"codigo": "50223",
+"municipio": "Cubarral",
+"departamento": "Meta"
+},
+{
+"codigo": "50226",
+"municipio": "Cumaral",
+"departamento": "Meta"
+},
+{
+"codigo": "50245",
+"municipio": "El Calvario",
+"departamento": "Meta"
+},
+{
+"codigo": "50251",
+"municipio": "El Castillo",
+"departamento": "Meta"
+},
+{
+"codigo": "50270",
+"municipio": "El Dorado",
+"departamento": "Meta"
+},
+{
+"codigo": "50287",
+"municipio": "Fuente De Oro",
+"departamento": "Meta"
+},
+{
+"codigo": "50313",
+"municipio": "Granada",
+"departamento": "Meta"
+},
+{
+"codigo": "50318",
+"municipio": "Guamal",
+"departamento": "Meta"
+},
+{
+"codigo": "50350",
+"municipio": "La Macarena",
+"departamento": "Meta"
+},
+{
+"codigo": "50400",
+"municipio": "Lejanías",
+"departamento": "Meta"
+},
+{
+"codigo": "50325",
+"municipio": "Mapiripán",
+"departamento": "Meta"
+},
+{
+"codigo": "50330",
+"municipio": "Mesetas",
+"departamento": "Meta"
+},
+{
+"codigo": "50450",
+"municipio": "Puerto Concordia",
+"departamento": "Meta"
+},
+{
+"codigo": "50568",
+"municipio": "Puerto Gaitán",
+"departamento": "Meta"
+},
+{
+"codigo": "50577",
+"municipio": "Puerto Lleras",
+"departamento": "Meta"
+},
+{
+"codigo": "50573",
+"municipio": "Puerto López",
+"departamento": "Meta"
+},
+{
+"codigo": "50590",
+"municipio": "Puerto Rico",
+"departamento": "Meta"
+},
+{
+"codigo": "50606",
+"municipio": "Restrepo",
+"departamento": "Meta"
+},
+{
+"codigo": "50680",
+"municipio": "San Carlos De Guaroa",
+"departamento": "Meta"
+},
+{
+"codigo": "50683",
+"municipio": "San Juan De Arama",
+"departamento": "Meta"
+},
+{
+"codigo": "50686",
+"municipio": "San Juanito",
+"departamento": "Meta"
+},
+{
+"codigo": "50689",
+"municipio": "San Martín",
+"departamento": "Meta"
+},
+{
+"codigo": "50370",
+"municipio": "Uribe",
+"departamento": "Meta"
+},
+{
+"codigo": "50001",
+"municipio": "Villavicencio",
+"departamento": "Meta"
+},
+{
+"codigo": "50711",
+"municipio": "Vistahermosa",
+"departamento": "Meta"
+},
+{
+"codigo": "52019",
+"municipio": "Albán",
+"departamento": "Nariño"
+},
+{
+"codigo": "52022",
+"municipio": "Aldana",
+"departamento": "Nariño"
+},
+{
+"codigo": "52036",
+"municipio": "Ancuyá",
+"departamento": "Nariño"
+},
+{
+"codigo": "52051",
+"municipio": "Arboleda",
+"departamento": "Nariño"
+},
+{
+"codigo": "52079",
+"municipio": "Barbacoas",
+"departamento": "Nariño"
+},
+{
+"codigo": "52083",
+"municipio": "Belén",
+"departamento": "Nariño"
+},
+{
+"codigo": "52110",
+"municipio": "Buesaco",
+"departamento": "Nariño"
+},
+{
+"codigo": "52240",
+"municipio": "Chachagüí",
+"departamento": "Nariño"
+},
+{
+"codigo": "52203",
+"municipio": "Colón",
+"departamento": "Nariño"
+},
+{
+"codigo": "52207",
+"municipio": "Consaca",
+"departamento": "Nariño"
+},
+{
+"codigo": "52210",
+"municipio": "Contadero",
+"departamento": "Nariño"
+},
+{
+"codigo": "52224",
+"municipio": "Cuaspud",
+"departamento": "Nariño"
+},
+{
+"codigo": "52227",
+"municipio": "Cumbal",
+"departamento": "Nariño"
+},
+{
+"codigo": "52233",
+"municipio": "Cumbitara",
+"departamento": "Nariño"
+},
+{
+"codigo": "52215",
+"municipio": "Córdoba",
+"departamento": "Nariño"
+},
+{
+"codigo": "52250",
+"municipio": "El Charco",
+"departamento": "Nariño"
+},
+{
+"codigo": "52254",
+"municipio": "El Peñol",
+"departamento": "Nariño"
+},
+{
+"codigo": "52256",
+"municipio": "El Rosario",
+"departamento": "Nariño"
+},
+{
+"codigo": "52258",
+"municipio": "El Tablón De Gómez",
+"departamento": "Nariño"
+},
+{
+"codigo": "52260",
+"municipio": "El Tambo",
+"departamento": "Nariño"
+},
+{
+"codigo": "52520",
+"municipio": "Francisco Pizarro",
+"departamento": "Nariño"
+},
+{
+"codigo": "52287",
+"municipio": "Funes",
+"departamento": "Nariño"
+},
+{
+"codigo": "52317",
+"municipio": "Guachucal",
+"departamento": "Nariño"
+},
+{
+"codigo": "52320",
+"municipio": "Guaitarilla",
+"departamento": "Nariño"
+},
+{
+"codigo": "52323",
+"municipio": "Gualmatán",
+"departamento": "Nariño"
+},
+{
+"codigo": "52352",
+"municipio": "Iles",
+"departamento": "Nariño"
+},
+{
+"codigo": "52354",
+"municipio": "Imués",
+"departamento": "Nariño"
+},
+{
+"codigo": "52356",
+"municipio": "Ipiales",
+"departamento": "Nariño"
+},
+{
+"codigo": "52378",
+"municipio": "La Cruz",
+"departamento": "Nariño"
+},
+{
+"codigo": "52381",
+"municipio": "La Florida",
+"departamento": "Nariño"
+},
+{
+"codigo": "52385",
+"municipio": "La Llanada",
+"departamento": "Nariño"
+},
+{
+"codigo": "52390",
+"municipio": "La Tola",
+"departamento": "Nariño"
+},
+{
+"codigo": "52399",
+"municipio": "La Unión",
+"departamento": "Nariño"
+},
+{
+"codigo": "52405",
+"municipio": "Leiva",
+"departamento": "Nariño"
+},
+{
+"codigo": "52411",
+"municipio": "Linares",
+"departamento": "Nariño"
+},
+{
+"codigo": "52418",
+"municipio": "Los Andes",
+"departamento": "Nariño"
+},
+{
+"codigo": "52427",
+"municipio": "Magüi",
+"departamento": "Nariño"
+},
+{
+"codigo": "52435",
+"municipio": "Mallama",
+"departamento": "Nariño"
+},
+{
+"codigo": "52473",
+"municipio": "Mosquera",
+"departamento": "Nariño"
+},
+{
+"codigo": "52480",
+"municipio": "Nariño",
+"departamento": "Nariño"
+},
+{
+"codigo": "52490",
+"municipio": "Olaya Herrera",
+"departamento": "Nariño"
+},
+{
+"codigo": "52506",
+"municipio": "Ospina",
+"departamento": "Nariño"
+},
+{
+"codigo": "52001",
+"municipio": "Pasto",
+"departamento": "Nariño"
+},
+{
+"codigo": "52540",
+"municipio": "Policarpa",
+"departamento": "Nariño"
+},
+{
+"codigo": "52560",
+"municipio": "Potosí",
+"departamento": "Nariño"
+},
+{
+"codigo": "52565",
+"municipio": "Providencia",
+"departamento": "Nariño"
+},
+{
+"codigo": "52573",
+"municipio": "Puerres",
+"departamento": "Nariño"
+},
+{
+"codigo": "52585",
+"municipio": "Pupiales",
+"departamento": "Nariño"
+},
+{
+"codigo": "52612",
+"municipio": "Ricaurte",
+"departamento": "Nariño"
+},
+{
+"codigo": "52621",
+"municipio": "Roberto Payán",
+"departamento": "Nariño"
+},
+{
+"codigo": "52678",
+"municipio": "Samaniego",
+"departamento": "Nariño"
+},
+{
+"codigo": "52835",
+"municipio": "San Andres De Tumaco",
+"departamento": "Nariño"
+},
+{
+"codigo": "52685",
+"municipio": "San Bernardo",
+"departamento": "Nariño"
+},
+{
+"codigo": "52687",
+"municipio": "San Lorenzo",
+"departamento": "Nariño"
+},
+{
+"codigo": "52693",
+"municipio": "San Pablo",
+"departamento": "Nariño"
+},
+{
+"codigo": "52694",
+"municipio": "San Pedro De Cartago",
+"departamento": "Nariño"
+},
+{
+"codigo": "52683",
+"municipio": "Sandoná",
+"departamento": "Nariño"
+},
+{
+"codigo": "52696",
+"municipio": "Santa Bárbara",
+"departamento": "Nariño"
+},
+{
+"codigo": "52699",
+"municipio": "Santacruz",
+"departamento": "Nariño"
+},
+{
+"codigo": "52720",
+"municipio": "Sapuyes",
+"departamento": "Nariño"
+},
+{
+"codigo": "52786",
+"municipio": "Taminango",
+"departamento": "Nariño"
+},
+{
+"codigo": "52788",
+"municipio": "Tangua",
+"departamento": "Nariño"
+},
+{
+"codigo": "52838",
+"municipio": "Túquerres",
+"departamento": "Nariño"
+},
+{
+"codigo": "52885",
+"municipio": "Yacuanquer",
+"departamento": "Nariño"
+},
+{
+"codigo": "54003",
+"municipio": "Abrego",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54051",
+"municipio": "Arboledas",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54099",
+"municipio": "Bochalema",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54109",
+"municipio": "Bucarasica",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54128",
+"municipio": "Cachirá",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54172",
+"municipio": "Chinácota",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54174",
+"municipio": "Chitagá",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54206",
+"municipio": "Convención",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54223",
+"municipio": "Cucutilla",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54125",
+"municipio": "Cácota",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54001",
+"municipio": "Cúcuta",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54239",
+"municipio": "Durania",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54245",
+"municipio": "El Carmen",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54250",
+"municipio": "El Tarra",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54261",
+"municipio": "El Zulia",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54313",
+"municipio": "Gramalote",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54344",
+"municipio": "Hacarí",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54347",
+"municipio": "Herrán",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54385",
+"municipio": "La Esperanza",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54398",
+"municipio": "La Playa",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54377",
+"municipio": "Labateca",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54405",
+"municipio": "Los Patios",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54418",
+"municipio": "Lourdes",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54480",
+"municipio": "Mutiscua",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54498",
+"municipio": "Ocaña",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54518",
+"municipio": "Pamplona",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54520",
+"municipio": "Pamplonita",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54553",
+"municipio": "Puerto Santander",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54599",
+"municipio": "Ragonvalia",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54660",
+"municipio": "Salazar",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54670",
+"municipio": "San Cali1to",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54673",
+"municipio": "San Cayetano",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54680",
+"municipio": "Santiago",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54720",
+"municipio": "Sardinata",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54743",
+"municipio": "Silos",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54800",
+"municipio": "Teorama",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54810",
+"municipio": "Tibú",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54820",
+"municipio": "Toledo",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54871",
+"municipio": "Villa Caro",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "54874",
+"municipio": "Villa Del Rosario",
+"departamento": "Norte de Santander"
+},
+{
+"codigo": "86219",
+"municipio": "Colón",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86573",
+"municipio": "Leguízamo",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86001",
+"municipio": "Mocoa",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86320",
+"municipio": "Orito",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86568",
+"municipio": "Puerto Asís",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86569",
+"municipio": "Puerto Caicedo",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86571",
+"municipio": "Puerto Guzmán",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86755",
+"municipio": "San Francisco",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86757",
+"municipio": "San Miguel",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86760",
+"municipio": "Santiago",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86749",
+"municipio": "Sibundoy",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86865",
+"municipio": "Valle Del Guamuez",
+"departamento": "Putumayo"
+},
+{
+"codigo": "86885",
+"municipio": "Villagarzón",
+"departamento": "Putumayo"
+},
+{
+"codigo": "63001",
+"municipio": "Armenia",
+"departamento": "Quindío"
+},
+{
+"codigo": "63111",
+"municipio": "Buenavista",
+"departamento": "Quindío"
+},
+{
+"codigo": "63130",
+"municipio": "Calarca",
+"departamento": "Quindío"
+},
+{
+"codigo": "63190",
+"municipio": "Circasia",
+"departamento": "Quindío"
+},
+{
+"codigo": "63212",
+"municipio": "Córdoba",
+"departamento": "Quindío"
+},
+{
+"codigo": "63272",
+"municipio": "Filandia",
+"departamento": "Quindío"
+},
+{
+"codigo": "63302",
+"municipio": "Génova",
+"departamento": "Quindío"
+},
+{
+"codigo": "63401",
+"municipio": "La Tebaida",
+"departamento": "Quindío"
+},
+{
+"codigo": "63470",
+"municipio": "Montenegro",
+"departamento": "Quindío"
+},
+{
+"codigo": "63548",
+"municipio": "Pijao",
+"departamento": "Quindío"
+},
+{
+"codigo": "63594",
+"municipio": "Quimbaya",
+"departamento": "Quindío"
+},
+{
+"codigo": "63690",
+"municipio": "Salento",
+"departamento": "Quindío"
+},
+{
+"codigo": "66045",
+"municipio": "Apía",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66075",
+"municipio": "Balboa",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66088",
+"municipio": "Belén De Umbría",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66170",
+"municipio": "Dosquebradas",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66318",
+"municipio": "Guática",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66383",
+"municipio": "La Celia",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66400",
+"municipio": "La Virginia",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66440",
+"municipio": "Marsella",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66456",
+"municipio": "Mistrató",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66001",
+"municipio": "Pereira",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66572",
+"municipio": "Pueblo Rico",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66594",
+"municipio": "Quinchía",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66682",
+"municipio": "Santa Rosa De Cabal",
+"departamento": "Risaralda"
+},
+{
+"codigo": "66687",
+"municipio": "Santuario",
+"departamento": "Risaralda"
+},
+{
+"codigo": "88564",
+"municipio": "Providencia",
+"departamento": "San Andrés y Providencia"
+},
+{
+"codigo": "88001",
+"municipio": "San Andrés",
+"departamento": "San Andrés y Providencia"
+},
+{
+"codigo": "68013",
+"municipio": "Aguada",
+"departamento": "Santander"
+},
+{
+"codigo": "68020",
+"municipio": "Albania",
+"departamento": "Santander"
+},
+{
+"codigo": "68051",
+"municipio": "Aratoca",
+"departamento": "Santander"
+},
+{
+"codigo": "68077",
+"municipio": "Barbosa",
+"departamento": "Santander"
+},
+{
+"codigo": "68079",
+"municipio": "Barichara",
+"departamento": "Santander"
+},
+{
+"codigo": "68081",
+"municipio": "Barrancabermeja",
+"departamento": "Santander"
+},
+{
+"codigo": "68092",
+"municipio": "Betulia",
+"departamento": "Santander"
+},
+{
+"codigo": "68101",
+"municipio": "Bolívar",
+"departamento": "Santander"
+},
+{
+"codigo": "68001",
+"municipio": "Bucaramanga",
+"departamento": "Santander"
+},
+{
+"codigo": "68121",
+"municipio": "Cabrera",
+"departamento": "Santander"
+},
+{
+"codigo": "68132",
+"municipio": "California",
+"departamento": "Santander"
+},
+{
+"codigo": "68147",
+"municipio": "Capitanejo",
+"departamento": "Santander"
+},
+{
+"codigo": "68152",
+"municipio": "Carcasí",
+"departamento": "Santander"
+},
+{
+"codigo": "68160",
+"municipio": "Cepitá",
+"departamento": "Santander"
+},
+{
+"codigo": "68162",
+"municipio": "Cerrito",
+"departamento": "Santander"
+},
+{
+"codigo": "68167",
+"municipio": "Charalá",
+"departamento": "Santander"
+},
+{
+"codigo": "68169",
+"municipio": "Charta",
+"departamento": "Santander"
+},
+{
+"codigo": "68176",
+"municipio": "Chima",
+"departamento": "Santander"
+},
+{
+"codigo": "68179",
+"municipio": "Chipatá",
+"departamento": "Santander"
+},
+{
+"codigo": "68190",
+"municipio": "Cimitarra",
+"departamento": "Santander"
+},
+{
+"codigo": "68207",
+"municipio": "Concepción",
+"departamento": "Santander"
+},
+{
+"codigo": "68209",
+"municipio": "Confines",
+"departamento": "Santander"
+},
+{
+"codigo": "68211",
+"municipio": "Contratación",
+"departamento": "Santander"
+},
+{
+"codigo": "68217",
+"municipio": "Coromoro",
+"departamento": "Santander"
+},
+{
+"codigo": "68229",
+"municipio": "Curití",
+"departamento": "Santander"
+},
+{
+"codigo": "68235",
+"municipio": "El Carmen De Chucurí",
+"departamento": "Santander"
+},
+{
+"codigo": "68245",
+"municipio": "El Guacamayo",
+"departamento": "Santander"
+},
+{
+"codigo": "68250",
+"municipio": "El Peñón",
+"departamento": "Santander"
+},
+{
+"codigo": "68255",
+"municipio": "El Playón",
+"departamento": "Santander"
+},
+{
+"codigo": "68264",
+"municipio": "Encino",
+"departamento": "Santander"
+},
+{
+"codigo": "68266",
+"municipio": "Enciso",
+"departamento": "Santander"
+},
+{
+"codigo": "68276",
+"municipio": "Floridablanca",
+"departamento": "Santander"
+},
+{
+"codigo": "68271",
+"municipio": "Florián",
+"departamento": "Santander"
+},
+{
+"codigo": "68296",
+"municipio": "Galán",
+"departamento": "Santander"
+},
+{
+"codigo": "68298",
+"municipio": "Gambita",
+"departamento": "Santander"
+},
+{
+"codigo": "68307",
+"municipio": "Girón",
+"departamento": "Santander"
+},
+{
+"codigo": "68318",
+"municipio": "Guaca",
+"departamento": "Santander"
+},
+{
+"codigo": "68320",
+"municipio": "Guadalupe",
+"departamento": "Santander"
+},
+{
+"codigo": "68322",
+"municipio": "Guapotá",
+"departamento": "Santander"
+},
+{
+"codigo": "68324",
+"municipio": "Guavatá",
+"departamento": "Santander"
+},
+{
+"codigo": "68327",
+"municipio": "Güepsa",
+"departamento": "Santander"
+},
+{
+"codigo": "68344",
+"municipio": "Hato",
+"departamento": "Santander"
+},
+{
+"codigo": "68368",
+"municipio": "Jesús María",
+"departamento": "Santander"
+},
+{
+"codigo": "68370",
+"municipio": "Jordán",
+"departamento": "Santander"
+},
+{
+"codigo": "68377",
+"municipio": "La Belleza",
+"departamento": "Santander"
+},
+{
+"codigo": "68397",
+"municipio": "La Paz",
+"departamento": "Santander"
+},
+{
+"codigo": "68385",
+"municipio": "Landázuri",
+"departamento": "Santander"
+},
+{
+"codigo": "68406",
+"municipio": "Lebríja",
+"departamento": "Santander"
+},
+{
+"codigo": "68418",
+"municipio": "Los Santos",
+"departamento": "Santander"
+},
+{
+"codigo": "68425",
+"municipio": "Macaravita",
+"departamento": "Santander"
+},
+{
+"codigo": "68444",
+"municipio": "Matanza",
+"departamento": "Santander"
+},
+{
+"codigo": "68464",
+"municipio": "Mogotes",
+"departamento": "Santander"
+},
+{
+"codigo": "68468",
+"municipio": "Molagavita",
+"departamento": "Santander"
+},
+{
+"codigo": "68432",
+"municipio": "Málaga",
+"departamento": "Santander"
+},
+{
+"codigo": "68498",
+"municipio": "Ocamonte",
+"departamento": "Santander"
+},
+{
+"codigo": "68500",
+"municipio": "Oiba",
+"departamento": "Santander"
+},
+{
+"codigo": "68502",
+"municipio": "Onzaga",
+"departamento": "Santander"
+},
+{
+"codigo": "68522",
+"municipio": "Palmar",
+"departamento": "Santander"
+},
+{
+"codigo": "68524",
+"municipio": "Palmas Del Socorro",
+"departamento": "Santander"
+},
+{
+"codigo": "68547",
+"municipio": "Piedecuesta",
+"departamento": "Santander"
+},
+{
+"codigo": "68549",
+"municipio": "Pinchote",
+"departamento": "Santander"
+},
+{
+"codigo": "68572",
+"municipio": "Puente Nacional",
+"departamento": "Santander"
+},
+{
+"codigo": "68573",
+"municipio": "Puerto Parra",
+"departamento": "Santander"
+},
+{
+"codigo": "68575",
+"municipio": "Puerto Wilches",
+"departamento": "Santander"
+},
+{
+"codigo": "68533",
+"municipio": "Páramo",
+"departamento": "Santander"
+},
+{
+"codigo": "68615",
+"municipio": "Rionegro",
+"departamento": "Santander"
+},
+{
+"codigo": "68655",
+"municipio": "Sabana De Torres",
+"departamento": "Santander"
+},
+{
+"codigo": "68669",
+"municipio": "San Andrés",
+"departamento": "Santander"
+},
+{
+"codigo": "68673",
+"municipio": "San Benito",
+"departamento": "Santander"
+},
+{
+"codigo": "68679",
+"municipio": "San Gil",
+"departamento": "Santander"
+},
+{
+"codigo": "68682",
+"municipio": "San Joaquín",
+"departamento": "Santander"
+},
+{
+"codigo": "68684",
+"municipio": "San José De Miranda",
+"departamento": "Santander"
+},
+{
+"codigo": "68686",
+"municipio": "San Miguel",
+"departamento": "Santander"
+},
+{
+"codigo": "68689",
+"municipio": "San Vicente De Chucurí",
+"departamento": "Santander"
+},
+{
+"codigo": "68705",
+"municipio": "Santa Bárbara",
+"departamento": "Santander"
+},
+{
+"codigo": "68720",
+"municipio": "Santa Helena Del Opón",
+"departamento": "Santander"
+},
+{
+"codigo": "68745",
+"municipio": "Simacota",
+"departamento": "Santander"
+},
+{
+"codigo": "68755",
+"municipio": "Socorro",
+"departamento": "Santander"
+},
+{
+"codigo": "68770",
+"municipio": "Suaita",
+"departamento": "Santander"
+},
+{
+"codigo": "68773",
+"municipio": "Sucre",
+"departamento": "Santander"
+},
+{
+"codigo": "68780",
+"municipio": "Suratá",
+"departamento": "Santander"
+},
+{
+"codigo": "68820",
+"municipio": "Tona",
+"departamento": "Santander"
+},
+{
+"codigo": "68855",
+"municipio": "Valle De San José",
+"departamento": "Santander"
+},
+{
+"codigo": "68867",
+"municipio": "Vetas",
+"departamento": "Santander"
+},
+{
+"codigo": "68872",
+"municipio": "Villanueva",
+"departamento": "Santander"
+},
+{
+"codigo": "68861",
+"municipio": "Vélez",
+"departamento": "Santander"
+},
+{
+"codigo": "68895",
+"municipio": "Zapatoca",
+"departamento": "Santander"
+},
+{
+"codigo": "70110",
+"municipio": "Buenavista",
+"departamento": "Sucre"
+},
+{
+"codigo": "70124",
+"municipio": "Caimito",
+"departamento": "Sucre"
+},
+{
+"codigo": "70230",
+"municipio": "Chalán",
+"departamento": "Sucre"
+},
+{
+"codigo": "70204",
+"municipio": "Coloso",
+"departamento": "Sucre"
+},
+{
+"codigo": "70215",
+"municipio": "Corozal",
+"departamento": "Sucre"
+},
+{
+"codigo": "70221",
+"municipio": "Coveñas",
+"departamento": "Sucre"
+},
+{
+"codigo": "70233",
+"municipio": "El Roble",
+"departamento": "Sucre"
+},
+{
+"codigo": "70235",
+"municipio": "Galeras",
+"departamento": "Sucre"
+},
+{
+"codigo": "70265",
+"municipio": "Guaranda",
+"departamento": "Sucre"
+},
+{
+"codigo": "70400",
+"municipio": "La Unión",
+"departamento": "Sucre"
+},
+{
+"codigo": "70418",
+"municipio": "Los Palmitos",
+"departamento": "Sucre"
+},
+{
+"codigo": "70429",
+"municipio": "Majagual",
+"departamento": "Sucre"
+},
+{
+"codigo": "70473",
+"municipio": "Morroa",
+"departamento": "Sucre"
+},
+{
+"codigo": "70508",
+"municipio": "Ovejas",
+"departamento": "Sucre"
+},
+{
+"codigo": "70523",
+"municipio": "Palmito",
+"departamento": "Sucre"
+},
+{
+"codigo": "70670",
+"municipio": "Sampués",
+"departamento": "Sucre"
+},
+{
+"codigo": "70678",
+"municipio": "San Benito Abad",
+"departamento": "Sucre"
+},
+{
+"codigo": "70702",
+"municipio": "San Juan De Betulia",
+"departamento": "Sucre"
+},
+{
+"codigo": "70742",
+"municipio": "San Luis De Sincé",
+"departamento": "Sucre"
+},
+{
+"codigo": "70708",
+"municipio": "San Marcos",
+"departamento": "Sucre"
+},
+{
+"codigo": "70713",
+"municipio": "San Onofre",
+"departamento": "Sucre"
+},
+{
+"codigo": "70717",
+"municipio": "San Pedro",
+"departamento": "Sucre"
+},
+{
+"codigo": "70820",
+"municipio": "Santiago De Tolú",
+"departamento": "Sucre"
+},
+{
+"codigo": "70001",
+"municipio": "Sincelejo",
+"departamento": "Sucre"
+},
+{
+"codigo": "70771",
+"municipio": "Sucre",
+"departamento": "Sucre"
+},
+{
+"codigo": "70823",
+"municipio": "Tolú Viejo",
+"departamento": "Sucre"
+},
+{
+"codigo": "73024",
+"municipio": "Alpujarra",
+"departamento": "Tolima"
+},
+{
+"codigo": "73026",
+"municipio": "Alvarado",
+"departamento": "Tolima"
+},
+{
+"codigo": "73030",
+"municipio": "Ambalema",
+"departamento": "Tolima"
+},
+{
+"codigo": "73043",
+"municipio": "Anzoátegui",
+"departamento": "Tolima"
+},
+{
+"codigo": "73055",
+"municipio": "Armero",
+"departamento": "Tolima"
+},
+{
+"codigo": "73067",
+"municipio": "Ataco",
+"departamento": "Tolima"
+},
+{
+"codigo": "73124",
+"municipio": "Cajamarca",
+"departamento": "Tolima"
+},
+{
+"codigo": "73148",
+"municipio": "Carmen De Apicalá",
+"departamento": "Tolima"
+},
+{
+"codigo": "73152",
+"municipio": "Casabianca",
+"departamento": "Tolima"
+},
+{
+"codigo": "73168",
+"municipio": "Chaparral",
+"departamento": "Tolima"
+},
+{
+"codigo": "73200",
+"municipio": "Coello",
+"departamento": "Tolima"
+},
+{
+"codigo": "73217",
+"municipio": "Coyaima",
+"departamento": "Tolima"
+},
+{
+"codigo": "73226",
+"municipio": "Cunday",
+"departamento": "Tolima"
+},
+{
+"codigo": "73236",
+"municipio": "Dolores",
+"departamento": "Tolima"
+},
+{
+"codigo": "73268",
+"municipio": "Espinal",
+"departamento": "Tolima"
+},
+{
+"codigo": "73270",
+"municipio": "Falan",
+"departamento": "Tolima"
+},
+{
+"codigo": "73275",
+"municipio": "Flandes",
+"departamento": "Tolima"
+},
+{
+"codigo": "73283",
+"municipio": "Fresno",
+"departamento": "Tolima"
+},
+{
+"codigo": "73319",
+"municipio": "Guamo",
+"departamento": "Tolima"
+},
+{
+"codigo": "73347",
+"municipio": "Herveo",
+"departamento": "Tolima"
+},
+{
+"codigo": "73349",
+"municipio": "Honda",
+"departamento": "Tolima"
+},
+{
+"codigo": "73001",
+"municipio": "Ibagué",
+"departamento": "Tolima"
+},
+{
+"codigo": "73352",
+"municipio": "Icononzo",
+"departamento": "Tolima"
+},
+{
+"codigo": "73408",
+"municipio": "Lérida",
+"departamento": "Tolima"
+},
+{
+"codigo": "73411",
+"municipio": "Líbano",
+"departamento": "Tolima"
+},
+{
+"codigo": "73443",
+"municipio": "Mariquita",
+"departamento": "Tolima"
+},
+{
+"codigo": "73449",
+"municipio": "Melgar",
+"departamento": "Tolima"
+},
+{
+"codigo": "73461",
+"municipio": "Murillo",
+"departamento": "Tolima"
+},
+{
+"codigo": "73483",
+"municipio": "Natagaima",
+"departamento": "Tolima"
+},
+{
+"codigo": "73504",
+"municipio": "Ortega",
+"departamento": "Tolima"
+},
+{
+"codigo": "73520",
+"municipio": "Palocabildo",
+"departamento": "Tolima"
+},
+{
+"codigo": "73547",
+"municipio": "Piedras",
+"departamento": "Tolima"
+},
+{
+"codigo": "73555",
+"municipio": "Planadas",
+"departamento": "Tolima"
+},
+{
+"codigo": "73563",
+"municipio": "Prado",
+"departamento": "Tolima"
+},
+{
+"codigo": "73585",
+"municipio": "Purificación",
+"departamento": "Tolima"
+},
+{
+"codigo": "73616",
+"municipio": "Rioblanco",
+"departamento": "Tolima"
+},
+{
+"codigo": "73622",
+"municipio": "Roncesvalles",
+"departamento": "Tolima"
+},
+{
+"codigo": "73624",
+"municipio": "Rovira",
+"departamento": "Tolima"
+},
+{
+"codigo": "73671",
+"municipio": "Saldaña",
+"departamento": "Tolima"
+},
+{
+"codigo": "73675",
+"municipio": "San Antonio",
+"departamento": "Tolima"
+},
+{
+"codigo": "73678",
+"municipio": "San Luis",
+"departamento": "Tolima"
+},
+{
+"codigo": "73686",
+"municipio": "Santa Isabel",
+"departamento": "Tolima"
+},
+{
+"codigo": "73770",
+"municipio": "Suárez",
+"departamento": "Tolima"
+},
+{
+"codigo": "73854",
+"municipio": "Valle De San Juan",
+"departamento": "Tolima"
+},
+{
+"codigo": "73861",
+"municipio": "Venadillo",
+"departamento": "Tolima"
+},
+{
+"codigo": "73870",
+"municipio": "Villahermosa",
+"departamento": "Tolima"
+},
+{
+"codigo": "73873",
+"municipio": "Villarrica",
+"departamento": "Tolima"
+},
+{
+"codigo": "76020",
+"municipio": "Alcalá",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76036",
+"municipio": "Andalucía",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76041",
+"municipio": "Ansermanuevo",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76054",
+"municipio": "Argelia",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76100",
+"municipio": "Bolívar",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76109",
+"municipio": "Buenaventura",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76113",
+"municipio": "Bugalagrande",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76122",
+"municipio": "Caicedonia",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76001",
+"municipio": "Cali",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76126",
+"municipio": "Calima",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76130",
+"municipio": "Candelaria",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76147",
+"municipio": "Cartago",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76233",
+"municipio": "Dagua",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76246",
+"municipio": "El Cairo",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76248",
+"municipio": "El Cerrito",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76250",
+"municipio": "El Dovio",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76243",
+"municipio": "El Águila",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76275",
+"municipio": "Florida",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76306",
+"municipio": "Ginebra",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76318",
+"municipio": "Guacarí",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76111",
+"municipio": "Guadalajara De Buga",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76364",
+"municipio": "Jamundí",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76377",
+"municipio": "La Cumbre",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76400",
+"municipio": "La Unión",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76403",
+"municipio": "La Victoria",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76497",
+"municipio": "Obando",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76520",
+"municipio": "Palmira",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76563",
+"municipio": "Pradera",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76606",
+"municipio": "Restrepo",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76616",
+"municipio": "Riofrío",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76622",
+"municipio": "Roldanillo",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76670",
+"municipio": "San Pedro",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76736",
+"municipio": "Sevilla",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76823",
+"municipio": "Toro",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76828",
+"municipio": "Trujillo",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76834",
+"municipio": "Tuluá",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76845",
+"municipio": "Ulloa",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76863",
+"municipio": "Versalles",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76869",
+"municipio": "Vijes",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76890",
+"municipio": "Yotoco",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76892",
+"municipio": "Yumbo",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "76895",
+"municipio": "Zarzal",
+"departamento": "Valle del Cauca"
+},
+{
+"codigo": "97161",
+"municipio": "Caruru",
+"departamento": "Vaupés"
+},
+{
+"codigo": "97001",
+"municipio": "Mitú",
+"departamento": "Vaupés"
+},
+{
+"codigo": "97511",
+"municipio": "Pacoa",
+"departamento": "Vaupés"
+},
+{
+"codigo": "97777",
+"municipio": "Papunaua",
+"departamento": "Vaupés"
+},
+{
+"codigo": "97666",
+"municipio": "Taraira",
+"departamento": "Vaupés"
+},
+{
+"codigo": "97889",
+"municipio": "Yavaraté",
+"departamento": "Vaupés"
+},
+{
+"codigo": "99773",
+"municipio": "Cumaribo",
+"departamento": "Vichada"
+},
+{
+"codigo": "99524",
+"municipio": "La Primavera",
+"departamento": "Vichada"
+},
+{
+"codigo": "99001",
+"municipio": "Puerto Carreño",
+"departamento": "Vichada"
+},
+{
+"codigo": "99624",
+"municipio": "Santa Rosalía",
+"departamento": "Vichada"
+}
+]
