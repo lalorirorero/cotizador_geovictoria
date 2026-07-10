@@ -102,6 +102,22 @@ async function buscarCandidatas(config) {
   });
 }
 
+// ¿Cotización COLOMBIA? create-from-vicky-co firma el token de aceptación con
+// pais:"co"; acá basta decodificar el payload (sin verificar firma: solo se usa
+// para NO rescatar una cotización CO con el builder/correo CHILENOS — le
+// pondría montos en UF y un correo en tuteo). El rescate CO es fase 2.
+function esCotizacionCO(acceptanceUrl) {
+  try {
+    const m = String(acceptanceUrl || "").match(/[?&]token=([^&]+)/);
+    if (!m) return false;
+    const body = decodeURIComponent(m[1]).split(".")[0];
+    const json = Buffer.from(body.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+    return String(JSON.parse(json)?.pais || "").toLowerCase() === "co";
+  } catch {
+    return false;
+  }
+}
+
 // Regenera el PDF de una cotización + reenvía el correo. Espejo del trabajo en
 // segundo plano de create-from-vicky, pero a partir del estado actual en Zoho.
 async function rescatarCotizacion(quoteId, config) {
@@ -111,6 +127,11 @@ async function rescatarCotizacion(quoteId, config) {
   // Carrera entre ticks: si otra pasada ya la rescató, PDF_URL ya está seteado.
   if (toText(quote[config.quotePdfUrlField])) {
     return { skipped: "pdf_ya_presente" };
+  }
+
+  // Cotización CO: este cron es chileno (PDF UF + correo en tuteo); saltarla.
+  if (esCotizacionCO(quote[config.quoteAcceptanceUrlField])) {
+    return { skipped: "cotizacion_co" };
   }
 
   const descuentos = {

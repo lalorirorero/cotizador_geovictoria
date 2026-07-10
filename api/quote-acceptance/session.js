@@ -188,6 +188,43 @@ function computeTotals(items, descuentos = 0) {
   };
 }
 
+// ── Totales COLOMBIA (aditivo: solo se calcula/expone cuando pais === "co") ──
+// En CO el subform guarda COP en los campos *Clp (convención COLOMBIA.md) y el
+// IVA es POR LÍNEA (Afecto_IVA): el plan mensual está excluido (art. 476 E.T.)
+// y activación/equipos/envío/instalación llevan 19 %. Los buckets también
+// difieren de Chile: el "Pago inicial" CO son SOLO los pagos únicos (la
+// Activación ya ES el primer mes cobrado por adelantado — el recurrente NO se
+// suma al pago inicial); la "Mensualidad" son los recurrentes (plan sin IVA +
+// arriendos con IVA), facturada desde el mes siguiente. Sin descuentos en v1.
+function computeTotalsCO(items) {
+  const rows = Array.isArray(items) ? items : [];
+  let pagoInicialNetoCop = 0;
+  let pagoInicialIvaCop = 0;
+  let mensualidadNetaCop = 0;
+  let mensualidadIvaCop = 0;
+
+  rows.forEach((row) => {
+    const netoCop = Number(row?.subtotalClp || 0);
+    const ivaCop = row?.afectoIva === true ? netoCop * 0.19 : 0;
+    if (isRecurrentModalidad(row?.modalidad)) {
+      mensualidadNetaCop += netoCop;
+      mensualidadIvaCop += ivaCop;
+    } else {
+      pagoInicialNetoCop += netoCop;
+      pagoInicialIvaCop += ivaCop;
+    }
+  });
+
+  return {
+    pagoInicialNetoCop: Math.round(pagoInicialNetoCop),
+    pagoInicialIvaCop: Math.round(pagoInicialIvaCop),
+    pagoInicialCop: Math.round(pagoInicialNetoCop + pagoInicialIvaCop),
+    mensualidadNetaCop: Math.round(mensualidadNetaCop),
+    mensualidadIvaCop: Math.round(mensualidadIvaCop),
+    mensualidadCop: Math.round(mensualidadNetaCop + mensualidadIvaCop),
+  };
+}
+
 async function getFallbackData(dealId) {
   const cleanDealId = toText(dealId);
   if (!cleanDealId) {
@@ -202,6 +239,9 @@ async function getFallbackData(dealId) {
     "Contact_Email",
     "Contact_Phone",
     "Rut_ID_Account",
+    // Territorio: respaldo para detectar cotizaciones Colombia (pais "co")
+    // cuando el token no viene marcado. No afecta el flujo chileno.
+    "Territorio",
   ]);
 
   const accountId = toText(deal?.Account_Name?.id);
@@ -275,6 +315,16 @@ export default async function handler(req, res) {
     const dealId = toText(quote?.[config.quoteDealLookupField]?.id || quote?.[config.quoteDealLookupField]);
     const fallback = await getFallbackData(dealId);
 
+    // País de la cotización. Mecanismo primario: create-from-vicky-co firma el
+    // token de aceptación con pais:"co" (cero campos nuevos en Zoho, cero
+    // llamadas extra). Respaldo: Territorio del Deal = "Colombia" (por si un
+    // link CO se re-mintea con otra herramienta). Chile queda igual ("cl").
+    const pais =
+      toText(payload.pais).toLowerCase() === "co" ||
+      /colombia/i.test(toText(fallback?.deal?.Territorio))
+        ? "co"
+        : "cl";
+
     if (dealId && dealId !== payload.dealId) {
       sendJson(res, 400, {
         success: false,
@@ -328,6 +378,8 @@ export default async function handler(req, res) {
 
     sendJson(res, 200, {
       success: true,
+      // "co" = Colombia (montos COP, IVA por línea); "cl" = Chile (sin cambios).
+      pais,
       quote: {
         id: payload.quoteId,
         dealId: payload.dealId,
@@ -388,7 +440,12 @@ export default async function handler(req, res) {
         supportEmail: config.supportContactEmail,
       },
       items,
-      totals: computeTotals(items, descuentos),
+      // Chile: totales de siempre. Colombia: además el bloque `co` con IVA por
+      // línea y buckets pago inicial / mensualidad (el front CO usa solo `co`).
+      totals: {
+        ...computeTotals(items, descuentos),
+        ...(pais === "co" ? { co: computeTotalsCO(items) } : {}),
+      },
     });
   } catch (error) {
     const isExpired = toText(error?.code) === "TOKEN_EXPIRED";

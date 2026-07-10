@@ -660,4 +660,7 @@ function buildProposalHtml({
 </body></html>`;
 }
 
-module.exports = { buildProposalHtml };
+// Exponemos el CSS del one-pager para que la variante Colombia
+// (proposal-html-builder-co.js) reuse EXACTAMENTE el mismo layout/estilo sin
+// mantener una copia. Cambios de estilo acá impactan ambos países a propósito.
+module.exports = { buildProposalHtml, ONEPAGER_CSS };
