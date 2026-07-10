@@ -190,8 +190,10 @@ function getMercadoPagoConfigForQuoteCO(req, quote, acceptanceConfig) {
     accessToken: testAccessToken,
     publicKey: testPublicKey,
     environment: "test",
-    // isProduction=false hace que pickInitPoint prefiera sandbox_init_point.
-    isProduction: false,
+    // OJO: NO bajar isProduction acá. Con credenciales de PRUEBA el init_point
+    // normal (www.mercadopago.com.co) funciona y es el recomendado; el
+    // sandbox_init_point (sandbox.mercadopago.com.co) está deprecado y produce
+    // ERR_TOO_MANY_REDIRECTS (visto en vivo, prueba E2E CO 10-jul).
     testLane: true,
   };
 }
