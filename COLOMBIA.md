@@ -26,7 +26,10 @@ CO + planilla de tropicalización); lo que sigue es ejecución.
 - **Entidad del PDF:** Geovictoria Colombia SAS · NIT 901.367.959-1 ·
   Carrera 14 # 89-48 Of. 201, Edificio Novanta, Bogotá. Ejecutiva: Laura
   Vargas (lvargash@geovictoria.com, +57 310 609 5259 — correo por confirmar).
-- **Vigencia 30 días. Registro de usted en todo texto al cliente.**
+- **Vigencia 30 días.** Registro: el CHAT de Vicky CO va en **tuteo cálido
+  colombiano** (feedback del equipo CO 12-jul: 'debería tutear, más emoji,
+  más cercano'); los documentos formales (PDF, página de aceptación, T&C)
+  permanecen en usted.
 
 ## Infraestructura YA lista
 
