@@ -172,13 +172,15 @@ async function sendInternalMail({ quoteModule, quoteId, subject, htmlBody, recip
 const AGENT_NOTIFY_URL = toText(process.env.VICKY_AGENT_NOTIFY_URL);
 const AGENT_CRON_SECRET = toText(process.env.VICKY_AGENT_CRON_SECRET);
 
-async function notifyWhatsApp({ evento, empresa, numero, montoClp }) {
+async function notifyWhatsApp({ evento, empresa, numero, montoClp, quoteId }) {
   if (!AGENT_NOTIFY_URL || !AGENT_CRON_SECRET) return;
   try {
     await fetch(AGENT_NOTIFY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-cron-secret": AGENT_CRON_SECRET },
-      body: JSON.stringify({ evento, empresa, numero, monto: montoClp }),
+      // quoteId permite al agente cerrar la cadencia de seguimiento del
+      // contacto (nada de nudges ni llamadas a quien ya aceptó/pagó).
+      body: JSON.stringify({ evento, empresa, numero, monto: montoClp, quoteId }),
     });
   } catch (err) {
     console.warn(`[quote-notify] WhatsApp best-effort falló:`, toText(err?.message || err).slice(0, 150));
@@ -243,7 +245,7 @@ async function notifyQuoteEvent({ config, quote, quoteId, evento }) {
     await sendInternalMail({ quoteModule: config.quoteModule, quoteId, subject, htmlBody, recipients });
     console.log(`[quote-notify] enviado evento=${evento} quote=${numero || quoteId} pais=${esCO ? "co" : "cl"} → ${recipients.join(", ")}`);
     // Además del correo: aviso por WhatsApp (best-effort, no bloquea).
-    await notifyWhatsApp({ evento, empresa, numero, montoClp });
+    await notifyWhatsApp({ evento, empresa, numero, montoClp, quoteId });
   } catch (err) {
     console.error(`[quote-notify] falló (best-effort) evento=${evento}:`, toText(err?.message || err).slice(0, 200));
   }
