@@ -278,6 +278,7 @@ module.exports = async function handler(req, res) {
           ok: true,
           version: Math.max(1, Number(quote?.[config.quoteVersionPdfField] || 1)),
           link_pdf: pdfVigente,
+          acceptance_url: toText(quote?.[config.quoteAcceptanceUrlField]) || undefined,
           ultimo_escalon: {
             tipo: escalonComiteado.tipo,
             pct: escalonComiteado.pct,
@@ -384,6 +385,10 @@ module.exports = async function handler(req, res) {
       ok: true,
       version: versionNueva,
       link_pdf: pdfUrl,
+      // Link de aceptación NUEVO (token regenerado): el agente actualiza su
+      // puntero durable con esto — sin él, el guardrail anti-alucinación
+      // bloquea reenvíos legítimos del link (caso Bioval 15-jul).
+      acceptance_url: acceptanceUrl,
       ultimo_escalon: {
         tipo: escalon.tipo,
         pct: escalon.pct,
