@@ -62,6 +62,9 @@
     },
     "api/quote-acceptance/reconcile-crm.js": {
       "maxDuration": 60
+    },
+    "api/quote-acceptance/actualizar-cotizacion.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
