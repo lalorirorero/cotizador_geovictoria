@@ -796,6 +796,13 @@ module.exports = async function handler(req, res) {
       }
     }
 
+    // Principio (16-jul): LA COTIZACIÓN SIEMPRE SE ENTREGA. El plumbing CRM
+    // (Cuenta/Contacto/Deal) es soporte interno: si falla de forma
+    // irrecuperable, se registra, se marca CRM_Incompleto y el flujo SIGUE
+    // hasta el PDF + link. Kill-switch: CRM_STRICT=1 restaura el comportamiento
+    // anterior (morir con excepción).
+    let crmIncompleto = false;
+    try {
     if (!reuse.leadConverted) {
       // ── CAMINO B: Crear Account o reusar existente ──
       let needCreateAccount = !existing.accountId;
@@ -853,13 +860,39 @@ module.exports = async function handler(req, res) {
               `[create-from-vicky] Capa 3 Account: duplicado por nombre con RUT distinto (${cliente.rutEmpresa}); creando cuenta desambiguada.`,
             );
             stage = "create_account_disambiguated";
-            const retryResult = await createRecord(
-              "Accounts",
-              { ...createAccountPayload, Account_Name: `${cliente.empresa} (${cliente.rutEmpresa})` },
-              true,
-            );
-            accountId = toText(retryResult?.id);
-            if (!accountId) throw new Error("No se obtuvo accountId (cuenta desambiguada)");
+            const nombreDesambiguado = `${cliente.empresa} (${cliente.rutEmpresa})`;
+            try {
+              const retryResult = await createRecord(
+                "Accounts",
+                { ...createAccountPayload, Account_Name: nombreDesambiguado },
+                true,
+              );
+              accountId = toText(retryResult?.id);
+              if (!accountId) throw new Error("No se obtuvo accountId (cuenta desambiguada)");
+            } catch (retryError) {
+              if (!isDuplicateDataError(retryError)) throw retryError;
+              // ── Capa 4: hasta la desambiguada duplica (unicidad por RUT_Empresa
+              // o cuenta desambiguada preexistente). Reusar SOLO si el RUT también
+              // coincide — asociar mal es peor que no asociar. Si no, la cotización
+              // sigue SIN cuenta (el reconciliador la cose después).
+              stage = "reuse_account_capa4";
+              const porNombre = await executeCoqlQuery(
+                `select id, RUT_Empresa from Accounts where Account_Name = '${nombreDesambiguado.replace(/'/g, "''")}' limit 5`,
+              ).catch(() => []);
+              const compactar = (v) => String(v || "").replace(/[.\s-]/g, "").toUpperCase();
+              const rutNorm = compactar(cliente.rutEmpresa);
+              const matchRut = (porNombre || []).find((r) => compactar(r.RUT_Empresa) === rutNorm);
+              if (matchRut) {
+                accountId = toText(matchRut.id);
+                reuse.accountReused = true;
+                console.warn(`[create-from-vicky] Capa 4 Account: reusada por nombre desambiguado + RUT id=${accountId}.`);
+              } else {
+                accountId = undefined;
+                console.error(
+                  `[create-from-vicky] Capa 4 Account: sin salida de dedupe (RUT=${cliente.rutEmpresa}). La cotización continúa SIN cuenta (CRM incompleto).`,
+                );
+              }
+            }
           } else {
           console.warn(
             `[create-from-vicky] Capa 3 Account: encontrado existente id=${existingAccountId}. Aplicando update conservador.`,
@@ -956,8 +989,8 @@ module.exports = async function handler(req, res) {
         stage = "create_deal";
         const dealResult = await createRecord("Deals", {
           Deal_Name: `${cliente.empresa} - Cotización Vicky`,
-          Account_Name: { id: accountId },
-          Contact_Name: { id: contactId },
+          ...(accountId ? { Account_Name: { id: accountId } } : {}),
+          ...(contactId ? { Contact_Name: { id: contactId } } : {}),
           Stage: VICKY_DEAL_STAGE,
           Pipeline: "Standard (Standard)",
           Lead_Source: VICKY_LEAD_SOURCE,
@@ -975,6 +1008,15 @@ module.exports = async function handler(req, res) {
         if (!dealId) throw new Error("No se obtuvo dealId");
       }
     }
+    } catch (plumbingError) {
+      if (String(process.env.CRM_STRICT || "") === "1") throw plumbingError;
+      crmIncompleto = true;
+      console.error(
+        `[create-from-vicky] CRM DEGRADADO en stage=${stage}: ${toText(plumbingError?.message || plumbingError).slice(0, 300)}. ` +
+          `La cotización continúa (accountId=${accountId || "∅"}, contactId=${contactId || "∅"}, dealId=${dealId || "∅"}).`,
+      );
+    }
+    if (!accountId || !contactId || !dealId) crmIncompleto = crmIncompleto || !accountId || !dealId;
 
     // ── Cotización: crear nueva o reusar el Borrador en curso ──
     const ufActual = Number(cotizacion.ufActual || 0);
@@ -1050,9 +1092,10 @@ module.exports = async function handler(req, res) {
       const quoteFields = {
         Name: `Cotización ${cliente.empresa} - ${new Date().toISOString().slice(0, 10)}`,
         Owner: EJEC_OWNER,
-        [config.quoteDealLookupField]: { id: dealId },
-        [config.quoteContactLookupField]: { id: contactId },
-        Cuenta_Asociada: { id: accountId },
+        ...(dealId ? { [config.quoteDealLookupField]: { id: dealId } } : {}),
+        ...(contactId ? { [config.quoteContactLookupField]: { id: contactId } } : {}),
+        ...(accountId ? { Cuenta_Asociada: { id: accountId } } : {}),
+        CRM_Incompleto: crmIncompleto,
         [config.quoteDateField]: new Date().toISOString().slice(0, 10),
         [config.quoteStatusField]: "Borrador",
         [config.contactEmailField]: cliente.contactoEmail,
@@ -1090,7 +1133,7 @@ module.exports = async function handler(req, res) {
     stage = "build_acceptance_url";
     const expMs = Date.now() + config.validityDays * 24 * 60 * 60 * 1000;
     const token = signAcceptancePayload({
-      quoteId, dealId,
+      quoteId, dealId: dealId || "",
       iat: Date.now(), exp: expMs,
       nonce: crypto.randomBytes(8).toString("hex"),
       v: 1,
@@ -1102,6 +1145,20 @@ module.exports = async function handler(req, res) {
     // INMEDIATO; el PDF (Chromium headless, lo pesado) + el correo se generan en
     // segundo plano con waitUntil. Así la respuesta baja de ~40-60s a un par de
     // segundos y el link llega siempre (antes el render del PDF la timeouteaba).
+    // Alerta interna best-effort si la entrega fue en modo degradado (sin
+    // Cuenta/Deal): el equipo se entera al instante y el reconciliador ya
+    // está en camino. El cliente jamás ve nada de esto.
+    if (crmIncompleto) {
+      const notifyUrl = toText(process.env.VICKY_AGENT_NOTIFY_URL);
+      const notifySecret = toText(process.env.VICKY_AGENT_CRON_SECRET);
+      if (notifyUrl && notifySecret) {
+        fetch(notifyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-cron-secret": notifySecret },
+          body: JSON.stringify({ evento: "crm_incompleto", empresa: cliente.empresa, numero: quoteId, monto: "" }),
+        }).catch(() => {});
+      }
+    }
     stage = "update_quote_acceptance";
     await updateRecord(config.quoteModule, quoteId, {
       [config.quoteAcceptanceUrlField]: acceptanceUrl,

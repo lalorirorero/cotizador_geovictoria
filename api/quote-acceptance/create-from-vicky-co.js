@@ -443,10 +443,19 @@ module.exports = async function handler(req, res) {
       return acc + subtotal + (it.afectoIva === true ? subtotal * 0.19 : 0);
     }, 0);
 
+    // Principio (16-jul, igual que Chile): LA COTIZACIÓN SIEMPRE SE ENTREGA.
+    // El plumbing CRM es soporte: si falla, se marca CRM_Incompleto y se sigue.
+    // Kill-switch: CRM_STRICT=1 restaura el comportamiento estricto.
+    let crmIncompleto = false;
+    let accountId;
+    let accountReused = false;
+    let contactId;
+    let dealId;
+    try {
     // ── Account: dedup por NIT antes de crear ──
     stage = "find_account_by_nit";
-    let accountId = await findAccountIdByNit(nit, empresa);
-    let accountReused = Boolean(accountId);
+    accountId = await findAccountIdByNit(nit, empresa);
+    accountReused = Boolean(accountId);
 
     if (!accountId) {
       stage = "create_account";
@@ -481,20 +490,38 @@ module.exports = async function handler(req, res) {
             `[create-from-vicky-co] duplicado por nombre con NIT distinto (${nit}); creando cuenta desambiguada.`,
           );
           stage = "create_account_disambiguated";
-          const retryResult = await createRecord(
-            "Accounts",
-            { ...createAccountPayload, Account_Name: `${empresa} (${nit})` },
-            true,
-          );
-          accountId = toText(retryResult?.id);
-          if (!accountId) throw new Error("No se obtuvo accountId (cuenta desambiguada)");
+          const nombreDesambiguado = `${empresa} (${nit})`;
+          try {
+            const retryResult = await createRecord(
+              "Accounts",
+              { ...createAccountPayload, Account_Name: nombreDesambiguado },
+              true,
+            );
+            accountId = toText(retryResult?.id);
+            if (!accountId) throw new Error("No se obtuvo accountId (cuenta desambiguada)");
+          } catch (retryError) {
+            if (!isDuplicateDataError(retryError)) throw retryError;
+            // Capa 4: reusar SOLO si el NIT coincide; si no, seguir sin cuenta.
+            stage = "reuse_account_capa4";
+            const compactar = (v) => String(v || "").replace(/[.\s-]/g, "").toUpperCase();
+            const porNombre = await executeCoqlQuery(
+              `select id, RUT_Empresa from Accounts where Account_Name = '${nombreDesambiguado.replace(/'/g, "''")}' limit 5`,
+            ).catch(() => []);
+            const matchNit = (porNombre || []).find((r) => compactar(r.RUT_Empresa) === compactar(nit));
+            if (matchNit) {
+              accountId = toText(matchNit.id);
+              accountReused = true;
+            } else {
+              accountId = undefined;
+              console.error(`[create-from-vicky-co] Capa 4: sin salida de dedupe (NIT=${nit}); cotización SIN cuenta.`);
+            }
+          }
         }
       }
     }
 
     // ── Contact ──
     stage = "create_contact";
-    let contactId;
     const { firstName, lastName } = splitFullName(contacto);
     try {
       const contactResult = await createRecord("Contacts", {
@@ -502,7 +529,7 @@ module.exports = async function handler(req, res) {
         Last_Name: lastName,
         Email: contactoEmail,
         Phone: contactoTelefono || undefined,
-        Account_Name: { id: accountId },
+        ...(accountId ? { Account_Name: { id: accountId } } : {}),
         Lead_Source: VICKY_CO_LEAD_SOURCE,
         Territorio: VICKY_CO_TERRITORIO,
         Owner: OWNER_CO,
@@ -525,8 +552,8 @@ module.exports = async function handler(req, res) {
     stage = "create_deal";
     const dealResult = await createRecord("Deals", {
       Deal_Name: `${empresa} - Cotización Vicky`,
-      Account_Name: { id: accountId },
-      Contact_Name: { id: contactId },
+      ...(accountId ? { Account_Name: { id: accountId } } : {}),
+      ...(contactId ? { Contact_Name: { id: contactId } } : {}),
       Stage: VICKY_CO_DEAL_STAGE,
       Pipeline: "Standard (Standard)",
       Lead_Source: VICKY_CO_LEAD_SOURCE,
@@ -542,8 +569,17 @@ module.exports = async function handler(req, res) {
       Producto_Soluci_n: VICKY_CO_PRODUCTO,
       Owner: OWNER_CO,
     }, true);
-    const dealId = toText(dealResult?.id);
+    dealId = toText(dealResult?.id);
     if (!dealId) throw new Error("No se obtuvo dealId");
+    } catch (plumbingError) {
+      if (String(process.env.CRM_STRICT || "") === "1") throw plumbingError;
+      crmIncompleto = true;
+      console.error(
+        `[create-from-vicky-co] CRM DEGRADADO en stage=${stage}: ${toText(plumbingError?.message || plumbingError).slice(0, 300)}. ` +
+          `La cotización continúa (accountId=${accountId || "∅"}, contactId=${contactId || "∅"}, dealId=${dealId || "∅"}).`,
+      );
+    }
+    if (!accountId || !dealId) crmIncompleto = true;
 
     // ── Cotización con subform (convención COP en campos UF/CLP) ──
     stage = "create_quote";
@@ -551,9 +587,10 @@ module.exports = async function handler(req, res) {
     const quoteResult = await createRecord(config.quoteModule, {
       Name: `Cotización ${empresa} - ${new Date().toISOString().slice(0, 10)}`,
       Owner: OWNER_CO,
-      [config.quoteDealLookupField]: { id: dealId },
-      [config.quoteContactLookupField]: { id: contactId },
-      Cuenta_Asociada: { id: accountId },
+      ...(dealId ? { [config.quoteDealLookupField]: { id: dealId } } : {}),
+      ...(contactId ? { [config.quoteContactLookupField]: { id: contactId } } : {}),
+      ...(accountId ? { Cuenta_Asociada: { id: accountId } } : {}),
+      CRM_Incompleto: crmIncompleto,
       [config.quoteDateField]: new Date().toISOString().slice(0, 10),
       [config.quoteStatusField]: "Borrador",
       [config.contactEmailField]: contactoEmail,
@@ -578,6 +615,20 @@ module.exports = async function handler(req, res) {
     });
     const acceptanceUrl = `${config.baseUrl}/quote-acceptance.html?token=${encodeURIComponent(token)}`;
 
+    // Alerta interna best-effort si la entrega fue en modo degradado (sin
+    // Cuenta/Deal): el equipo se entera al instante y el reconciliador ya
+    // está en camino. El cliente jamás ve nada de esto.
+    if (crmIncompleto) {
+      const notifyUrl = toText(process.env.VICKY_AGENT_NOTIFY_URL);
+      const notifySecret = toText(process.env.VICKY_AGENT_CRON_SECRET);
+      if (notifyUrl && notifySecret) {
+        fetch(notifyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-cron-secret": notifySecret },
+          body: JSON.stringify({ evento: "crm_incompleto", empresa: empresa, numero: quoteId, monto: "" }),
+        }).catch(() => {});
+      }
+    }
     stage = "update_quote_acceptance";
     await updateRecord(config.quoteModule, quoteId, {
       [config.quoteAcceptanceUrlField]: acceptanceUrl,

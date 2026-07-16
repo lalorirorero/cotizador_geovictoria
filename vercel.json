@@ -59,6 +59,9 @@
     "api/payments/reconcile-pending.js": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/quote-acceptance/reconcile-crm.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -69,6 +72,10 @@
     {
       "path": "/api/payments/reconcile-pending",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/quote-acceptance/reconcile-crm",
+      "schedule": "*/15 * * * *"
     }
   ],
   "routes": [
@@ -76,8 +83,16 @@
       "src": "^/pdf/([^/]+)/([^/]+)$",
       "dest": "https://vuuulrnvxuewudypoioi.supabase.co/storage/v1/object/public/cotizaciones-pdf/$1/$2"
     },
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }
