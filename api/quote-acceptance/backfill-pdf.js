@@ -78,7 +78,8 @@ async function buscarCandidatas(config) {
   const select =
     `select id, Created_Time, ${f.pdf}, ${f.estado}, ${f.aceptacion} ` +
     `from ${config.quoteModule} ` +
-    `where (${f.estado} = 'Enviada') and (${f.pdf} is null) and (${f.aceptacion} is not null) ` +
+    // COQL exige paréntesis ANIDADOS con 2+ ANDs: ((A and B) and C).
+    `where ((${f.estado} = 'Enviada' and ${f.pdf} is null) and ${f.aceptacion} is not null) ` +
     `order by Created_Time desc limit 50`;
   const response = await zohoApiFetch("/crm/v3/coql", {
     method: "POST",
