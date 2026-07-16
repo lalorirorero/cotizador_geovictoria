@@ -104,7 +104,7 @@ module.exports = async function handler(req, res) {
       contact: config.quoteContactLookupField,
     };
     const pendientes = await coql(
-      `select id, Name, ${f.rut}, ${f.email}, ${f.phone}, ${f.deal}, ${f.contact}, Cuenta_Asociada, Grand_Total ` +
+      `select id, Name, ${f.rut}, ${f.email}, ${f.phone}, ${f.deal}, ${f.contact}, Cuenta_Asociada ` +
         `from ${config.quoteModule} where CRM_Incompleto = true limit ${BATCH}`,
     );
     if (!pendientes.length) return sendJson(res, 200, { ok: true, pendientes: 0, reconciliadas: 0 });
@@ -172,7 +172,6 @@ module.exports = async function handler(req, res) {
             ...(contactId ? { Contact_Name: { id: contactId } } : {}),
             Stage: "4. Propuesta Enviada / En Negociación",
             Pipeline: "Standard (Standard)",
-            Amount: Number(q.Grand_Total || 0) || undefined,
             Description: `Deal creado por el reconciliador CRM (cotización ${quoteId} entregada en modo degradado).`,
           }, true).catch(() => null);
           dealId = toText(r?.id);
