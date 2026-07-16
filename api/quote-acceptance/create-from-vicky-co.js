@@ -68,8 +68,8 @@
  *
  * ── AMBIGÜEDADES RESUELTAS (elegido lo más simple, ver COLOMBIA.md) ────────
  *   - Owner de los registros: env VICKY_CO_OWNER_ID si está definida; si no,
- *     se omite (queda el usuario de la API). La ejecutiva Laura Vargas del PDF
- *     es informativa; su user id de Zoho no está confirmado.
+ *     se omite (queda el usuario de la API). Con VICKY_CO_OWNER_ID definida
+ *     los registros quedan a nombre de Alejandro Gordillo (ejecutivo CO).
  *   - Monda_del_trato (picklist obligatorio del Deal): env VICKY_MONEDA_CO,
  *     default "COP". Si el picklist del org rechazara el valor, ajustar la env.
  *   - Amount del Deal = total de la cotización (suma de subtotalCOP + IVA 19%

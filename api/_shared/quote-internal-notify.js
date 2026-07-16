@@ -28,11 +28,12 @@ const NOTIFY_RECIPIENTS = (
   .map((s) => s.trim())
   .filter(Boolean);
 
-// Multi-país: en Colombia la ejecutiva a cargo es Laura Vargas — reemplaza a
-// Anderson (Chile) en las notificaciones de cotizaciones CO. Mismo formato env.
+// Multi-país: en Colombia el ejecutivo a cargo es Alejandro Gordillo —
+// reemplaza a Anderson (Chile) en las notificaciones de cotizaciones CO.
+// Mismo formato env.
 const NOTIFY_RECIPIENTS_CO = (
   process.env.QUOTE_NOTIFY_RECIPIENTS_CO ||
-  "egomez@geovictoria.com,lvargash@geovictoria.com,rlewit@geovictoria.com"
+  "egomez@geovictoria.com,agordillo@geovictoria.com,rlewit@geovictoria.com"
 )
   .split(",")
   .map((s) => s.trim())

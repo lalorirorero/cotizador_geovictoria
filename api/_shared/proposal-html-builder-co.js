@@ -49,12 +49,15 @@ const ORG_CO = {
   ciudad: "Bogotá, Colombia",
 };
 
-// Ejecutiva comercial CO (aparece en meta y pie del PDF).
+// Ejecutivo comercial CO (aparece en meta y pie del PDF). Alejandro Gordillo
+// es quien toma los deals y cotizaciones de Vicky CO (definición Lalo 16-jul,
+// equivalente a Anderson Díaz en Chile). Parametrizado por env para poder
+// cambiarlo sin tocar código; el teléfono es la línea comercial CO.
 const EJEC_CO = {
-  nombre: "Laura Vargas",
-  cargo: "Ejecutiva Comercial",
-  email: "lvargash@geovictoria.com",
-  telefono: "+57 310 609 5259",
+  nombre: (process.env.VICKY_EJECUTIVO_NOMBRE_CO || "Alejandro Gordillo").trim(),
+  cargo: (process.env.VICKY_EJECUTIVO_CARGO_CO || "Ejecutivo Comercial").trim(),
+  email: (process.env.VICKY_EJECUTIVO_EMAIL_CO || "agordillo@geovictoria.com").trim(),
+  telefono: (process.env.VICKY_EJECUTIVO_TELEFONO_CO || "+57 310 609 5259").trim(),
 };
 
 // IVA (decisión 10-jul refinada): SOLO el hardware (reloj arriendo/venta,
