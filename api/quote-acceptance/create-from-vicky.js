@@ -169,11 +169,49 @@ async function convertLead(leadId, dealData, existingIds = {}) {
   // viejas). Parsear solo el string hacía "fallar" conversiones EXITOSAS y el
   // fallback duplicaba cuenta/deal (caso real 08-jul).
   const idFrom = (v) => toText(v && typeof v === "object" ? v.id : v);
-  return {
+  const ids = {
     accountId: idFrom(result.Accounts),
     contactId: idFrom(result.Contacts),
     dealId: idFrom(result.Deals),
   };
+  if (ids.accountId && ids.contactId && ids.dealId) return ids;
+  // La conversión puede COMPLETARSE en Zoho aunque la respuesta venga sin
+  // todos los IDs (caso real 17-jul, Parroquia Santa Filomena: convert OK,
+  // respuesta incompleta → el fallback duplicó cuenta/contacto/deal). Antes
+  // de que el caller lo trate como fallo, se recuperan los IDs desde el
+  // propio lead convertido ($converted_detail).
+  const recovered = await recoverConvertedIds(leadId);
+  return {
+    accountId: ids.accountId || recovered.accountId,
+    contactId: ids.contactId || recovered.contactId,
+    dealId: ids.dealId || recovered.dealId,
+  };
+}
+
+// Recupera los IDs de la conversión desde el lead convertido. Verificado
+// contra el API real (17-jul): GET /Leads?ids={id}&converted=true devuelve
+// $converted_detail = { account, contact, deal } con los ids planos.
+async function recoverConvertedIds(leadId) {
+  try {
+    const response = await zohoApiFetch(
+      `/crm/v3/Leads?ids=${encodeURIComponent(leadId)}&converted=true&fields=id,$converted_detail`,
+    );
+    if (!response.ok) return {};
+    const detail = (await response.json())?.data?.[0]?.["$converted_detail"] || {};
+    const ids = {
+      accountId: toText(detail.account),
+      contactId: toText(detail.contact),
+      dealId: toText(detail.deal),
+    };
+    if (ids.accountId || ids.contactId || ids.dealId) {
+      console.warn(
+        `[create-from-vicky] IDs recuperados de $converted_detail lead=${leadId}: account=${ids.accountId || "-"} contact=${ids.contactId || "-"} deal=${ids.dealId || "-"}`,
+      );
+    }
+    return ids;
+  } catch {
+    return {};
+  }
 }
 
 // ── Helper: enviar email via Zoho CRM send_mail ──
@@ -851,7 +889,33 @@ module.exports = async function handler(req, res) {
           );
           stage = "dedupe_account_by_rut";
           const existingAccountId = await findAccountIdByRut(cliente.rutEmpresa, cliente.empresa);
+          // Homónima con RUT VACÍO: casi seguro es la MISMA empresa registrada
+          // sin RUT (conversión de lead, carga manual de un SDR). Adoptarla y
+          // completarle el RUT es lo que haría un humano — crear la
+          // desambiguada duplica la cuenta (caso real 17-jul, Parroquia).
+          let adoptadaSinRut = false;
           if (!existingAccountId) {
+            const homonimas = await executeCoqlQuery(
+              `select id, RUT_Empresa, Account_Name from Accounts where Account_Name = '${cliente.empresa.replace(/'/g, "''")}' limit 5`,
+            ).catch(() => []);
+            const esInterna = (name) =>
+              INTERNAL_ACCOUNT_NAMES.includes(String(name || "").trim().toLowerCase());
+            const sinRut = (homonimas || []).find(
+              (r) => !String(r.RUT_Empresa || "").trim() && !esInterna(r.Account_Name),
+            );
+            if (sinRut) {
+              accountId = toText(sinRut.id);
+              reuse.accountReused = true;
+              adoptadaSinRut = true;
+              console.warn(
+                `[create-from-vicky] Capa 3 Account: homónima con RUT vacío id=${accountId}; se adopta y se completa RUT=${cliente.rutEmpresa}.`,
+              );
+              await tryReuseRecord("Accounts", accountId, buildAccountFullPayload(cliente, sectorParaZoho)).catch(
+                () => ({ ok: false }),
+              );
+            }
+          }
+          if (!existingAccountId && !adoptadaSinRut) {
             // Duplicado por NOMBRE con RUT distinto: son empresas homónimas, NO
             // la misma. Antes esto botaba la cotización completa (bug real desde
             // may-2026); ahora se crea la cuenta desambiguando el nombre con el
@@ -893,7 +957,7 @@ module.exports = async function handler(req, res) {
                 );
               }
             }
-          } else {
+          } else if (existingAccountId) {
           console.warn(
             `[create-from-vicky] Capa 3 Account: encontrado existente id=${existingAccountId}. Aplicando update conservador.`,
           );
