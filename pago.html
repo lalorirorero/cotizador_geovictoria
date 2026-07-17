@@ -407,11 +407,10 @@
           var t = (state && state.transfer) || {};
           var phone = String(t.whatsappPhone || "").replace(/[^\d]/g, "");
           if (!phone) return "";
-          var nombre = String(t.executiveName || "equipo comercial").trim();
           var cot = String(t.quoteNumber || (state.quote && state.quote.name) || "mi cotización").trim();
           var text =
-            "Hola " + nombre + ", acepte la cotización " + cot +
-            " y voy a pagar por transferencia. Te envío el comprobante para procesar mi pedido.";
+            "Hola! Acepté la cotización " + cot +
+            " y voy a pagar por transferencia. Les envío el comprobante para procesar mi pedido.";
           return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
         }
 
@@ -431,7 +430,7 @@
             "<li><span>Giro</span><strong>Empresa de Servicios Integrales de Informatica</strong></li>" +
             "<li><span>Banco</span><strong>Banco de Chile</strong></li>" +
             "<li><span>Cuenta corriente</span><strong>8001204108</strong></li>" +
-            "<li><span>Email</span><strong>adiazg@geovictoria.com</strong></li>" +
+            "<li><span>Email</span><strong>vicky@geovictoria.com</strong></li>" +
             "</ul>" +
             '<p class="transfer-help">Transfiere el pago inicial de tu cotización e indica el número de ' +
             "cotización. Luego envía el comprobante a tu ejecutivo por WhatsApp para procesar tu pedido.</p>" +

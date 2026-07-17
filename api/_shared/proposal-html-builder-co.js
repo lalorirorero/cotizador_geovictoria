@@ -55,10 +55,10 @@ const ORG_CO = {
 // cambiarlo sin tocar código; el teléfono es el de la ficha de Alejandro
 // en Zoho (decisión Lalo 17-jul, provisorio hasta que él confirme).
 const EJEC_CO = {
-  nombre: (process.env.VICKY_EJECUTIVO_NOMBRE_CO || "Alejandro Gordillo").trim(),
-  cargo: (process.env.VICKY_EJECUTIVO_CARGO_CO || "Ejecutivo Comercial").trim(),
-  email: (process.env.VICKY_EJECUTIVO_EMAIL_CO || "agordillo@geovictoria.com").trim(),
-  telefono: (process.env.VICKY_EJECUTIVO_TELEFONO_CO || "+57 314 267 7765").trim(),
+  nombre: (process.env.VICKY_EJECUTIVO_NOMBRE_CO || "Vicky - Equipo Comercial GeoVictoria").trim(),
+  cargo: (process.env.VICKY_EJECUTIVO_CARGO_CO || "Contacto comercial").trim(),
+  email: (process.env.VICKY_EJECUTIVO_EMAIL_CO || "vicky@geovictoria.com").trim(),
+  telefono: (process.env.VICKY_EJECUTIVO_TELEFONO_CO || "+57 318 107 0737").trim(),
 };
 
 // IVA (decisión 10-jul refinada): SOLO el hardware (reloj arriendo/venta,

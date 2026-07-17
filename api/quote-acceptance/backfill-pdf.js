@@ -39,7 +39,7 @@ const { buildEmailHtml, sendQuoteEmailViaZoho } = require("./create-from-vicky")
 
 // Mismos defaults que create-from-vicky (correo de la cotización).
 const VICKY_FROM_EMAIL = toText(process.env.VICKY_FROM_EMAIL) || "vicky@geovictoria.com";
-const EJEC_EMAIL = "adiazg@geovictoria.com";
+const EJEC_EMAIL = "vicky@geovictoria.com";
 
 // Ventana de gracia: NO tocar cotizaciones demasiado recientes; su render en
 // segundo plano puede seguir corriendo (normalmente termina en < 60s). Tampoco

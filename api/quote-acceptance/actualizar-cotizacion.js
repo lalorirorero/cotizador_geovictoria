@@ -42,9 +42,9 @@ const createFromVicky = require("./create-from-vicky.js");
 const { buildSubformItems, sendQuoteEmailViaZoho, buildEmailHtml } = createFromVicky;
 
 // Identidad del ejecutivo (misma que el flujo de creación).
-const EJEC_NOMBRE = process.env.VICKY_EJECUTIVO_NOMBRE || "Anderson Díaz";
-const EJEC_EMAIL = process.env.VICKY_EJECUTIVO_EMAIL || "adiazg@geovictoria.com";
-const EJEC_TELEFONO = process.env.VICKY_EJECUTIVO_TELEFONO || "+56 9 3937 2058";
+const EJEC_NOMBRE = process.env.VICKY_EJECUTIVO_NOMBRE || "Vicky - Equipo Comercial GeoVictoria";
+const EJEC_EMAIL = process.env.VICKY_EJECUTIVO_EMAIL || "vicky@geovictoria.com";
+const EJEC_TELEFONO = process.env.VICKY_EJECUTIVO_TELEFONO || "+56 9 6730 8227";
 const VICKY_FROM_EMAIL = process.env.VICKY_FROM_EMAIL || "vicky@geovictoria.com";
 
 let waitUntil;

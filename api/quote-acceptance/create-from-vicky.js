@@ -26,7 +26,7 @@ const VICKY_FROM_EMAIL = toText(process.env.VICKY_FROM_EMAIL) || "vicky@geovicto
 const VICKY_REPLY_TO_EMAIL = toText(process.env.VICKY_REPLY_TO_EMAIL) || "egomez@geovictoria.com";
 const VICKY_DEAL_STAGE = toText(process.env.VICKY_DEAL_STAGE_INICIAL) || "4. Propuesta Enviada / En Negociación";
 const VICKY_LEAD_SOURCE = toText(process.env.VICKY_LEAD_SOURCE) || "SEO";
-const VICKY_EJECUTIVO_NAME = toText(process.env.VICKY_EJECUTIVO_NAME) || "Anderson Díaz";
+const VICKY_EJECUTIVO_NAME = toText(process.env.VICKY_EJECUTIVO_NAME) || "Vicky - Equipo Comercial GeoVictoria";
 const VICKY_TERRITORIO = toText(process.env.VICKY_TERRITORIO) || "Chile";
 const VICKY_MONEDA = toText(process.env.VICKY_MONEDA) || "UF";
 const VICKY_TOMBOLA = toText(process.env.VICKY_TOMBOLA) || "Mantener propietario";
@@ -38,11 +38,11 @@ const VICKY_EXPANSION_REGIONAL = toText(process.env.VICKY_EXPANSION_REGIONAL) ||
 // Aparece en el correo y en el PDF, es el reply-to/CC del correo, y queda como
 // Owner de los registros (Account/Contact/Deal/Quote) en Zoho. Verificado:
 // usuario activo id 3525045000426432190.
-const EJEC_NOMBRE = "Anderson Díaz";
+const EJEC_NOMBRE = "Vicky - Equipo Comercial GeoVictoria";
 const EJEC_CARGO = "Ejecutivo Comercial";
-const EJEC_EMAIL = "adiazg@geovictoria.com";
-const EJEC_TELEFONO = "+56 9 3937 2058";
-const EJEC_WHATSAPP = "56939372058";
+const EJEC_EMAIL = "vicky@geovictoria.com";
+const EJEC_TELEFONO = "+56 9 6730 8227";
+const EJEC_WHATSAPP = "56967308227";
 const EJEC_OWNER_ID = "3525045000426432190";
 const EJEC_OWNER = { id: EJEC_OWNER_ID };
 

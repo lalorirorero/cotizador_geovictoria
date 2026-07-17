@@ -314,12 +314,12 @@ function buildProposalHtml({
   const empresa = escapeHtml(cliente.empresa || "EMPRESA");
   const contacto = escapeHtml(cliente.contacto || "");
   const rutEmpresa = escapeHtml(cliente.rutEmpresa || "");
-  const ejecutivo = escapeHtml(cliente.ejecutivo || "Anderson Díaz");
+  const ejecutivo = escapeHtml(cliente.ejecutivo || "Vicky - Equipo Comercial GeoVictoria");
   const ejecutivoEmail = escapeHtml(
-    cliente.ejecutivoEmail || "adiazg@geovictoria.com",
+    cliente.ejecutivoEmail || "vicky@geovictoria.com",
   );
   const ejecutivoTelefono = escapeHtml(
-    cliente.ejecutivoTelefono || "+56 9 3937 2058",
+    cliente.ejecutivoTelefono || "+56 9 6730 8227",
   );
   const cotizNumero = escapeHtml(cotizacionId || "—");
 
