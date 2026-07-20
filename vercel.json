@@ -87,6 +87,10 @@
       "dest": "https://vuuulrnvxuewudypoioi.supabase.co/storage/v1/object/public/cotizaciones-pdf/$1/$2"
     },
     {
+      "src": "^/q/([^/]+)$",
+      "dest": "/api/q?c=$1"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1"
     },
