@@ -1248,6 +1248,21 @@ module.exports = async function handler(req, res) {
         const numeroCotizacion = await getRecordWithFields(config.quoteModule, quoteId, ["Numero_Cotizacion"])
           .then((r) => toText(r?.Numero_Cotizacion))
           .catch(() => "");
+
+        // VISIBILIDAD INTER-CANAL (caso Ingesub, 20-jul): nota en la CUENTA
+        // para que cualquier ejecutivo que abra el registro vea al instante
+        // que el canal digital está activo con este cliente. Best-effort.
+        if (accountId) {
+          createRecord("Notes", {
+            Note_Title: "Vicky emitió cotización formal — canal digital activo",
+            Note_Content:
+              `Vicky generó la cotización formal ${numeroCotizacion || quoteId} para este cliente el ` +
+              new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" }) +
+              ". Si estás trabajando esta cuenta por otro canal, coordinar antes de avanzar (evita ventas en paralelo).",
+            Parent_Id: accountId,
+            $se_module: "Accounts",
+          }).catch(() => {});
+        }
         const html = buildProposalHtml({
           cliente: {
             ...cliente,
