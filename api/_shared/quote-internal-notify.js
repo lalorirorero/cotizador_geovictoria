@@ -174,15 +174,32 @@ const AGENT_NOTIFY_URL = toText(process.env.VICKY_AGENT_NOTIFY_URL);
 const AGENT_CRON_SECRET = toText(process.env.VICKY_AGENT_CRON_SECRET);
 
 async function notifyWhatsApp({ evento, empresa, numero, montoClp, quoteId }) {
-  if (!AGENT_NOTIFY_URL || !AGENT_CRON_SECRET) return;
+  // Sin la config, el aviso al agente NO sale — y con él se pierden el cierre
+  // de cadencia y el traspaso post-pago en tiempo real (el agente tiene un
+  // barrido horario de respaldo, pero el tiempo real vive aquí). Gritarlo en
+  // el log: así fue invisible el caso COT233 (20-jul).
+  if (!AGENT_NOTIFY_URL || !AGENT_CRON_SECRET) {
+    console.warn(
+      `[quote-notify] aviso al agente OMITIDO (faltan VICKY_AGENT_NOTIFY_URL/VICKY_AGENT_CRON_SECRET) evento=${evento} quote=${numero || quoteId}`,
+    );
+    return;
+  }
   try {
-    await fetch(AGENT_NOTIFY_URL, {
+    const res = await fetch(AGENT_NOTIFY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-cron-secret": AGENT_CRON_SECRET },
       // quoteId permite al agente cerrar la cadencia de seguimiento del
       // contacto (nada de nudges ni llamadas a quien ya aceptó/pagó).
       body: JSON.stringify({ evento, empresa, numero, monto: montoClp, quoteId }),
     });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn(
+        `[quote-notify] aviso al agente respondió ${res.status} evento=${evento} quote=${numero || quoteId}: ${text.slice(0, 150)}`,
+      );
+    } else {
+      console.log(`[quote-notify] aviso al agente OK evento=${evento} quote=${numero || quoteId}`);
+    }
   } catch (err) {
     console.warn(`[quote-notify] WhatsApp best-effort falló:`, toText(err?.message || err).slice(0, 150));
   }
