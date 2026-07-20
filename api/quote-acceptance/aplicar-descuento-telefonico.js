@@ -44,7 +44,7 @@ const crypto = require("crypto");
 
 const TOPE_TELEFONICO_PCT = 25;
 const CONDICION_TELEFONICA =
-  "Es el precio que acordamos por teléfono; aplica si pagas dentro de las próximas 24 horas.";
+  "Es el precio que acordamos por teléfono; aplica si pagas dentro de las próximas 72 horas.";
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
