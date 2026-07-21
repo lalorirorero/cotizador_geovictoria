@@ -158,8 +158,17 @@ const CODIGOS_INSTALACION_PDF = new Set(["instalacion_reloj"]);
 // Descripciones por tipo de ítem (oferta actual: asistencia + relojes control)
 // ───────────────────────────────────────────────────────────────────────────
 function descServicio(s) {
+  const nom = String(s.nombre || "").toLowerCase();
+  // Módulo Vacaciones y Permisos (add-on pagado desde 21-jul): descripción
+  // propia — sin esto heredaba el texto de asistencia (que además mencionaba
+  // "vacaciones" como incluido, contradiciendo el cobro del módulo).
+  if (nom.includes("vacacion") || nom.includes("permiso")) {
+    const base =
+      "Solicitud y aprobación digital de vacaciones, días administrativos, licencias y permisos desde la app. Saldos de días calculados automáticamente, con trazabilidad completa.";
+    return s.rango ? `${base} Tramo ${s.rango}.` : base;
+  }
   const base =
-    "Marcaje web, app móvil con GPS y biometría. Gestión de turnos, vacaciones y horas extra. Reportería en línea.";
+    "Marcaje web, app móvil con GPS y biometría. Gestión de turnos y horas extra. Reportería en línea.";
   return s.rango ? `${base} Tramo ${s.rango}.` : base;
 }
 const DESC_EQUIPO =
