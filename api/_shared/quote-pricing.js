@@ -275,8 +275,60 @@ function computePaymentAmountsCO(items) {
   };
 }
 
+// ── MÉXICO ──────────────────────────────────────────────────────────────────
+// Totales MX — IVA 16% POR LÍNEA según el flag Afecto_IVA del subform (en MX,
+// a diferencia de CO, el IVA aplica en general a servicios Y hardware: el
+// agente marca afectoIva=true en las líneas gravadas). Convención espejo de
+// COLOMBIA.md: en MX el subform guarda MXN en los campos *_CLP/*_UF, por eso
+// acá `subtotalClp` se lee como MXN.
+//
+// Buckets espejo de CO: "Pago inicial" = SOLO los pagos únicos (capacitación,
+// venta de reloj, envío, instalación); "Mensualidad" = los recurrentes. MX NO
+// tiene fila de Activación (no existe en la tropicalización MX): la
+// mensualidad se factura desde la activación del servicio.
+//
+// REDONDEO (decisión MX): a CENTAVOS (2 decimales, Math.round(x*100)/100) en
+// vez del redondeo a peso entero de CL/CO. El MXN usa centavos y el IVA 16%
+// sobre precios enteros produce centavos exactos (ej: 16 usuarios × $83 =
+// $1.328 + IVA = $1.540,48) — redondear a entero descontaría el cobro.
+const IVA_RATE_MX = 0.16;
+
+function round2(value) {
+  return Math.round(toNumber(value) * 100) / 100;
+}
+
+function computeTotalsMX(items) {
+  const rows = Array.isArray(items) ? items : [];
+  let pagoInicialNeto = 0;
+  let pagoInicialIva = 0;
+  let mensualidadNeta = 0;
+  let mensualidadIva = 0;
+
+  rows.forEach((row) => {
+    const montoMxn = toNumber(row?.subtotalClp);
+    const ivaMxn = row?.afectoIva === true ? montoMxn * IVA_RATE_MX : 0;
+    if (isRecurrentModalidad(row?.modalidad)) {
+      mensualidadNeta += montoMxn;
+      mensualidadIva += ivaMxn;
+    } else {
+      pagoInicialNeto += montoMxn;
+      pagoInicialIva += ivaMxn;
+    }
+  });
+
+  return {
+    pagoInicialNetoMxn: round2(pagoInicialNeto),
+    pagoInicialIvaMxn: round2(pagoInicialIva),
+    pagoInicialMxn: round2(pagoInicialNeto + pagoInicialIva),
+    mensualidadNetaMxn: round2(mensualidadNeta),
+    mensualidadIvaMxn: round2(mensualidadIva),
+    mensualidadMxn: round2(mensualidadNeta + mensualidadIva),
+  };
+}
+
 module.exports = {
   IVA_RATE,
+  IVA_RATE_MX,
   DEFAULT_FIELD_MAP,
   CODIGOS_INSTALACION,
   sanitizeItems,
@@ -288,4 +340,5 @@ module.exports = {
   computePaymentAmounts,
   computeTotalsCO,
   computePaymentAmountsCO,
+  computeTotalsMX,
 };

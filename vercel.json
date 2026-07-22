@@ -24,6 +24,10 @@
       "memory": 1536,
       "maxDuration": 60
     },
+    "api/quote-acceptance/create-from-vicky-mx.js": {
+      "memory": 1536,
+      "maxDuration": 60
+    },
     "api/quote-acceptance/aplicar-siguiente-descuento.js": {
       "memory": 1536,
       "maxDuration": 60

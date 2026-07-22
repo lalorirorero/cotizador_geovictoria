@@ -7,6 +7,7 @@ const {
   computePaymentAmounts,
   computePaymentAmountsCO,
   computeTotalsCO,
+  computeTotalsMX,
 } = require("../_shared/quote-pricing");
 
 // Minteo del link de pago para un cliente que VUELVE a una cotización ya
@@ -298,13 +299,17 @@ export default async function handler(req, res) {
 
     // País de la cotización. Mecanismo primario: create-from-vicky-co firma el
     // token de aceptación con pais:"co" (cero campos nuevos en Zoho, cero
-    // llamadas extra). Respaldo: Territorio del Deal = "Colombia" (por si un
-    // link CO se re-mintea con otra herramienta). Chile queda igual ("cl").
+    // llamadas extra) y create-from-vicky-mx con pais:"mx". Respaldo:
+    // Territorio del Deal = "Colombia" / "México" (por si un link se re-mintea
+    // con otra herramienta). Chile queda igual ("cl").
+    const paisToken = toText(payload.pais).toLowerCase();
+    const territorioDeal = toText(fallback?.deal?.Territorio);
     const pais =
-      toText(payload.pais).toLowerCase() === "co" ||
-      /colombia/i.test(toText(fallback?.deal?.Territorio))
-        ? "co"
-        : "cl";
+      paisToken === "mx" || /m[eé]xico/i.test(territorioDeal)
+        ? "mx"
+        : paisToken === "co" || /colombia/i.test(territorioDeal)
+          ? "co"
+          : "cl";
 
     if (dealId && dealId !== payload.dealId) {
       sendJson(res, 400, {
@@ -339,7 +344,11 @@ export default async function handler(req, res) {
     const onboardingReady = Boolean(isAcceptedLocked && onboardingUrl && onboardingToken);
     const mpConfig = getMercadoPagoConfig(req);
     const paymentsEnabled = Boolean(mpConfig.enabled);
-    const needsPayment = isAcceptedLocked && paymentsEnabled && !onboardingReady;
+    // MX v1: SIN pago en línea (no hay app de MercadoPago México; el pago es
+    // por transferencia BANORTE, indicada en el PDF). Nunca se mintea un link
+    // de pago para una cotización MX — cobraría con la app chilena en CLP.
+    // CL/CO no cambian.
+    const needsPayment = isAcceptedLocked && paymentsEnabled && !onboardingReady && pais !== "mx";
     const paymentUrl = needsPayment
       ? buildPaymentUrlForQuote(mpConfig, {
           quoteId: payload.quoteId,
@@ -364,7 +373,8 @@ export default async function handler(req, res) {
 
     sendJson(res, 200, {
       success: true,
-      // "co" = Colombia (montos COP finales, sin IVA); "cl" = Chile (sin cambios).
+      // "co" = Colombia (montos COP finales, sin IVA); "mx" = México (MXN,
+      // IVA 16%); "cl" = Chile (sin cambios).
       pais,
       quote: {
         id: payload.quoteId,
@@ -428,10 +438,12 @@ export default async function handler(req, res) {
       items,
       // Chile: totales de siempre. Colombia: además el bloque `co` (IVA 19%
       // solo en las líneas de hardware) con buckets pago inicial /
-      // mensualidad (el front CO usa solo `co`).
+      // mensualidad (el front CO usa solo `co`). México: bloque `mx` (MXN,
+      // IVA 16% por línea afecta, buckets pago inicial / mensualidad).
       totals: {
         ...computeTotals(items, descuentos),
         ...(pais === "co" ? { co: computeTotalsCO(items) } : {}),
+        ...(pais === "mx" ? { mx: computeTotalsMX(items) } : {}),
       },
     });
   } catch (error) {

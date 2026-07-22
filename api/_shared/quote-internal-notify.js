@@ -38,6 +38,16 @@ const NOTIFY_RECIPIENTS_CO = (
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+
+// Multi-país: en México el ejecutivo a cargo es Yahel Segura — reemplaza a
+// Anderson (Chile) en las notificaciones de cotizaciones MX. Mismo formato env.
+const NOTIFY_RECIPIENTS_MX = (
+  process.env.QUOTE_NOTIFY_RECIPIENTS_MX ||
+  "egomez@geovictoria.com,ysegura@geovictoria.com,rlewit@geovictoria.com"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 const SUPPRESS_DOMAINS = (process.env.QUOTE_NOTIFY_SUPPRESS_DOMAINS || "geovictoria.com")
   .split(",")
   .map((s) => s.trim().toLowerCase())
@@ -58,6 +68,32 @@ function shouldNotify({ clientEmail, empresa }) {
   const hay = toText(empresa).toLowerCase();
   if (SUPPRESS_KEYWORDS.some((k) => k && hay.includes(k))) return false;
   return true;
+}
+
+/**
+ * true si la cotización es MÉXICO. Mecanismo primario: el token del link de
+ * aceptación (URL_Aceptacion_Web) viene firmado con pais:"mx" por
+ * create-from-vicky-mx — se decodifica el payload sin verificar firma (solo
+ * decide destinatarios internos). Respaldo: Territorio del Deal = "México".
+ * Best-effort: ante cualquier duda devuelve false (destinatarios de siempre).
+ */
+async function esCotizacionMX(quote, config) {
+  try {
+    const url = toText(quote?.[config?.quoteAcceptanceUrlField || "URL_Aceptacion_Web"]);
+    const m = String(url || "").match(/[?&]token=([^&]+)/);
+    if (m) {
+      const body = decodeURIComponent(m[1]).split(".")[0];
+      const json = Buffer.from(body.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+      if (String(JSON.parse(json)?.pais || "").toLowerCase() === "mx") return true;
+    }
+  } catch (_e) {
+    /* sigue al respaldo por Territorio */
+  }
+  const dealField = toText(config?.quoteDealLookupField) || "Deal_Asociado";
+  const dealId = toText(quote?.[dealField]?.id || quote?.[dealField]);
+  if (!dealId) return false;
+  const deal = await getRecordWithFields("Deals", dealId, ["id", "Territorio"]).catch(() => null);
+  return /m[eé]xico/i.test(toText(deal?.Territorio));
 }
 
 function fmtClp(n) {
@@ -257,11 +293,14 @@ async function notifyQuoteEvent({ config, quote, quoteId, evento }) {
       evento === "pagada" ? "PAGADA" : "ACEPTADA"
     } — ${empresa || "cliente"}`;
     const htmlBody = buildHtml({ evento, empresa, numero, clientEmail, rut, montoClp, dealId, pagosMp });
-    // Multi-país: en cotizaciones CO la ejecutiva es Laura (no Anderson).
+    // Multi-país: en cotizaciones CO la ejecutiva es Laura (no Anderson);
+    // en cotizaciones MX es Yahel Segura. CL sigue con los destinatarios de
+    // siempre.
     const esCO = await esCotizacionCO(quote, null, config).catch(() => false);
-    const recipients = esCO ? NOTIFY_RECIPIENTS_CO : NOTIFY_RECIPIENTS;
+    const esMX = !esCO && (await esCotizacionMX(quote, config).catch(() => false));
+    const recipients = esCO ? NOTIFY_RECIPIENTS_CO : esMX ? NOTIFY_RECIPIENTS_MX : NOTIFY_RECIPIENTS;
     await sendInternalMail({ quoteModule: config.quoteModule, quoteId, subject, htmlBody, recipients });
-    console.log(`[quote-notify] enviado evento=${evento} quote=${numero || quoteId} pais=${esCO ? "co" : "cl"} → ${recipients.join(", ")}`);
+    console.log(`[quote-notify] enviado evento=${evento} quote=${numero || quoteId} pais=${esCO ? "co" : esMX ? "mx" : "cl"} → ${recipients.join(", ")}`);
     // Además del correo: aviso por WhatsApp (best-effort, no bloquea).
     await notifyWhatsApp({ evento, empresa, numero, montoClp, quoteId });
   } catch (err) {

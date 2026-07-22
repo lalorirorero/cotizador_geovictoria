@@ -103,20 +103,29 @@ async function buscarCandidatas(config) {
   });
 }
 
-// ¿Cotización COLOMBIA? create-from-vicky-co firma el token de aceptación con
-// pais:"co"; acá basta decodificar el payload (sin verificar firma: solo se usa
-// para NO rescatar una cotización CO con el builder/correo CHILENOS — le
-// pondría montos en UF y un correo en tuteo). El rescate CO es fase 2.
-function esCotizacionCO(acceptanceUrl) {
+// ¿Cotización COLOMBIA o MÉXICO? create-from-vicky-co firma el token de
+// aceptación con pais:"co" y create-from-vicky-mx con pais:"mx"; acá basta
+// decodificar el payload (sin verificar firma: solo se usa para NO rescatar
+// una cotización CO/MX con el builder/correo CHILENOS — le pondría montos en
+// UF y textos de Chile). El rescate CO/MX es fase 2.
+function paisEnToken(acceptanceUrl) {
   try {
     const m = String(acceptanceUrl || "").match(/[?&]token=([^&]+)/);
-    if (!m) return false;
+    if (!m) return "";
     const body = decodeURIComponent(m[1]).split(".")[0];
     const json = Buffer.from(body.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
-    return String(JSON.parse(json)?.pais || "").toLowerCase() === "co";
+    return String(JSON.parse(json)?.pais || "").toLowerCase();
   } catch {
-    return false;
+    return "";
   }
+}
+
+function esCotizacionCO(acceptanceUrl) {
+  return paisEnToken(acceptanceUrl) === "co";
+}
+
+function esCotizacionMX(acceptanceUrl) {
+  return paisEnToken(acceptanceUrl) === "mx";
 }
 
 // Regenera el PDF de una cotización + reenvía el correo. Espejo del trabajo en
@@ -133,6 +142,10 @@ async function rescatarCotizacion(quoteId, config) {
   // Cotización CO: este cron es chileno (PDF UF + correo en tuteo); saltarla.
   if (esCotizacionCO(quote[config.quoteAcceptanceUrlField])) {
     return { skipped: "cotizacion_co" };
+  }
+  // Cotización MX: mismo motivo (PDF en MXN/IVA 16% con builder propio).
+  if (esCotizacionMX(quote[config.quoteAcceptanceUrlField])) {
+    return { skipped: "cotizacion_mx" };
   }
 
   const descuentos = {
