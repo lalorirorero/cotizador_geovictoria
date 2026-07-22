@@ -385,6 +385,11 @@ function buildOnboardingDraft({
     empresa,
     ejecutivoNombre,
     ejecutivoTelefono,
+    // Dueño del deal (= ejecutivo del país): el registro de onboarding debe
+    // heredarlo — sin esto, la regla por defecto de Zoho lo asignaba a
+    // Anderson (CL) y el correo de bienvenida/widget salían a su nombre
+    // aunque el deal fuera de Yahel (MX). Detectado 22-jul en la prueba MX.
+    ownerId: toText(owner?.id || deal?.Owner?.id),
     sistemas,
     modulosAdicionales,
   };
@@ -407,6 +412,9 @@ async function getOrCreateOnboardingRecord({ config, quoteId, dealId, quote, dra
   }
 
   const createMap = {
+    // Owner explícito = dueño del deal (ejecutivo del país). Si Zoho tiene
+    // una regla de asignación en el módulo, este valor explícito debe primar.
+    ...(draft.ownerId ? { Owner: { id: draft.ownerId } } : {}),
     [config.onboardingNameField]: draft.onboardingName,
     [config.onboardingDealLookupField]: { id: dealId },
     [config.onboardingQuoteLookupField]: { id: quoteId },
