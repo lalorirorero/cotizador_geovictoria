@@ -2086,6 +2086,16 @@
         if (giroLabel) giroLabel.textContent = "Actividad económica *";
         var giroInput = document.getElementById("companyGiro");
         if (giroInput) giroInput.placeholder = "Escribe tu actividad económica";
+        // "Servicios Adicionales sin Costo": la fila "Capacitación inicial"
+        // contradice al cobro MX (la capacitación online es un ítem COBRADO de
+        // $600 — nunca es de regalo). Se elimina solo esa fila.
+        document.querySelectorAll("#sectionIncluded .included-table tbody tr").forEach(function (tr) {
+          if (/capacitaci/i.test(tr.textContent || "")) tr.remove();
+        });
+        // Vocabulario es-mx: "marcación", no "marcaje" (chilenismo).
+        document.querySelectorAll(".benefit-title, .benefit-desc, .about-list p").forEach(function (el) {
+          el.textContent = (el.textContent || "").replace(/marcaje/gi, "marcación");
+        });
       }
 
       // ── Ajustes COLOMBIA (solo cuando la sesión trae pais === "co") ──
