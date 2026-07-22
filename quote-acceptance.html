@@ -2022,6 +2022,72 @@
         return "$" + Math.round(Number(value || 0)).toLocaleString("es-CO");
       }
 
+      // MXN (México): $1,155.36 (es-MX, centavos solo cuando existen). Solo se
+      // usa cuando la sesión viene con pais === "mx".
+      function fmtMXN(value) {
+        var n = Math.round(Number(value || 0) * 100) / 100;
+        return (
+          "$" +
+          n.toLocaleString("es-MX", {
+            minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+            maximumFractionDigits: 2,
+          })
+        );
+      }
+
+      // ── Ajustes MÉXICO (solo cuando la sesión trae pais === "mx") ──
+      // Mismo patrón que applyCountryCO: retoques puntuales sobre el DOM
+      // estático, sin tocar el flujo chileno. Tuteo (como CL), MXN, IVA 16%,
+      // términos espejo del PDF MX (proposal-html-builder-mx.js).
+      function applyCountryMX() {
+        // Tabla de tramos de asistencia chilena (UF): fuera.
+        var pricingSection = document.getElementById("sectionPricing");
+        if (pricingSection) pricingSection.style.display = "none";
+        // Cabecera de costos: 6 columnas, sin UF ni REF. CLP; el IVA (16 %) se
+        // desglosa en los totales y las líneas gravadas se marcan "+ IVA".
+        var costHead = document.querySelector("#sectionCosts .cost-table thead tr");
+        if (costHead) {
+          costHead.innerHTML =
+            "<th>Item</th><th>Tipo</th><th>Modalidad</th><th>Cant.</th>" +
+            "<th>Precio Unit.</th><th>Subtotal (MXN)</th>";
+        }
+        // Términos resumidos MX (espejo de los del PDF mexicano).
+        var summary = document.querySelector("#sectionTerms .terms-summary");
+        if (summary) {
+          summary.innerHTML = [
+            "El pago inicial —al aceptar esta cotización— corresponde a los conceptos de pago único: capacitación y, si aplica, equipos, envío e instalación. La mensualidad del servicio se factura desde la activación.",
+            "Valores en pesos mexicanos (MXN). Los montos no incluyen IVA (16 %), que se agrega donde se indica.",
+            "La mensualidad está sujeta a la cantidad de usuarios de esta cotización: la variación de usuarios activos ajusta el cobro en la facturación del período siguiente.",
+            "Para los relojes en modalidad renta: el servicio incluye mantención y reposición por falla técnica; los equipos son propiedad de GeoVictoria y deben devolverse al término del servicio. Si terminas el servicio con menos de 6 mensualidades de renta pagadas, se cobra el equivalente a 6 mensualidades por reloj.",
+            "Los equipos en modalidad venta incluyen garantía de fábrica de 1 año bajo uso normal.",
+            "Sin cláusula de permanencia: puedes terminar el servicio avisando con 30 días de anticipación.",
+            "Incluye sin costo: soporte de lunes a viernes, actualizaciones, app móvil y portal del colaborador.",
+            "Plataforma en la nube con uptime garantizado de 99,5 %.",
+            "Pago por transferencia bancaria a CHECADOR, S.A. de C.V. — BANORTE, CLABE 072180011614388864.",
+            "Cotización válida por 30 días desde su emisión.",
+          ]
+            .map(function (t) { return "<li>" + t + "</li>"; })
+            .join("");
+        }
+        // El modal de "términos completos" es el texto legal chileno (UF,
+        // Dirección del Trabajo): se oculta; rige el resumen MX.
+        var fullTermsBtn = document.getElementById("openTermsModalBtn");
+        if (fullTermsBtn) fullTermsBtn.style.display = "none";
+        // Formulario de facturación en términos mexicanos.
+        var rutLabel = document.querySelector('label[for="companyRut"]');
+        if (rutLabel) rutLabel.textContent = "RFC *";
+        var rutInput = document.getElementById("companyRut");
+        if (rutInput) rutInput.placeholder = "Ej: CEC2005286R4";
+        var comunaLabel = document.querySelector('label[for="companyComuna"]');
+        if (comunaLabel) comunaLabel.textContent = "Alcaldía / Municipio *";
+        var comunaInput = document.getElementById("companyComuna");
+        if (comunaInput) comunaInput.placeholder = "Escribe tu alcaldía o municipio";
+        var giroLabel = document.querySelector('label[for="companyGiro"]');
+        if (giroLabel) giroLabel.textContent = "Actividad económica *";
+        var giroInput = document.getElementById("companyGiro");
+        if (giroInput) giroInput.placeholder = "Escribe tu actividad económica";
+      }
+
       // ── Ajustes COLOMBIA (solo cuando la sesión trae pais === "co") ──
       // Cambios mínimos y puntuales sobre el DOM estático: ocultar lo que es
       // UF/Chile, encabezados de tabla sin columna UF, términos CO y textos
@@ -2269,9 +2335,15 @@
           // País de la cotización ("co" = Colombia). TODO el ajuste CO de esta
           // página cuelga de este flag; para Chile ("cl") nada cambia.
           const esCO = String(data.pais || "cl").toLowerCase() === "co";
+          // México ("mx"): misma mecánica que CO — todos los ajustes MX de esta
+          // página cuelgan de este flag; para Chile nada cambia.
+          const esMX = String(data.pais || "cl").toLowerCase() === "mx";
           if (esCO) applyCountryCO();
+          if (esMX) applyCountryMX();
           document.getElementById("qName").textContent = q.name || q.id || "-";
-          document.getElementById("qExpiry").textContent = q.expiresAt ? new Date(q.expiresAt).toLocaleString("es-CL") : "-";
+          document.getElementById("qExpiry").textContent = q.expiresAt
+            ? new Date(q.expiresAt).toLocaleString(esMX ? "es-MX" : "es-CL")
+            : "-";
           const pdfLink = document.getElementById("pdfLink");
           pdfLink.href = q.pdfUrl || "#";
           if (q.pdfUrl) {
@@ -2327,6 +2399,25 @@
           }
 
           function itemRowHtml(row) {
+            if (esMX) {
+              // México: 6 columnas sin UF; subtotalClp guarda MXN (convención
+              // "unidad de pricing del país"). El IVA es 16 % y aplica a las
+              // líneas Afecto_IVA=true (en MX: servicios Y hardware) — la fila
+              // lo marca "+ IVA" y los totales lo desglosan. Sin descuentos en
+              // el chat (la escalera vive en el cotizador).
+              const montoMxn = Number(row.subtotalClp || 0);
+              const marcaIvaMx = row.afectoIva === true ? " + IVA" : "";
+              return (
+                "<tr>" +
+                "<td>" + (row.nombre || "-") + "</td>" +
+                "<td>" + inferItemType(row) + "</td>" +
+                "<td>" + normalizeModalidadLabel(row) + "</td>" +
+                "<td>" + Number(row.cantidad || 0) + "</td>" +
+                "<td>" + fmtMXN(row.precioUnitarioClp) + "</td>" +
+                "<td>" + fmtMXN(montoMxn) + marcaIvaMx + "</td>" +
+                "</tr>"
+              );
+            }
             if (esCO) {
               // Colombia: 6 columnas sin UF; subtotalClp guarda COP (convención
               // "unidad de pricing del país"). IVA (10-jul refinado): SOLO el
@@ -2378,7 +2469,7 @@
 
           const itemRowsHtml = rows.length
             ? rows.map(itemRowHtml).join("")
-            : '<tr><td colspan="' + (esCO ? 6 : 8) + '">Sin datos.</td></tr>';
+            : '<tr><td colspan="' + (esCO || esMX ? 6 : 8) + '">Sin datos.</td></tr>';
 
           // Valor mensual: el servidor ya entrega el recurrente NETO (con el
           // descuento aplicado). Mostramos el bruto tachado cuando hay descuento.
@@ -2392,7 +2483,42 @@
           var mensualUfBruto = recUfBruto * 1.19;
 
           let totalsRowsHtml;
-          if (esCO) {
+          if (esMX) {
+            // México: totales del bloque `mx` del servidor (computeTotalsMX,
+            // IVA 16 % sobre las líneas Afecto_IVA — en MX aplica a servicios
+            // Y hardware). Sin fila de Activación: en MX no existe; la
+            // mensualidad se factura desde la activación del servicio. Espejo
+            // de los bloques "PAGO INICIAL" / "MENSUALIDAD" del PDF MX.
+            const mx = totals.mx || {};
+            totalsRowsHtml =
+              '<tr class="cost-row-sub"><td colspan="5">Conceptos de pago único (incluye capacitación)</td><td>' +
+              fmtMXN(mx.pagoInicialNetoMxn) + "</td></tr>";
+            if (Number(mx.pagoInicialIvaMxn || 0) > 0) {
+              totalsRowsHtml +=
+                '<tr class="cost-row-sub"><td colspan="5">IVA (16 %)</td><td>' +
+                fmtMXN(mx.pagoInicialIvaMxn) + "</td></tr>";
+            }
+            totalsRowsHtml +=
+              '<tr class="cost-row-total"><td colspan="5">Pago inicial — al aceptar</td><td>' +
+              fmtMXN(mx.pagoInicialMxn) + " MXN</td></tr>";
+            if (Number(mx.mensualidadMxn || 0) > 0) {
+              if (Number(mx.mensualidadIvaMxn || 0) > 0) {
+                totalsRowsHtml +=
+                  '<tr class="cost-row-sub"><td colspan="5">Mensualidad del servicio (neto)</td><td>' +
+                  fmtMXN(mx.mensualidadNetaMxn) + "</td></tr>" +
+                  '<tr class="cost-row-sub"><td colspan="5">IVA (16 %)</td><td>' +
+                  fmtMXN(mx.mensualidadIvaMxn) + "</td></tr>";
+              }
+              totalsRowsHtml +=
+                '<tr class="cost-row-sub"><td colspan="5">Total mensual</td><td>' +
+                fmtMXN(mx.mensualidadMxn) + " MXN/mes</td></tr>";
+            }
+            totalsRowsHtml +=
+              '<tr><td colspan="6" style="font-size:11px;color:#6b7280;padding-top:6px;line-height:1.5">' +
+              "El <b>Pago inicial</b> se cobra al aceptar y corresponde a los conceptos de pago &uacute;nico (capacitaci&oacute;n y, si aplica, equipos, env&iacute;o e instalaci&oacute;n). " +
+              "La <b>mensualidad</b> se factura desde la activaci&oacute;n del servicio; la variaci&oacute;n de usuarios activos la ajusta en la facturaci&oacute;n del per&iacute;odo siguiente." +
+              "</td></tr>";
+          } else if (esCO) {
             // Colombia: totales del bloque `co` del servidor (computeTotalsCO
             // aplica IVA 19% SOLO a las líneas Afecto_IVA=true — hardware; el
             // resto son precios finales). Las filas de IVA aparecen solo si
@@ -2491,7 +2617,18 @@
           const costHighlight = document.getElementById("costHighlight");
           if (costHighlight) {
             let chHtml;
-            if (esCO) {
+            if (esMX) {
+              // México: montos con IVA 16 % incluido desde computeTotalsMX.
+              const mx = totals.mx || {};
+              chHtml =
+                '<div class="ch-item"><span>Pago inicial — al aceptar (incluye capacitación)</span><strong>' +
+                fmtMXN(mx.pagoInicialMxn) + " MXN</strong></div>";
+              if (Number(mx.mensualidadMxn || 0) > 0) {
+                chHtml +=
+                  '<div class="ch-item"><span>Mensualidad del servicio</span><strong>' +
+                  fmtMXN(mx.mensualidadMxn) + " MXN/mes</strong></div>";
+              }
+            } else if (esCO) {
               // Colombia: pago inicial y mensualidad ya vienen con el IVA del
               // hardware incluido desde computeTotalsCO.
               const co = totals.co || {};
@@ -2520,9 +2657,11 @@
           if (ufNote) {
             // CO: sin referencia a UF y sin nota tributaria (precios finales
             // 10-jul: el IVA no se menciona en ninguna superficie del cliente).
-            ufNote.textContent = esCO
-              ? "* Valores en pesos colombianos (COP)."
-              : formatCLPReferenceNote(q, data.totals || {});
+            ufNote.textContent = esMX
+              ? "* Valores en pesos mexicanos (MXN). Los montos no incluyen IVA (16 %), que se agrega donde se indica."
+              : esCO
+                ? "* Valores en pesos colombianos (COP)."
+                : formatCLPReferenceNote(q, data.totals || {});
           }
 
           renderAsistenciaPricingTable();
